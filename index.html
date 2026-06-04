@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Milkam Revenue</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --navy:#1C2B3A;--navy2:#243447;--navy3:#2E4058;--navy4:#162030;
+  --gold:#C8922A;--gold2:#E0A830;--gold3:#F5E6C8;
+  --white:#FFFFFF;--off:#F7F4EF;--off2:#EEE9DF;--off3:#E5E0D5;
+  --text:#1C2B3A;--textm:#4A5A6A;--texts:#8A9AA8;
+  --ok:#1D9E75;--warn:#EF9F27;--bad:#E24B4A;
+  --border:rgba(28,43,58,0.11);--borderl:rgba(28,43,58,0.06);
+  --sans:'DM Sans',sans-serif;--mono:'DM Mono',monospace;--serif:'Playfair Display',serif;
+  --r:10px;--rl:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--sans);background:var(--off);color:var(--text);font-size:14px}
+
+/* ── SCREENS ─────────────────────────────── */
+.screen{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:var(--navy4)}
+.screen.hidden{display:none}
+.screen-bg{position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(200,146,42,0.03) 0px,rgba(200,146,42,0.03) 1px,transparent 1px,transparent 40px)}
+
+/* PROPERTY SELECT SCREEN */
+.select-logo{font-family:var(--serif);font-size:22px;font-weight:700;color:var(--white);letter-spacing:0.02em;margin-bottom:4px}
+.select-sub{font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:40px}
+.prop-cards{display:flex;flex-direction:column;gap:12px;width:100%;max-width:340px}
+.prop-card{background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.1);border-radius:14px;padding:18px 20px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:14px}
+.prop-card:hover{background:rgba(200,146,42,0.12);border-color:rgba(200,146,42,0.4);transform:translateY(-1px)}
+.prop-card-icon{width:40px;height:40px;border-radius:10px;background:rgba(200,146,42,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.prop-card-info{flex:1;text-align:left}
+.prop-card-name{font-size:14px;font-weight:600;color:var(--white);margin-bottom:2px}
+.prop-card-brand{font-size:11px;color:rgba(255,255,255,0.4)}
+.prop-card-arrow{color:rgba(255,255,255,0.25);font-size:16px}
+.owner-link{margin-top:28px;font-size:11px;color:rgba(255,255,255,0.3);cursor:pointer;letter-spacing:0.08em;text-transform:uppercase;transition:color 0.15s}
+.owner-link:hover{color:var(--gold)}
+
+/* PIN / OWNER CARD */
+.auth-card{position:relative;background:var(--navy2);border:0.5px solid rgba(200,146,42,0.25);border-radius:20px;padding:32px;width:340px;box-shadow:0 32px 80px rgba(0,0,0,0.4)}
+.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
+.auth-mark{width:38px;height:38px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.auth-mark span{font-family:var(--serif);font-size:14px;color:var(--navy);font-weight:700}
+.auth-title{color:var(--white);font-size:16px;font-family:var(--serif)}
+.auth-sub{font-size:11px;color:rgba(255,255,255,0.35);margin-top:2px}
+.auth-hotel{font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:20px;padding:10px 14px;background:rgba(255,255,255,0.05);border-radius:8px;border:0.5px solid rgba(255,255,255,0.08)}
+.pin-lbl{font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.35);margin-bottom:12px}
+.pin-dots{display:flex;gap:14px;justify-content:center;margin-bottom:22px}
+.pin-dot{width:13px;height:13px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.2);background:transparent;transition:all 0.12s}
+.pin-dot.on{background:var(--gold);border-color:var(--gold);box-shadow:0 0 10px rgba(200,146,42,0.5)}
+.pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pk{background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;padding:13px;color:var(--white);font-size:20px;font-weight:500;cursor:pointer;text-align:center;user-select:none;transition:all 0.1s;font-family:var(--sans)}
+.pk:hover{background:rgba(200,146,42,0.18);border-color:rgba(200,146,42,0.4)}
+.pk:active{transform:scale(0.94)}
+.pk.sm{font-size:13px;color:rgba(255,255,255,0.4)}
+.auth-err{font-size:11px;color:#f87171;text-align:center;margin-top:10px;min-height:15px}
+.auth-link{margin-top:16px;text-align:center;font-size:12px;color:rgba(255,255,255,0.3)}
+.auth-link a{color:var(--gold);cursor:pointer}
+.owner-input{width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.12);border-radius:8px;color:var(--white);font-size:14px;font-family:var(--mono);margin-bottom:12px;outline:none;transition:border-color 0.15s}
+.owner-input:focus{border-color:var(--gold)}
+.owner-btn{width:100%;padding:11px;background:var(--gold);color:var(--navy);border:none;border-radius:8px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;transition:opacity 0.15s}
+.owner-btn:hover{opacity:0.88}
+
+/* CONFIG SCREEN */
+.cfg-card{position:relative;background:var(--navy2);border:0.5px solid rgba(200,146,42,0.2);border-radius:20px;padding:32px;width:460px}
+.cfg-title{color:var(--white);font-family:var(--serif);font-size:18px;margin-bottom:6px}
+.cfg-sub{font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:24px}
+.cfg-label{font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.35);margin-bottom:5px;display:block}
+.cfg-input{width:100%;padding:9px 12px;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.1);border-radius:7px;color:var(--white);font-family:var(--mono);font-size:12px;margin-bottom:14px;outline:none;transition:border-color 0.15s}
+.cfg-input:focus{border-color:var(--gold)}
+.cfg-footer{font-size:10px;color:rgba(255,255,255,0.2);text-align:center;margin-top:16px}
+
+/* ── MAIN APP ────────────────────────────── */
+.app{display:flex;flex-direction:column;height:100%;overflow:hidden}
+
+/* TOPBAR */
+.topbar{background:var(--navy);height:52px;display:flex;align-items:center;padding:0 18px;gap:0;flex-shrink:0;border-bottom:1px solid rgba(200,146,42,0.15)}
+.tb-mark{width:28px;height:28px;background:var(--gold);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tb-mark span{font-family:var(--serif);font-size:11px;color:var(--navy);font-weight:700}
+.tb-wordmark{color:var(--white);font-family:var(--serif);font-size:15px;margin-left:8px;letter-spacing:0.01em}
+.tb-div{width:0.5px;height:20px;background:rgba(255,255,255,0.12);margin:0 14px}
+.htabs{display:flex;gap:3px;flex:1;overflow-x:auto}
+.htabs::-webkit-scrollbar{display:none}
+.htab{padding:5px 13px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:0.5px solid transparent;color:rgba(255,255,255,0.35);white-space:nowrap;transition:all 0.14s;letter-spacing:0.02em;background:none}
+.htab:hover{color:rgba(255,255,255,0.65);background:rgba(255,255,255,0.05)}
+.htab.active{background:var(--gold);color:var(--navy);border-color:var(--gold)}
+.htab.locked{opacity:0.35;cursor:default}
+.htab.add{color:rgba(255,255,255,0.25);font-size:15px;padding:2px 10px}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+.period-nav{display:flex;align-items:center;gap:5px}
+.pnav-btn{width:24px;height:24px;background:rgba(255,255,255,0.07);border:0.5px solid rgba(255,255,255,0.12);border-radius:4px;color:rgba(255,255,255,0.6);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all 0.1s;font-family:var(--sans)}
+.pnav-btn:hover{background:rgba(200,146,42,0.2);border-color:var(--gold);color:var(--gold)}
+#periodLabel{font-size:11px;font-weight:600;color:var(--white);min-width:88px;text-align:center;font-family:var(--mono)}
+.tb-icon{width:30px;height:30px;background:rgba(255,255,255,0.07);border:0.5px solid rgba(255,255,255,0.12);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,0.55);font-size:14px;transition:all 0.14s}
+.tb-icon:hover{background:rgba(200,146,42,0.2);border-color:var(--gold);color:var(--gold)}
+.portal-btn{padding:5px 13px;background:var(--gold);color:var(--navy);border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);letter-spacing:0.02em;transition:opacity 0.14s}
+.portal-btn:hover{opacity:0.85}
+
+/* HOTEL BAND */
+.hotel-band{background:var(--navy2);padding:10px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid rgba(255,255,255,0.06);flex-shrink:0}
+.hb-name{color:var(--white);font-size:13px;font-weight:600}
+.hb-meta{font-size:11px;color:rgba(255,255,255,0.35);margin-top:1px}
+.hb-right{display:flex;gap:6px}
+.badge{padding:3px 9px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:0.04em}
+.badge-ok{background:rgba(29,158,117,0.18);color:#3dd68c}
+.badge-gold{background:rgba(200,146,42,0.18);color:var(--gold2)}
+.badge-warn{background:rgba(239,159,39,0.15);color:#EF9F27}
+
+/* MAIN AREA */
+.main{flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative}
+
+/* DASHBOARD */
+.dashboard{flex:1;overflow-y:auto;padding:16px 18px}
+.dashboard::-webkit-scrollbar{width:4px}
+.dashboard::-webkit-scrollbar-thumb{background:var(--off3);border-radius:2px}
+
+/* METRICS GRID */
+.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
+.mcard{border-radius:var(--rl);padding:14px 16px;position:relative;overflow:hidden}
+.mcard.c-navy{background:var(--navy);color:var(--white)}
+.mcard.c-gold{background:var(--gold);color:var(--navy)}
+.mcard.c-teal{background:#0F6E56;color:var(--white)}
+.mcard.c-amber{background:#7A4510;color:var(--white)}
+.mc-label{font-size:10px;text-transform:uppercase;letter-spacing:0.11em;opacity:0.55;margin-bottom:7px}
+.mc-val{font-size:22px;font-weight:600;font-family:var(--serif);line-height:1;margin-bottom:5px}
+.mc-sub{font-size:11px;opacity:0.75}
+.mc-sub .up{color:#3dd68c}
+.mc-sub .dn{color:#f87171}
+.pbar{height:2px;background:rgba(255,255,255,0.18);border-radius:1px;margin-top:10px;overflow:hidden}
+.pbar-f{height:100%;border-radius:1px;background:rgba(255,255,255,0.65)}
+.mcard.c-gold .pbar{background:rgba(28,43,58,0.18)}
+.mcard.c-gold .pbar-f{background:rgba(28,43,58,0.5)}
+
+/* CONTENT GRID */
+.cgrid{display:grid;grid-template-columns:1fr 300px;gap:12px}
+
+/* PANELS */
+.panel{background:var(--white);border:0.5px solid var(--border);border-radius:var(--r);overflow:hidden}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:0.5px solid var(--borderl);background:var(--off)}
+.ph-t{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--textm)}
+.ph-r{display:flex;align-items:center;gap:6px}
+.ghost-btn{padding:3px 9px;background:transparent;border:0.5px solid var(--border);border-radius:4px;color:var(--textm);font-size:10px;cursor:pointer;font-family:var(--sans);transition:all 0.12s}
+.ghost-btn:hover{border-color:var(--gold);color:var(--gold)}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse}
+th{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--texts);padding:8px 12px;text-align:left;border-bottom:0.5px solid var(--borderl);background:var(--off);white-space:nowrap}
+td{padding:9px 12px;font-size:12px;border-bottom:0.5px solid var(--borderl);color:var(--text)}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#faf8f4}
+.mono{font-family:var(--mono);font-size:11px}
+.up{color:var(--ok)}
+.dn{color:var(--bad)}
+.muted{color:var(--texts)}
+.tag{font-size:9px;padding:2px 6px;border-radius:3px;font-weight:600;white-space:nowrap;letter-spacing:0.03em}
+.tag-d{background:rgba(29,158,117,0.1);color:#0F6E56}
+.tag-m{background:rgba(200,146,42,0.13);color:#7A4510}
+
+/* RIGHT COL */
+.rcol{display:flex;flex-direction:column;gap:10px}
+.brow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--borderl)}
+.brow:last-child{border-bottom:none}
+.br-label{font-size:11px;color:var(--textm)}
+.br-val{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text)}
+.brows{padding:8px 14px}
+.ytd-row{margin-bottom:9px}
+.ytd-hdr{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px}
+.ytd-label{color:var(--textm)}
+.ytd-section{padding:12px 14px}
+.ybar{height:4px;background:var(--off2);border-radius:2px;overflow:hidden}
+.ybar-f{height:100%;border-radius:2px}
+.empty-state{padding:32px;text-align:center;color:var(--texts);font-size:12px}
+.ann{padding:6px 12px 8px;font-size:10px;color:var(--texts);font-style:italic;border-top:0.5px solid var(--borderl)}
+
+/* BUDGET MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;display:none;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--white);border-radius:var(--rl);padding:24px;width:380px;border:0.5px solid var(--border)}
+.modal-title{font-size:15px;font-family:var(--serif);font-weight:600;margin-bottom:18px;color:var(--text)}
+.form-row{margin-bottom:12px}
+.form-label{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--textm);margin-bottom:4px;display:block}
+.form-input{width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:6px;background:var(--off);color:var(--text);font-family:var(--mono);font-size:12px;outline:none;transition:border-color 0.14s}
+.form-input:focus{border-color:var(--gold)}
+.form-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-actions{display:flex;gap:8px;margin-top:16px}
+.btn-cancel{flex:1;padding:9px;background:transparent;border:0.5px solid var(--border);border-radius:7px;color:var(--textm);font-family:var(--sans);font-size:12px;cursor:pointer}
+.btn-save{flex:2;padding:9px;background:var(--navy);color:var(--white);border:none;border-radius:7px;font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:opacity 0.14s}
+.btn-save:hover{opacity:0.88}
+.form-msg{font-size:11px;padding:7px 10px;border-radius:5px;margin-top:8px;display:none}
+.form-msg.ok{background:rgba(29,158,117,0.1);color:var(--ok);display:block}
+.form-msg.err{background:rgba(226,75,74,0.1);color:var(--bad);display:block}
+
+/* ── DETAIL PORTAL ───────────────────────── */
+.portal{position:absolute;inset:0;background:var(--off);transform:translateX(100%);transition:transform 0.32s cubic-bezier(0.4,0,0.2,1);display:flex;flex-direction:column;z-index:10}
+.portal.open{transform:translateX(0)}
+.portal-top{background:var(--navy);height:52px;display:flex;align-items:center;padding:0 18px;gap:10px;flex-shrink:0;border-bottom:1px solid rgba(200,146,42,0.15)}
+.back-btn{width:30px;height:30px;background:rgba(255,255,255,0.07);border:0.5px solid rgba(255,255,255,0.12);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,0.6);font-size:16px;transition:all 0.12s;flex-shrink:0}
+.back-btn:hover{background:rgba(200,146,42,0.2);border-color:var(--gold);color:var(--gold)}
+.portal-title{color:var(--white);font-family:var(--serif);font-size:15px}
+.portal-sub{font-size:11px;color:rgba(255,255,255,0.35);margin-left:6px}
+.portal-right{margin-left:auto;display:flex;gap:4px}
+.ptab{padding:4px 11px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;border:0.5px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.45);background:transparent;transition:all 0.12s;font-family:var(--sans);letter-spacing:0.03em}
+.ptab.active{background:var(--gold);color:var(--navy);border-color:var(--gold)}
+.ptab:hover:not(.active){color:rgba(255,255,255,0.7);border-color:rgba(255,255,255,0.25)}
+.portal-content{flex:1;overflow-y:auto;padding:14px 18px}
+.portal-content::-webkit-scrollbar{width:4px}
+.portal-content::-webkit-scrollbar-thumb{background:var(--off3);border-radius:2px}
+.sec-hdr{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.14em;color:var(--texts);margin:14px 0 8px;display:flex;align-items:center;gap:8px}
+.sec-hdr::after{content:'';flex:1;height:0.5px;background:var(--borderl)}
+.pgrid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.pgrid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
+.scard{background:var(--white);border:0.5px solid var(--border);border-radius:var(--r);padding:12px 14px;position:relative;overflow:hidden}
+.scard-top{position:absolute;top:0;left:0;right:0;height:2px}
+.sc-label{font-size:9px;text-transform:uppercase;letter-spacing:0.11em;color:var(--texts);margin-bottom:5px}
+.sc-val{font-size:18px;font-weight:600;font-family:var(--serif);line-height:1;margin-bottom:4px}
+.sc-sub{font-size:10px;color:var(--textm)}
+.pay-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--borderl)}
+.pay-row:last-child{border-bottom:none}
+.pay-lbl{font-size:11px;color:var(--textm);width:90px;flex-shrink:0}
+.pay-track{flex:1;height:5px;background:var(--off2);border-radius:2px;overflow:hidden}
+.pay-fill{height:100%;border-radius:2px;transition:width 0.5s ease}
+.pay-amt{font-family:var(--mono);font-size:11px;font-weight:500;min-width:70px;text-align:right;color:var(--text)}
+.pay-pct{font-size:10px;color:var(--texts);min-width:30px;text-align:right}
+.pay-body{padding:10px 14px}
+.act-row{display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-bottom:0.5px solid var(--borderl)}
+.act-row:last-child{border-bottom:none}
+.act-row:hover{background:#faf8f4}
+.act-icon{width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px}
+.act-body{flex:1;min-width:0}
+.act-action{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--textm);margin-bottom:2px}
+.act-detail{font-size:11px;color:var(--text)}
+.act-meta{font-size:10px;color:var(--texts);margin-top:2px}
+.act-time{font-family:var(--mono);font-size:10px;color:var(--texts);flex-shrink:0;padding-top:2px}
+.room-chip{font-family:var(--mono);font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px;background:rgba(28,43,58,0.07);color:var(--navy);white-space:nowrap}
+.tag-correction{background:rgba(239,159,39,0.12);color:#7A4510}
+.tag-discretion{background:rgba(226,75,74,0.1);color:#7a1f1f}
+.tag-transfer{background:rgba(28,43,58,0.07);color:var(--textm)}
+.loading-row{padding:20px;text-align:center;font-size:12px;color:var(--texts)}
+
+/* SETTINGS DRAWER */
+.settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:300;display:none;justify-content:flex-end}
+.settings-overlay.open{display:flex}
+.settings-drawer{background:var(--white);width:360px;height:100%;overflow-y:auto;border-left:0.5px solid var(--border);display:flex;flex-direction:column}
+.sd-top{background:var(--navy);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.sd-title{color:var(--white);font-family:var(--serif);font-size:15px}
+.sd-close{color:rgba(255,255,255,0.5);cursor:pointer;font-size:20px;line-height:1;background:none;border:none;padding:0}
+.sd-section{padding:14px 18px;border-bottom:0.5px solid var(--borderl)}
+.sd-sec-title{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:var(--texts);margin-bottom:12px}
+.sd-row{margin-bottom:10px}
+.sd-label{font-size:11px;color:var(--textm);margin-bottom:4px;display:block}
+.sd-input{width:100%;padding:7px 10px;border:0.5px solid var(--border);border-radius:6px;background:var(--off);color:var(--text);font-family:var(--mono);font-size:12px;outline:none;transition:border-color 0.14s}
+.sd-input:focus{border-color:var(--gold)}
+.sd-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sd-btn{padding:8px 14px;background:var(--navy);color:var(--white);border:none;border-radius:6px;font-family:var(--sans);font-size:11px;font-weight:600;cursor:pointer;transition:opacity 0.14s}
+.sd-btn:hover{opacity:0.85}
+.sd-btn.gold{background:var(--gold);color:var(--navy)}
+.sd-note{font-size:10px;color:var(--texts);font-style:italic;margin-top:6px}
+.sd-msg{font-size:11px;padding:6px 10px;border-radius:5px;margin-top:8px;display:none}
+.sd-msg.ok{background:rgba(29,158,117,0.1);color:var(--ok);display:block}
+.sd-msg.err{background:rgba(226,75,74,0.1);color:var(--bad);display:block}
+</style>
+</head>
+<body>
+
+<!-- CONFIG SCREEN -->
+
+<!-- PROPERTY SELECT SCREEN -->
+<div class="screen hidden" id="selectScreen">
+  <div class="screen-bg"></div>
+  <div class="auth-card" style="width:340px">
+    <div class="select-logo">Milkam Hospitality</div>
+    <div class="select-sub">Revenue Tracker</div>
+    <div class="prop-cards" id="propCards">
+      <!-- populated by JS -->
+    </div>
+    <div class="owner-link" onclick="showOwnerScreen()">⬡ Owner Access</div>
+  </div>
+</div>
+
+<!-- PIN SCREEN -->
+<div class="screen hidden" id="pinScreen">
+  <div class="screen-bg"></div>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-mark"><span>MH</span></div>
+      <div><div class="auth-title">Milkam Revenue</div><div class="auth-sub">Hospitality · Wake Forest, NC</div></div>
+    </div>
+    <div class="auth-hotel" id="pinHotelName">Select a property</div>
+    <div class="pin-lbl">Enter PIN</div>
+    <div class="pin-dots" id="pinDots">
+      <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
+    </div>
+    <div class="pin-grid">
+      <div class="pk" onclick="pinPress('1')">1</div><div class="pk" onclick="pinPress('2')">2</div><div class="pk" onclick="pinPress('3')">3</div>
+      <div class="pk" onclick="pinPress('4')">4</div><div class="pk" onclick="pinPress('5')">5</div><div class="pk" onclick="pinPress('6')">6</div>
+      <div class="pk" onclick="pinPress('7')">7</div><div class="pk" onclick="pinPress('8')">8</div><div class="pk" onclick="pinPress('9')">9</div>
+      <div class="pk" style="visibility:hidden"></div><div class="pk" onclick="pinPress('0')">0</div>
+      <div class="pk sm" onclick="pinDel()">⌫</div>
+    </div>
+    <div class="auth-err" id="pinErr"></div>
+    <div class="auth-link">Owner access? <a onclick="showOwnerScreen()">Sign in here</a></div>
+  </div>
+</div>
+
+<!-- OWNER SCREEN -->
+<div class="screen hidden" id="ownerScreen">
+  <div class="screen-bg"></div>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-mark"><span>MH</span></div>
+      <div><div class="auth-title">Owner Access</div><div class="auth-sub">Full access to all properties</div></div>
+    </div>
+    <input id="ownerPw" class="owner-input" type="password" placeholder="Password"/>
+    <button class="owner-btn" onclick="ownerLogin()">Sign In</button>
+    <div class="auth-err" id="ownerErr"></div>
+    <div class="auth-link"><a onclick="show('selectScreen')">← Back</a></div>
+  </div>
+</div>
+
+<!-- GM PIN SCREEN -->
+<div class="screen hidden" id="gmScreen">
+  <div class="screen-bg"></div>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-mark"><span>MH</span></div>
+      <div><div class="auth-title">GM Access Required</div><div class="auth-sub">Detail portal · GM or Owner only</div></div>
+    </div>
+    <div class="auth-hotel" id="gmHotelName">Candlewood WF</div>
+    <div class="pin-lbl">Enter GM PIN</div>
+    <div class="pin-dots" id="gmDots">
+      <div class="pin-dot" id="gd0"></div><div class="pin-dot" id="gd1"></div>
+      <div class="pin-dot" id="gd2"></div><div class="pin-dot" id="gd3"></div>
+    </div>
+    <div class="pin-grid">
+      <div class="pk" onclick="gmPress('1')">1</div><div class="pk" onclick="gmPress('2')">2</div><div class="pk" onclick="gmPress('3')">3</div>
+      <div class="pk" onclick="gmPress('4')">4</div><div class="pk" onclick="gmPress('5')">5</div><div class="pk" onclick="gmPress('6')">6</div>
+      <div class="pk" onclick="gmPress('7')">7</div><div class="pk" onclick="gmPress('8')">8</div><div class="pk" onclick="gmPress('9')">9</div>
+      <div class="pk" style="visibility:hidden"></div><div class="pk" onclick="gmPress('0')">0</div>
+      <div class="pk sm" onclick="gmDel()">⌫</div>
+    </div>
+    <div class="auth-err" id="gmErr"></div>
+    <div class="auth-link"><a onclick="cancelGm()">Cancel</a></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="app" id="app" style="display:none">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="tb-mark"><span>MH</span></div>
+    <div class="tb-wordmark">Revenue</div>
+    <div class="tb-div"></div>
+    <div class="htabs" id="hotelTabs"></div>
+    <div class="tb-right">
+      <div class="period-nav">
+        <button class="pnav-btn" onclick="shiftMonth(-1)">←</button>
+        <span id="periodLabel"></span>
+        <button class="pnav-btn" onclick="shiftMonth(1)">→</button>
+      </div>
+      <button class="portal-btn" onclick="openPortal()">Detail Portal</button>
+      <div class="tb-icon" onclick="openSettings()" title="Settings">⚙</div>
+      <div class="tb-icon" onclick="lockApp()" title="Lock">🔒</div>
+    </div>
+  </div>
+
+  <!-- HOTEL BAND -->
+  <div class="hotel-band">
+    <div>
+      <div class="hb-name" id="bandName">—</div>
+      <div class="hb-meta" id="bandMeta">—</div>
+    </div>
+    <div class="hb-right">
+      <div class="badge badge-ok" id="importBadge">Auto-import active</div>
+      <div class="badge badge-gold" id="periodBadge">—</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div class="dashboard" id="dashboard">
+      <div class="metrics" id="metricsGrid">
+        <div class="mcard c-navy"><div class="mc-label">MTD Revenue</div><div class="mc-val" id="mMtdRev">—</div><div class="mc-sub" id="mMtdSub">Loading…</div><div class="pbar"><div class="pbar-f" id="mMtdBar" style="width:0%"></div></div></div>
+        <div class="mcard c-gold"><div class="mc-label">MTD vs Budget</div><div class="mc-val" id="mBudPct">—</div><div class="mc-sub" id="mBudSub">—</div><div class="pbar"><div class="pbar-f" id="mBudBar" style="width:0%"></div></div></div>
+        <div class="mcard c-teal"><div class="mc-label">YTD Revenue</div><div class="mc-val" id="mYtd">—</div><div class="mc-sub" id="mYtdSub">—</div></div>
+        <div class="mcard c-amber"><div class="mc-label">Avg Daily Revenue</div><div class="mc-val" id="mAvg">—</div><div class="mc-sub" id="mAvgSub">—</div></div>
+        <div class="mcard" style="background:#4A1010;color:var(--white)"><div class="mc-label">Rate Overrides MTD</div><div class="mc-val" id="mOverrides">—</div><div class="mc-sub" id="mOverrideSub">—</div></div>
+      </div>
+      <div class="cgrid">
+        <div class="panel">
+          <div class="ph">
+            <div class="ph-t" id="tableTitle">Daily Breakdown</div>
+            <div class="ph-r"><span id="entryCount" style="font-size:10px;color:var(--texts)"></span></div>
+          </div>
+          <div id="tableWrap"><div class="loading-row">Loading…</div></div>
+          <div class="ann" id="tableAnn"></div>
+        </div>
+        <div class="rcol">
+          <div class="panel">
+            <div class="ph">
+              <div class="ph-t">Monthly Budget</div>
+              <button class="ghost-btn" onclick="openBudgetModal()">Edit</button>
+            </div>
+            <div class="brows" id="budgetRows"><div class="empty-state" style="padding:16px;font-size:11px">No budget set</div></div>
+          </div>
+          <div class="panel">
+            <div class="ph"><div class="ph-t">YTD Progress</div></div>
+            <div class="ytd-section" id="ytdSection"><div class="loading-row">Loading…</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DETAIL PORTAL -->
+    <div class="portal" id="portal">
+      <div class="portal-top">
+        <div class="back-btn" onclick="closePortal()">←</div>
+        <div><span class="portal-title">Detail Portal</span><span class="portal-sub" id="portalSub">—</span></div>
+        <div class="portal-right">
+          <button class="ptab active" onclick="setPortalTab('day',this)">Day</button>
+          <button class="ptab" onclick="setPortalTab('month',this)">Month</button>
+          <button class="ptab" onclick="setPortalTab('ytd',this)">YTD</button>
+        </div>
+      </div>
+      <div class="portal-content" id="portalContent"><div class="loading-row">Loading…</div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- BUDGET MODAL -->
+<div class="modal-bg" id="budgetModal">
+  <div class="modal">
+    <div class="modal-title">Set Monthly Budget</div>
+    <div class="form-row2">
+      <div><label class="form-label">Year</label><input id="bmYear" class="form-input" type="number"/></div>
+      <div><label class="form-label">Month</label>
+        <select id="bmMonth" class="form-input">
+          <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+          <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+          <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+          <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row" style="margin-top:12px">
+      <label class="form-label">Revenue Target ($)</label>
+      <input id="bmRevenue" class="form-input" type="number" placeholder="0.00"/>
+    </div>
+    <div class="form-row2" style="margin-top:10px">
+      <div><label class="form-label">Occ Target (%)</label><input id="bmOcc" class="form-input" type="number" placeholder="80.0"/></div>
+      <div><label class="form-label">ADR Target ($)</label><input id="bmAdr" class="form-input" type="number" placeholder="0.00"/></div>
+    </div>
+    <div class="form-msg" id="bmMsg"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeBudgetModal()">Cancel</button>
+      <button class="btn-save" onclick="saveBudget()">Save Budget</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS DRAWER -->
+<div class="settings-overlay" id="settingsOverlay" onclick="closeSettingsOutside(event)">
+  <div class="settings-drawer">
+    <div class="sd-top">
+      <div class="sd-title">Settings</div>
+      <button class="sd-close" onclick="closeSettings()">×</button>
+    </div>
+    <div class="sd-section">
+      <div class="sd-sec-title">Supabase Connection</div>
+      <div class="sd-row"><label class="sd-label">Project URL</label><input id="sdUrl" class="sd-input" type="text"/></div>
+      <div class="sd-row"><label class="sd-label">Anon Key</label><input id="sdKey" class="sd-input" type="password"/></div>
+      <button class="sd-btn" style="width:100%" onclick="updateConfig()">Update Connection</button>
+      <div class="sd-msg" id="sdConnMsg"></div>
+    </div>
+    <div class="sd-section">
+      <div class="sd-sec-title">Manual Entry — Fallback Only</div>
+      <div style="font-size:11px;color:var(--textm);margin-bottom:12px">Use if the nightly parser failed or a figure needs correction. Auto-import will overwrite on the next successful run.</div>
+      <div class="sd-row"><label class="sd-label">Date</label><input id="sdDate" class="sd-input" type="date"/></div>
+      <div class="sd-row2">
+        <div><label class="sd-label">Rooms Occupied</label><input id="sdOcc" class="sd-input" type="number" placeholder="79"/></div>
+        <div><label class="sd-label">Rooms Available</label><input id="sdAvail" class="sd-input" type="number" placeholder="81"/></div>
+      </div>
+      <div class="sd-row" style="margin-top:8px"><label class="sd-label">Room Revenue ($)</label><input id="sdRev" class="sd-input" type="number" placeholder="3841.00"/></div>
+      <div class="sd-row"><label class="sd-label">Notes</label><input id="sdNotes" class="sd-input" type="text" placeholder="Parser failed — manual entry"/></div>
+      <button class="sd-btn gold" style="width:100%" onclick="manualEntry()">Save Entry</button>
+      <div class="sd-msg" id="sdEntryMsg"></div>
+    </div>
+    <div class="sd-section">
+      <div class="sd-sec-title">About</div>
+      <div style="font-size:11px;color:var(--textm)">Milkam Revenue Tracker · Candlewood Suites Wake Forest<br>Auto-import via HotelKey / Opera PDF parser<br>Hosted on GitHub Pages · Supabase backend</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let SB = null;
+let isOwner = false;
+let gmUnlocked = false;
+let pinBuf = '', gmBuf = '';
+let portalTab = 'day';
+
+let state = {
+  properties: [],
+  activeProp: null,
+  year: new Date().getFullYear(),
+  month: new Date().getMonth() + 1,
+  dailyData: [],
+  budgets: [],
+  ytdData: [],
+};
+
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_FULL  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+const fmt$ = n => n==null||isNaN(n)?'—':'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+const fmt$2 = n => n==null||isNaN(n)?'—':'$'+Number(n).toFixed(2);
+const fmtP = n => n==null||isNaN(n)?'—':Number(n).toFixed(1)+'%';
+const showMsg = (el,type,txt) => { el.className='sd-msg '+type; el.textContent=txt; if(type==='ok') setTimeout(()=>el.className='sd-msg',3000); };
+
+// ═══════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════
+
+async function updateConfig(){
+  const url = document.getElementById('sdUrl').value.trim();
+  const key = document.getElementById('sdKey').value.trim();
+  if(!url||!key){ showMsg(document.getElementById('sdConnMsg'),'err','Both fields required.'); return; }
+  localStorage.setItem(CFG_KEY, JSON.stringify({url,key}));
+  showMsg(document.getElementById('sdConnMsg'),'ok','Saved. Reload to reconnect.');
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+// ── CREDENTIALS — paste your Supabase values here ──────────
+const SUPABASE_URL = 'https://plgtbubmwtplaaflcwro.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsZ3RidWJtd3RwbGFhZmxjd3JvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1MzMxNDIsImV4cCI6MjA5NjEwOTE0Mn0.V9_5NssnF0XGJFfGY4MO83xvdnI_RcNowXFRCc6sQyw';
+// ────────────────────────────────────────────────────────────
+
+async function init(){
+  SB = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Load properties
+  const {data:props, error} = await SB.from('properties').select('*').order('active',{ascending:false});
+  if(error || !props || !props.length){
+    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#1C2B3A;color:#C8922A;font-family:sans-serif;font-size:14px">Unable to connect. Check credentials.</div>';
+    console.error('Supabase error:', error);
+    return;
+  }
+  state.properties = props;
+
+  // Build property cards and show select screen
+  buildPropCards(props.filter(p=>p.active));
+  show('selectScreen');
+}
+
+function show(id){
+  ['selectScreen','pinScreen','ownerScreen','gmScreen'].forEach(s=>{
+    const el = document.getElementById(s);
+    el.classList.toggle('hidden', s!==id);
+  });
+  document.getElementById('app').style.display = 'none';
+}
+
+function showApp(){
+  ['selectScreen','pinScreen','ownerScreen','gmScreen'].forEach(s=>document.getElementById(s).classList.add('hidden'));
+  document.getElementById('app').style.display = 'flex';
+  renderPeriodLabel();
+  renderHotelTabs();
+  loadAll();
+}
+
+// ═══════════════════════════════════════════
+// PIN AUTH
+// ═══════════════════════════════════════════
+function updateDots(prefix, buf){
+  for(let i=0;i<4;i++) document.getElementById(prefix+i).classList.toggle('on', i<buf.length);
+}
+
+function pinPress(v){
+  if(pinBuf.length>=4) return;
+  pinBuf+=v; updateDots('pd',pinBuf);
+  if(pinBuf.length===4) setTimeout(checkPin,120);
+}
+function pinDel(){ pinBuf=pinBuf.slice(0,-1); updateDots('pd',pinBuf); document.getElementById('pinErr').textContent=''; }
+
+async function checkPin(){
+  // Verify against Supabase using bcrypt (pgcrypto crypt function)
+  const prop = state.activeProp;
+  const {data} = await SB.rpc('verify_staff_pin',{prop_id: prop.id, pin_input: pinBuf});
+  if(data){
+    isOwner = false; gmUnlocked = false;
+    // Staff sees only their property in the tabs
+    state.properties = [state.activeProp];
+    showApp();
+  } else {
+    document.getElementById('pinErr').textContent='Incorrect PIN. Try again.';
+    pinBuf=''; updateDots('pd',pinBuf);
+  }
+}
+
+function gmPress(v){
+  if(gmBuf.length>=4) return;
+  gmBuf+=v; updateDots('gd',gmBuf);
+  if(gmBuf.length===4) setTimeout(checkGmPin,120);
+}
+function gmDel(){ gmBuf=gmBuf.slice(0,-1); updateDots('gd',gmBuf); document.getElementById('gmErr').textContent=''; }
+
+async function checkGmPin(){
+  const prop = state.activeProp;
+  const {data} = await SB.rpc('verify_gm_pin',{prop_id: prop.id, pin_input: gmBuf});
+  if(data){
+    gmUnlocked=true;
+    document.getElementById('gmScreen').classList.add('hidden');
+    openPortalPanel();
+  } else {
+    document.getElementById('gmErr').textContent='Incorrect GM PIN.';
+    gmBuf=''; updateDots('gd',gmBuf);
+  }
+}
+
+function cancelGm(){ show('pinScreen'); gmBuf=''; updateDots('gd',gmBuf); }
+
+function buildPropCards(props){
+  const container = document.getElementById('propCards');
+  container.innerHTML = '';
+  const icons = {'CWS':'🏨','TRU':'🏩','H2S':'🏪'};
+  props.filter(p=>p.active).forEach(prop=>{
+    const card = document.createElement('div');
+    card.className = 'prop-card';
+    card.innerHTML = `
+      <div class="prop-card-icon">${icons[prop.short_code]||'🏨'}</div>
+      <div class="prop-card-info">
+        <div class="prop-card-name">${prop.name}</div>
+        <div class="prop-card-brand">${prop.brand||prop.short_code}</div>
+      </div>
+      <div class="prop-card-arrow">›</div>`;
+    card.onclick = ()=>selectProp(prop);
+    container.appendChild(card);
+  });
+}
+
+function selectProp(prop){
+  state.activeProp = prop;
+  document.getElementById('pinHotelName').textContent = prop.name;
+  pinBuf=''; updateDots('pd',pinBuf);
+  document.getElementById('pinErr').textContent = '';
+  show('pinScreen');
+}
+
+function showOwnerScreen(){ show('ownerScreen'); }
+function showPinScreen(){ show('selectScreen'); }
+
+async function ownerLogin(){
+  const pw = document.getElementById('ownerPw').value;
+  const {data} = await SB.rpc('verify_owner_password',{pw_input: pw});
+  if(data){
+    isOwner=true; gmUnlocked=true;
+    // Load all active properties for owner portfolio view
+    const {data:props} = await SB.from('properties').select('*').eq('active',true).order('name');
+    state.allProps = props||[];
+    // Owner sees ALL properties in tabs
+    state.properties = props||[];
+    if(props&&props.length) state.activeProp = props[0];
+    document.getElementById('ownerPw').value='';
+    showApp();
+  } else {
+    document.getElementById('ownerErr').textContent='Incorrect password.';
+  }
+}
+
+function lockApp(){
+  isOwner=false; gmUnlocked=false;
+  state.activeProp=null; state.allProps=[];
+  pinBuf=''; gmBuf='';
+  updateDots('pd',pinBuf); updateDots('gd',gmBuf);
+  document.getElementById('pinErr').textContent='';
+  document.getElementById('ownerPw').value='';
+  document.getElementById('ownerErr').textContent='';
+  // Rebuild property cards and return to select screen
+  const props = state.properties||[];
+  if(props.length) buildPropCards(props);
+  show('selectScreen');
+}
+
+// ═══════════════════════════════════════════
+// HOTEL TABS
+// ═══════════════════════════════════════════
+function renderHotelTabs(){
+  const wrap = document.getElementById('hotelTabs');
+  let html = state.properties.map(p=>`
+    <div class="htab${p.id===state.activeProp?.id?' active':''}${!p.active?' locked':''}"
+      onclick="switchHotel('${p.id}')">${p.short_code} — ${p.name.split(' ').slice(0,2).join(' ')}
+    </div>`).join('');
+  html += `<div class="htab add" onclick="addHotel()">+</div>`;
+  wrap.innerHTML = html;
+}
+
+function switchHotel(id){
+  const prop = state.properties.find(p=>p.id===id);
+  if(!prop||!prop.active){ alert('This property is not yet active.'); return; }
+  state.activeProp = prop;
+  document.getElementById('pinHotelName').textContent = prop.name;
+  document.getElementById('gmHotelName').textContent = prop.name;
+  renderHotelTabs();
+  loadAll();
+}
+
+function addHotel(){
+  if(!isOwner){ alert('Owner access required to add a property.'); return; }
+  alert('Add hotel: go to Supabase and insert a new row in the properties table, then reload.');
+}
+
+// ═══════════════════════════════════════════
+// PERIOD
+// ═══════════════════════════════════════════
+function renderPeriodLabel(){
+  const lbl = MONTHS_FULL[state.month-1]+' '+state.year;
+  document.getElementById('periodLabel').textContent = MONTHS_SHORT[state.month-1]+' '+state.year;
+  document.getElementById('periodBadge').textContent = lbl;
+  document.getElementById('tableTitle').textContent = lbl+' — Daily';
+  document.getElementById('portalSub').textContent = state.activeProp?.name || '';
+}
+
+function shiftMonth(d){
+  state.month+=d;
+  if(state.month>12){state.month=1;state.year++;}
+  if(state.month<1){state.month=12;state.year--;}
+  renderPeriodLabel();
+  loadAll();
+}
+
+// ═══════════════════════════════════════════
+// DATA LOADING
+// ═══════════════════════════════════════════
+async function loadAll(){
+  if(!state.activeProp) return;
+  updateBandInfo();
+  await Promise.all([loadDailyData(), loadBudgets(), loadYTD()]);
+  renderMetrics();
+  await renderTable();
+  renderBudgetPanel();
+  renderYTD();
+}
+
+function updateBandInfo(){
+  const p = state.activeProp;
+  if(!p) return;
+  document.getElementById('bandName').textContent = p.name;
+  document.getElementById('bandMeta').textContent = `${p.total_rooms} rooms · ${p.brand||''} · Wake Forest, NC`;
+}
+
+async function loadDailyData(){
+  const start = `${state.year}-${String(state.month).padStart(2,'0')}-01`;
+  const end   = `${state.year}-${String(state.month).padStart(2,'0')}-31`;
+  const {data,error} = await SB.from('daily_revenue_metrics')
+    .select('*').eq('property_id',state.activeProp.id)
+    .gte('entry_date',start).lte('entry_date',end)
+    .order('entry_date',{ascending:false});
+  state.dailyData = error?[]:data;
+}
+
+async function loadBudgets(){
+  const {data,error} = await SB.from('revenue_budgets')
+    .select('*').eq('property_id',state.activeProp.id).eq('year',state.year);
+  state.budgets = error?[]:data;
+}
+
+async function loadYTD(){
+  const {data,error} = await SB.from('daily_revenue_metrics')
+    .select('entry_date,room_revenue,rooms_occupied,rooms_available')
+    .eq('property_id',state.activeProp.id)
+    .gte('entry_date',`${state.year}-01-01`)
+    .lte('entry_date',`${state.year}-12-31`);
+  state.ytdData = error?[]:data;
+}
+
+// ═══════════════════════════════════════════
+// RENDER — METRICS
+// ═══════════════════════════════════════════
+function renderMetrics(){
+  const mtdRev = state.dailyData.reduce((s,r)=>s+Number(r.room_revenue),0);
+  const days   = state.dailyData.length;
+  const avg    = days>0 ? mtdRev/days : 0;
+  const ytdRev = state.ytdData.reduce((s,r)=>s+Number(r.room_revenue),0);
+  const bud    = state.budgets.find(b=>b.month===state.month);
+  const budRev = bud ? Number(bud.budgeted_revenue) : 0;
+  const ytdBud = state.budgets.reduce((s,b)=>s+Number(b.budgeted_revenue),0);
+  const daysInMonth = new Date(state.year,state.month,0).getDate();
+  const today = new Date();
+  const isCurrent = today.getFullYear()===state.year && today.getMonth()+1===state.month;
+  const elapsed = isCurrent ? today.getDate() : daysInMonth;
+
+  document.getElementById('mMtdRev').textContent = fmt$(mtdRev);
+  const vsAmt = mtdRev - budRev;
+  const mSub = document.getElementById('mMtdSub');
+  mSub.innerHTML = budRev>0
+    ? `<span class="${vsAmt>=0?'up':'dn'}">${vsAmt>=0?'+':''}${fmt$(vsAmt)} vs budget</span>`
+    : `<span class="muted">No budget set</span>`;
+  document.getElementById('mMtdBar').style.width = Math.min((elapsed/daysInMonth)*100,100)+'%';
+
+  const pct = budRev>0 ? (mtdRev/budRev)*100 : 0;
+  document.getElementById('mBudPct').textContent = budRev>0 ? fmtP(pct) : '—';
+  document.getElementById('mBudSub').textContent = budRev>0 ? `of ${fmt$(budRev)} target` : 'No budget set';
+  const bBar = document.getElementById('mBudBar');
+  bBar.style.width = Math.min(pct,100)+'%';
+  bBar.style.background = pct>=100?'rgba(28,43,58,0.6)':'rgba(28,43,58,0.35)';
+
+  document.getElementById('mYtd').textContent = fmt$(ytdRev);
+  const yvs = ytdRev - ytdBud;
+  document.getElementById('mYtdSub').innerHTML = ytdBud>0
+    ? `<span class="${yvs>=0?'up':'dn'}">${yvs>=0?'+':''}${fmt$(yvs)} vs YTD budget</span>`
+    : '<span style="opacity:0.6">—</span>';
+
+  document.getElementById('mAvg').textContent = fmt$(avg);
+  document.getElementById('mAvgSub').textContent = `${days} days entered`;
+
+  // Rate overrides MTD
+  loadOverrideMetric();
+}
+
+async function loadOverrideMetric(){
+  if(!state.activeProp) return;
+  const start = `${state.year}-${String(state.month).padStart(2,'0')}-01`;
+  const end   = `${state.year}-${String(state.month).padStart(2,'0')}-31`;
+  const {data} = await SB.from('rate_overrides')
+    .select('override_amount')
+    .eq('property_id',state.activeProp.id)
+    .gte('stay_date',start).lte('stay_date',end);
+  if(!data||!data.length){
+    document.getElementById('mOverrides').textContent = '0';
+    document.getElementById('mOverrideSub').textContent = 'no overrides this month';
+    return;
+  }
+  const count = data.length;
+  const net   = data.reduce((s,r)=>s+Number(r.override_amount||0),0);
+  const lost  = data.filter(r=>r.override_amount<0).reduce((s,r)=>s+Number(r.override_amount),0);
+  document.getElementById('mOverrides').textContent = count;
+  document.getElementById('mOverrideSub').innerHTML =
+    `<span class="${net<0?'dn':'up'}">${net>=0?'+':''}${fmt$(net)} net impact</span>`;
+}
+
+// ═══════════════════════════════════════════
+// RENDER — TABLE
+// ═══════════════════════════════════════════
+async function renderTable(){
+  const wrap = document.getElementById('tableWrap');
+  const bud  = state.budgets.find(b=>b.month===state.month);
+  const daysInMonth = new Date(state.year,state.month,0).getDate();
+  const dailyTarget = bud ? bud.budgeted_revenue/daysInMonth : null;
+
+  // Load override flags for this month
+  const ovStart = `${state.year}-${String(state.month).padStart(2,'0')}-01`;
+  const ovEnd   = `${state.year}-${String(state.month).padStart(2,'0')}-31`;
+  const {data:ovData} = await SB.from('rate_overrides')
+    .select('stay_date,override_amount')
+    .eq('property_id',state.activeProp.id)
+    .gte('stay_date',ovStart).lte('stay_date',ovEnd);
+  const overrideByDate = {};
+  (ovData||[]).forEach(r=>{
+    if(!overrideByDate[r.stay_date]) overrideByDate[r.stay_date]={count:0,net:0};
+    overrideByDate[r.stay_date].count++;
+    overrideByDate[r.stay_date].net += Number(r.override_amount||0);
+  });
+
+  document.getElementById('entryCount').textContent = state.dailyData.length+' entries';
+
+  if(!state.dailyData.length){
+    wrap.innerHTML='<div class="empty-state">No entries for this period.</div>';
+    document.getElementById('tableAnn').textContent='';
+    return;
+  }
+
+  const rows = state.dailyData.map(r=>{
+    const dt = new Date(r.entry_date+'T00:00:00');
+    const dayLabel = dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const occ  = r.occupancy_pct!=null ? fmtP(r.occupancy_pct) : '—';
+    const adr  = r.adr!=null ? fmt$2(r.adr) : '—';
+    const isMonthly = r.source==='opera_import'||r.granularity==='monthly';
+    let vsHtml = '—';
+    if(dailyTarget!=null){
+      const diff = r.room_revenue - dailyTarget;
+      vsHtml = `<span class="${diff>=0?'up':'dn'}">${diff>=0?'+':''}${fmt$(diff)}</span>`;
+    }
+    // Override flag for this day
+    const ov = overrideByDate[r.entry_date];
+    const ovBadge = ov
+      ? `<span style="font-size:9px;background:rgba(200,146,42,0.15);color:#7A4510;padding:1px 5px;border-radius:3px;font-weight:600;margin-left:4px">⚠${ov.count}</span>`
+      : '';
+    return `<tr>
+      <td>${isMonthly?'<span class="muted">':''} ${dayLabel}${isMonthly?'</span>':''}${ovBadge}</td>
+      <td class="mono">${fmt$(r.room_revenue)}</td>
+      <td class="mono">${occ}</td>
+      <td class="mono">${adr}</td>
+      <td class="mono">${vsHtml}</td>
+      <td><span class="tag ${isMonthly?'tag-m':'tag-d'}">${isMonthly?'monthly':'daily'}</span></td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML=`<table>
+    <thead><tr><th>Date</th><th>Revenue</th><th>Occupancy</th><th>ADR</th><th>vs Daily Target</th><th>Type</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+
+  const hasMonthly = state.dailyData.some(r=>r.source==='opera_import');
+  document.getElementById('tableAnn').textContent = hasMonthly
+    ? 'Monthly records show full MTD totals from Opera/HotelKey import. Daily records show individual night audit figures.'
+    : '';
+}
+
+// ═══════════════════════════════════════════
+// RENDER — BUDGET PANEL
+// ═══════════════════════════════════════════
+function renderBudgetPanel(){
+  const bud = state.budgets.find(b=>b.month===state.month);
+  const wrap = document.getElementById('budgetRows');
+  if(!bud){
+    wrap.innerHTML='<div class="empty-state" style="padding:14px;font-size:11px">No budget for '+MONTHS_SHORT[state.month-1]+'. Click Edit to set one.</div>';
+    return;
+  }
+  const daysInMonth = new Date(state.year,state.month,0).getDate();
+  const daily = bud.budgeted_revenue/daysInMonth;
+  wrap.innerHTML=`
+    <div class="brow"><span class="br-label">Revenue Target</span><span class="br-val">${fmt$(bud.budgeted_revenue)}</span></div>
+    <div class="brow"><span class="br-label">Daily Target</span><span class="br-val">${fmt$(daily)}</span></div>
+    ${bud.budgeted_occupancy?`<div class="brow"><span class="br-label">Occ Target</span><span class="br-val">${fmtP(bud.budgeted_occupancy)}</span></div>`:''}
+    ${bud.budgeted_adr?`<div class="brow"><span class="br-label">ADR Target</span><span class="br-val">${fmt$2(bud.budgeted_adr)}</span></div>`:''}`;
+}
+
+// ═══════════════════════════════════════════
+// RENDER — YTD
+// ═══════════════════════════════════════════
+function renderYTD(){
+  const wrap = document.getElementById('ytdSection');
+  if(!state.ytdData.length){ wrap.innerHTML='<div class="loading-row">No data yet.</div>'; return; }
+
+  const byMonth = {};
+  state.ytdData.forEach(r=>{
+    const m = new Date(r.entry_date+'T00:00:00').getMonth()+1;
+    byMonth[m] = (byMonth[m]||0)+Number(r.room_revenue);
+  });
+
+  const today = new Date();
+  const curMonth = today.getFullYear()===state.year ? today.getMonth()+1 : 12;
+  const maxRev = Math.max(...Object.values(byMonth),1);
+
+  let html='';
+  for(let m=1;m<=curMonth;m++){
+    const rev = byMonth[m]||0;
+    const bud = state.budgets.find(b=>b.month===m);
+    const budRev = bud ? Number(bud.budgeted_revenue) : 0;
+    const pct = (rev/maxRev)*100;
+    const hit = budRev>0 && rev>=budRev;
+    const miss = budRev>0 && rev<budRev;
+    const color = hit?'var(--ok)':miss?'var(--warn)':'var(--navy)';
+    const label = budRev>0
+      ? (hit?`<span style="color:var(--ok);font-weight:600">${fmt$(rev)} ✓</span>`
+            :`<span style="color:var(--warn)">${fmt$(rev)} · ${fmtP((rev/budRev)*100)}</span>`)
+      : fmt$(rev);
+    html+=`<div class="ytd-row">
+      <div class="ytd-hdr"><span class="ytd-label">${MONTHS_SHORT[m-1]}</span>${label}</div>
+      <div class="ybar"><div class="ybar-f" style="width:${pct}%;background:${color}"></div></div>
+    </div>`;
+  }
+  wrap.innerHTML=html;
+}
+
+// ═══════════════════════════════════════════
+// BUDGET MODAL
+// ═══════════════════════════════════════════
+function openBudgetModal(){
+  document.getElementById('bmYear').value = state.year;
+  document.getElementById('bmMonth').value = state.month;
+  const bud = state.budgets.find(b=>b.month===state.month);
+  document.getElementById('bmRevenue').value = bud?.budgeted_revenue||'';
+  document.getElementById('bmOcc').value = bud?.budgeted_occupancy||'';
+  document.getElementById('bmAdr').value = bud?.budgeted_adr||'';
+  document.getElementById('bmMsg').className='form-msg';
+  document.getElementById('budgetModal').classList.add('open');
+}
+function closeBudgetModal(){ document.getElementById('budgetModal').classList.remove('open'); }
+
+async function saveBudget(){
+  const year=parseInt(document.getElementById('bmYear').value);
+  const month=parseInt(document.getElementById('bmMonth').value);
+  const revenue=parseFloat(document.getElementById('bmRevenue').value);
+  const occ=parseFloat(document.getElementById('bmOcc').value)||null;
+  const adr=parseFloat(document.getElementById('bmAdr').value)||null;
+  const msg=document.getElementById('bmMsg');
+  if(isNaN(revenue)){ msg.className='form-msg err'; msg.textContent='Revenue target required.'; return; }
+  const {error}=await SB.from('revenue_budgets').upsert({
+    property_id:state.activeProp.id,year,month,
+    budgeted_revenue:revenue,budgeted_occupancy:occ,budgeted_adr:adr,
+    updated_at:new Date().toISOString()
+  },{onConflict:'property_id,year,month'});
+  if(error){ msg.className='form-msg err'; msg.textContent='Save failed: '+error.message; return; }
+  msg.className='form-msg ok'; msg.textContent='Budget saved!';
+  setTimeout(()=>{ closeBudgetModal(); loadAll(); },800);
+}
+
+// ═══════════════════════════════════════════
+// DETAIL PORTAL
+// ═══════════════════════════════════════════
+function openPortal(){
+  if(isOwner||gmUnlocked){
+    openPortalPanel(); return;
+  }
+  document.getElementById('gmScreen').classList.remove('hidden');
+  ['selectScreen','pinScreen','ownerScreen'].forEach(s=>document.getElementById(s).classList.add('hidden'));
+}
+
+function openPortalPanel(){
+  document.getElementById('portal').classList.add('open');
+  loadPortalData();
+}
+
+function closePortal(){
+  document.getElementById('portal').classList.remove('open');
+}
+
+function setPortalTab(v,el){
+  portalTab=v;
+  document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  loadPortalData();
+}
+
+function buildOverrideSection(overrides){
+  if(!overrides||!overrides.length) return `<div class="panel" style="margin-bottom:10px"><div class="ph"><div class="ph-t">Rate override detail</div></div><div style="padding:20px;text-align:center;font-size:11px;color:var(--texts)">No overrides for this period</div></div>`;
+  const net  = overrides.reduce((s,r)=>s+Number(r.override_amount||0),0);
+  const lost = overrides.filter(r=>r.override_amount<0).reduce((s,r)=>s+Number(r.override_amount),0);
+  const rows = overrides.map(r=>{
+    const dir = (r.override_amount||0)<0 ? 'dn' : 'up';
+    const arrow = (r.override_amount||0)<0 ? '↓' : '↑';
+    return `<tr>
+      <td class="mono muted">${r.override_time?r.override_time.slice(0,5):'—'}</td>
+      <td style="font-size:11px">${r.guest_name||'—'}</td>
+      <td><span class="room-chip">${r.room_number||'—'}</span></td>
+      <td style="font-size:10px;color:var(--textm)">${r.room_type||'—'}</td>
+      <td class="mono">${fmt$2(r.sold_rate)}</td>
+      <td class="mono">${fmt$2(r.new_rate)}</td>
+      <td class="mono ${dir}" style="text-align:right">${arrow}${fmt$(Math.abs(r.override_amount||0))}</td>
+      <td style="font-size:10px;color:var(--textm)">${r.username||'—'}</td>
+      <td style="font-size:10px;color:var(--texts);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.override_reason||''}</td>
+      <td style="font-size:9px;color:var(--texts)">${r.rate_plan||''}</td>
+    </tr>`;
+  }).join('');
+  const badge = net<0
+    ? `<span class="badge badge-warn">${fmt$(Math.abs(net))} revenue impact · ${overrides.length} overrides</span>`
+    : `<span class="badge badge-ok">${overrides.length} overrides</span>`;
+  return `<div class="panel" style="margin-bottom:10px">
+    <div class="ph"><div class="ph-t">Rate override detail</div>${badge}</div>
+    <div style="overflow-x:auto">
+      <table style="min-width:700px">
+        <thead><tr><th>Time</th><th>Guest</th><th>Rm</th><th>Room Type</th><th>Orig Rate</th><th>New Rate</th><th style="text-align:right">Impact/Night</th><th>By</th><th>Reason</th><th>Plan</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tr style="background:var(--off)">
+          <td colspan="6" style="font-weight:600;font-size:11px">Totals</td>
+          <td class="mono ${net<0?'dn':'up'}" style="text-align:right;font-weight:600">${net>=0?'+':''}${fmt$(net)}</td>
+          <td colspan="3"></td>
+        </tr>
+      </table>
+    </div>
+    <div style="padding:6px 14px 8px;font-size:10px;color:var(--texts);font-style:italic;border-top:0.5px solid var(--borderl)">
+      Sold Rate = original system rate before override · Impact = per-night revenue difference
+    </div>
+  </div>`;
+}
+
+async function loadPortalData(){
+  const content = document.getElementById('portalContent');
+  content.innerHTML='<div class="loading-row">Loading detail data…</div>';
+  const prop = state.activeProp;
+  if(!prop) return;
+
+  const dateFilter = portalTab==='day'
+    ? {start: getLatestDate(), end: getLatestDate()}
+    : portalTab==='month'
+    ? {start:`${state.year}-${String(state.month).padStart(2,'0')}-01`, end:`${state.year}-${String(state.month).padStart(2,'0')}-31`}
+    : {start:`${state.year}-01-01`, end:`${state.year}-12-31`};
+
+  const [adjRes, payRes, taxRes, actRes, inhouseRes, taxExemptRes, revDetailRes, overrideRes] = await Promise.all([
+    SB.from('daily_adjustments').select('*').eq('property_id',prop.id).gte('entry_date',dateFilter.start).lte('entry_date',dateFilter.end).order('adj_time',{ascending:true}),
+    SB.from('daily_payments').select('*').eq('property_id',prop.id).gte('entry_date',dateFilter.start).lte('entry_date',dateFilter.end),
+    SB.from('daily_taxes').select('*').eq('property_id',prop.id).gte('entry_date',dateFilter.start).lte('entry_date',dateFilter.end),
+    SB.from('daily_user_activity').select('*').eq('property_id',prop.id).gte('entry_date',dateFilter.start).lte('entry_date',dateFilter.end).order('activity_time',{ascending:true}),
+    SB.from('inhouse_balances').select('*').eq('property_id',prop.id).eq('snapshot_date',dateFilter.end).order('outstanding_balance',{ascending:false}),
+    SB.from('tax_exempt_detail').select('*').eq('property_id',prop.id).gte('report_date',dateFilter.start).lte('report_date',dateFilter.end).order('room_revenue',{ascending:false}),
+    SB.from('daily_revenue_detail').select('*').eq('property_id',prop.id).gte('entry_date',dateFilter.start).lte('entry_date',dateFilter.end),
+    SB.from('rate_overrides').select('*').eq('property_id',prop.id).gte('stay_date',dateFilter.start).lte('stay_date',dateFilter.end).order('stay_date',{ascending:false}).order('override_time',{ascending:false}),
+  ]);
+
+  const adjs     = adjRes.data||[];
+  const pays     = payRes.data||[];
+  const taxes    = taxRes.data||[];
+  const acts     = actRes.data||[];
+  const inhouse  = inhouseRes.data||[];
+  const exempt   = taxExemptRes.data||[];
+  const revDetail= revDetailRes.data||[];
+  const overrides= overrideRes.data||[];
+
+  content.innerHTML = buildPortalHTML(adjs, pays, taxes, acts, inhouse, exempt, revDetail, overrides);
+}
+
+function getLatestDate(){
+  if(state.dailyData.length) return state.dailyData[0].entry_date;
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+}
+
+function buildPortalHTML(adjs, pays, taxes, acts, inhouse, exempt, revDetail, overrides){
+  const totalPay = pays.reduce((s,r)=>s+Number(r.amount),0);
+  const totalAdj = adjs.reduce((s,r)=>s+Number(r.adjusted_amount),0);
+  const totalExempt = exempt.reduce((s,r)=>s+Number(r.room_revenue),0);
+  const exemptNights = exempt.reduce((s,r)=>s+Number(r.nights),0);
+  const totalOutstanding = inhouse.reduce((s,r)=>s+Number(r.outstanding_balance),0);
+  const netTax = taxes.reduce((s,r)=>s+Number(r.amount),0);
+
+  // Revenue detail
+  const revRows = revDetail.length
+    ? revDetail.map(r=>`<tr>
+        <td>${r.charge_type.replace(/_/g,' ').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase())}</td>
+        <td class="mono" style="text-align:right">${fmt$2(r.amount)}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="2" class="muted" style="padding:16px;text-align:center">No revenue detail data yet — parser will populate on next import</td></tr>';
+
+  // Tax rows
+  const taxRows = taxes.length
+    ? taxes.map(r=>`<tr>
+        <td>${r.tax_type.replace(/_/g,' ').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase())}</td>
+        <td class="mono ${r.amount<0?'dn':''}" style="text-align:right">${fmt$2(r.amount)}</td>
+      </tr>`).join('')
+      +`<tr style="background:var(--off)"><td style="font-weight:600">Net taxes collected</td><td class="mono" style="text-align:right;font-weight:600">${fmt$2(netTax)}</td></tr>`
+    : '<tr><td colspan="2" class="muted" style="padding:16px;text-align:center">No tax data yet</td></tr>';
+
+  // Payments
+  const payOrder = ['VISA','MASTER','AMEX','DISCOVER','CASH','BILL_TO_COMPANY','CLC'];
+  const payColors = {VISA:'var(--navy)',MASTER:'#1D6B9E',AMEX:'#085041',DISCOVER:'var(--gold)',CASH:'var(--ok)',BILL_TO_COMPANY:'var(--textm)',CLC:'#534AB7'};
+  const payMap = {};
+  pays.forEach(r=>{ payMap[r.payment_method]=(payMap[r.payment_method]||0)+Number(r.amount); });
+  const allMethods = [...new Set([...payOrder, ...Object.keys(payMap)])];
+  const maxPay = Math.max(...Object.values(payMap),1);
+  const payRows = allMethods.filter(m=>payMap[m]>0).map(m=>{
+    const amt = payMap[m]||0;
+    const pct = totalPay>0?(amt/totalPay)*100:0;
+    const barPct = (amt/maxPay)*100;
+    const color = payColors[m]||'var(--texts)';
+    return `<div class="pay-row">
+      <div class="pay-lbl">${m.replace(/_/g,' ')}</div>
+      <div class="pay-track"><div class="pay-fill" style="width:${barPct}%;background:${color}"></div></div>
+      <div class="pay-amt">${fmt$2(amt)}</div>
+      <div class="pay-pct">${pct.toFixed(1)}%</div>
+    </div>`;
+  }).join('') || '<div style="padding:16px;text-align:center;font-size:11px;color:var(--texts)">No payment data yet</div>';
+
+  // Adjustments
+  const adjTagClass = code => code==='CORRECTION'?'tag-correction':code==='MANAGER DISCRETION'?'tag-discretion':'tag-transfer';
+  const adjRows = adjs.length
+    ? adjs.map(r=>`<tr>
+        <td class="mono muted">${r.adj_time?r.adj_time.slice(0,5):'—'}</td>
+        <td style="font-size:11px">${r.guest_name||'—'}</td>
+        <td><span class="room-chip">${r.room_number||'—'}</span></td>
+        <td><span class="tag ${adjTagClass(r.reason_code)}">${r.reason_code||'—'}</span></td>
+        <td class="mono ${r.adjusted_amount<0?'dn':'up'}" style="text-align:right">${fmt$2(r.adjusted_amount)}</td>
+        <td class="mono muted" style="text-align:right">${fmt$2(r.adjusted_tax)}</td>
+        <td style="font-size:10px;color:var(--textm)">${r.username||'—'}</td>
+        <td style="font-size:10px;color:var(--texts);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.remarks||''}</td>
+      </tr>`).join('')
+      +`<tr style="background:var(--off)"><td colspan="4" style="font-weight:600;font-size:11px">Total</td>
+          <td class="mono" style="text-align:right;font-weight:600">${fmt$2(totalAdj)}</td>
+          <td colspan="3"></td></tr>`
+    : '<tr><td colspan="8" class="muted" style="padding:16px;text-align:center">No adjustments for this period</td></tr>';
+
+  // Tax exempt
+  const exemptRows = exempt.length
+    ? exempt.slice(0,20).map(r=>`<tr>
+        <td style="font-size:11px">${r.guest_name||'—'}</td>
+        <td><span class="room-chip">${r.room_number||'—'}</span></td>
+        <td class="mono muted">${r.arrival_date||'—'}</td>
+        <td class="mono muted">${r.departure_date||'—'}</td>
+        <td class="mono" style="text-align:center">${r.nights||0}</td>
+        <td class="mono" style="text-align:right">${fmt$2(r.room_revenue)}</td>
+        <td><span class="tag tag-correction" style="font-size:9px">${(r.exempt_type||'').replace(/_/g,' ')}</span></td>
+      </tr>`).join('')
+      +`<tr style="background:var(--off)"><td colspan="4" style="font-weight:600;font-size:11px">Total</td>
+          <td class="mono" style="text-align:center;font-weight:600">${exemptNights}</td>
+          <td class="mono" style="text-align:right;font-weight:600">${fmt$2(totalExempt)}</td><td></td></tr>`
+    : '<tr><td colspan="7" class="muted" style="padding:16px;text-align:center">No tax exempt data for this period</td></tr>';
+
+  // User activity
+  const actIconColor = type => {
+    if(type==='ADJUST_CHARGE') return 'background:rgba(239,159,39,0.15);color:var(--warn)';
+    if(type==='CANCEL_RESERVATION') return 'background:rgba(226,75,74,0.1);color:var(--bad)';
+    if(type==='RATE_CODE_CHANGE') return 'background:rgba(239,159,39,0.15);color:var(--warn)';
+    if(type==='CHECKOUT_DATE_CHANGE') return 'background:rgba(200,146,42,0.15);color:var(--gold)';
+    return 'background:rgba(28,43,58,0.07);color:var(--textm)';
+  };
+  const actIcon = type => {
+    if(type==='ADJUST_CHARGE') return '$';
+    if(type==='CANCEL_RESERVATION') return '✕';
+    if(type==='RATE_CODE_CHANGE') return '↕';
+    if(type==='CHECKOUT_DATE_CHANGE') return '📅';
+    if(type==='ROOM_NUMBER_CHANGE') return '⇄';
+    return '·';
+  };
+  const actHTML = acts.length
+    ? acts.map(r=>`<div class="act-row">
+        <div class="act-icon" style="${actIconColor(r.action_type)}">${actIcon(r.action_type)}</div>
+        <div class="act-body">
+          <div class="act-action">${(r.action_type||'').replace(/_/g,' ').toLowerCase()}</div>
+          <div class="act-detail">${r.guest_name||'—'} · <span class="room-chip">${r.room_number||'—'}</span>
+            ${r.previous_value?` <span class="muted">${r.previous_value} → ${r.current_value}</span>`:''}
+          </div>
+          <div class="act-meta">${r.username||'—'}${r.remarks?' · '+r.remarks:''}</div>
+        </div>
+        <div class="act-time">${r.activity_time?r.activity_time.slice(0,5):'—'}</div>
+      </div>`).join('')
+    : '<div style="padding:20px;text-align:center;font-size:11px;color:var(--texts)">No activity data for this period</div>';
+
+  // In-house
+  const inhouseRows = inhouse.length
+    ? inhouse.map(r=>`<tr>
+        <td><span class="room-chip">${r.room_number||'—'}</span></td>
+        <td style="font-size:11px">${r.guest_name||'—'}</td>
+        <td class="mono">${fmt$2(r.room_rate)}</td>
+        <td class="mono muted">${r.departure_date||'—'}</td>
+        <td style="font-size:10px;color:var(--textm)">${r.payment_method||'—'}</td>
+        <td class="mono warn" style="text-align:right">${fmt$2(r.outstanding_balance)}</td>
+      </tr>`).join('')
+      +`<tr style="background:var(--off)"><td colspan="5" style="font-weight:600;font-size:11px">Total outstanding</td>
+          <td class="mono" style="text-align:right;font-weight:600;color:var(--warn)">${fmt$2(totalOutstanding)}</td></tr>`
+    : '<tr><td colspan="6" class="muted" style="padding:16px;text-align:center">No in-house data for this date</td></tr>';
+
+  return `
+    <div class="sec-hdr">Revenue detail</div>
+    <div class="pgrid2">
+      <div class="panel">
+        <div class="ph"><div class="ph-t">By charge type</div></div>
+        <table><thead><tr><th>Charge Type</th><th style="text-align:right">Amount</th></tr></thead>
+        <tbody>${revRows}</tbody></table>
+      </div>
+      <div class="panel">
+        <div class="ph"><div class="ph-t">Tax breakdown</div></div>
+        <table><thead><tr><th>Tax Type</th><th style="text-align:right">Amount</th></tr></thead>
+        <tbody>${taxRows}</tbody></table>
+      </div>
+    </div>
+
+    <div class="sec-hdr">Payments</div>
+    <div class="panel" style="margin-bottom:10px">
+      <div class="ph"><div class="ph-t">Payment method breakdown</div><span style="font-size:10px;color:var(--texts)">${fmt$2(totalPay)} total</span></div>
+      <div class="pay-body">${payRows}</div>
+    </div>
+
+    <div class="sec-hdr">Adjustments &amp; refunds</div>
+    <div class="panel" style="margin-bottom:10px">
+      <div class="ph">
+        <div class="ph-t">Adjustments and refunds activity</div>
+        <span class="badge ${adjs.some(a=>a.reason_code==='MANAGER DISCRETION')?'badge-warn':'badge-ok'}">${adjs.length} adjustments</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="min-width:700px">
+          <thead><tr><th>Time</th><th>Guest</th><th>Room</th><th>Reason</th><th style="text-align:right">Amount</th><th style="text-align:right">Tax</th><th>By</th><th>Remarks</th></tr></thead>
+          <tbody>${adjRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="sec-hdr">Tax exempt revenue</div>
+    <div class="panel" style="margin-bottom:10px">
+      <div class="ph">
+        <div class="ph-t">Tax exempt detail</div>
+        <span class="badge badge-gold">${fmt$2(totalExempt)} · ${exemptNights} nights</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Guest</th><th>Room</th><th>Arrival</th><th>Departure</th><th style="text-align:center">Nts</th><th style="text-align:right">Revenue</th><th>Type</th></tr></thead>
+          <tbody>${exemptRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="pgrid2">
+      <div class="panel">
+        <div class="ph"><div class="ph-t">Staff activity log</div><span style="font-size:10px;color:var(--texts)">${acts.length} actions</span></div>
+        <div style="max-height:340px;overflow-y:auto">${actHTML}</div>
+      </div>
+      <div class="panel">
+        <div class="ph">
+          <div class="ph-t">In-house guest balances</div>
+          <span class="badge badge-warn">${fmt$2(totalOutstanding)} outstanding</span>
+        </div>
+        <table>
+          <thead><tr><th>Rm</th><th>Guest</th><th>Rate</th><th>Dep</th><th>Method</th><th style="text-align:right">Balance</th></tr></thead>
+          <tbody>${inhouseRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="padding:8px 0 20px;text-align:center;font-size:10px;color:var(--texts);font-style:italic">
+      CC reconciliation tool coming soon · All data sourced from nightly PDF auto-import
+    </div>`;
+}
+
+// ═══════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════
+function openSettings(){ document.getElementById('settingsOverlay').classList.add('open'); }
+function closeSettings(){ document.getElementById('settingsOverlay').classList.remove('open'); }
+function closeSettingsOutside(e){ if(e.target===document.getElementById('settingsOverlay')) closeSettings(); }
+
+async function manualEntry(){
+  const date  = document.getElementById('sdDate').value;
+  const occ   = parseInt(document.getElementById('sdOcc').value);
+  const avail = parseInt(document.getElementById('sdAvail').value);
+  const rev   = parseFloat(document.getElementById('sdRev').value);
+  const notes = document.getElementById('sdNotes').value;
+  const msg   = document.getElementById('sdEntryMsg');
+  if(!date||isNaN(occ)||isNaN(avail)||isNaN(rev)){
+    msg.className='sd-msg err'; msg.textContent='All fields required.'; return;
+  }
+  const {error} = await SB.from('daily_revenue').upsert({
+    property_id:state.activeProp.id, entry_date:date,
+    rooms_occupied:occ, rooms_available:avail, room_revenue:rev,
+    notes:notes||'Manual entry — fallback', source:'manual',
+    updated_at:new Date().toISOString()
+  },{onConflict:'property_id,entry_date'});
+  if(error){ msg.className='sd-msg err'; msg.textContent='Failed: '+error.message; return; }
+  msg.className='sd-msg ok'; msg.textContent='Entry saved.';
+  setTimeout(loadAll, 500);
+}
+
+// ═══════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
