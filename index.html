@@ -762,12 +762,13 @@ function updateBandInfo(){
 }
 
 async function loadDailyData(){
-  const start = `${state.year}-${String(state.month).padStart(2,'0')}-01`;
-  const end   = `${state.year}-${String(state.month).padStart(2,'0')}-31`;
+  const mm  = String(state.month).padStart(2,'0');
+  const lastDay = new Date(state.year, state.month, 0).getDate();
+  const start = `${state.year}-${mm}-01`;
+  const end   = `${state.year}-${mm}-${String(lastDay).padStart(2,'0')}`;
   const {data,error} = await SB.from('daily_revenue')
     .select('*').eq('property_id',state.activeProp.id)
-    .gte('entry_date',start).lte('entry_date',end)
-    .order('entry_date',{ascending:false});
+    .gte('entry_date',start).lte('entry_date',end);
   if(error) console.error('loadDailyData error:',error);
   state.dailyData = error?[]:data;
 }
