@@ -764,10 +764,11 @@ function updateBandInfo(){
 async function loadDailyData(){
   const start = `${state.year}-${String(state.month).padStart(2,'0')}-01`;
   const end   = `${state.year}-${String(state.month).padStart(2,'0')}-31`;
-  const {data,error} = await SB.from('daily_revenue_metrics')
+  const {data,error} = await SB.from('daily_revenue')
     .select('*').eq('property_id',state.activeProp.id)
     .gte('entry_date',start).lte('entry_date',end)
     .order('entry_date',{ascending:false});
+  if(error) console.error('loadDailyData error:',error);
   state.dailyData = error?[]:data;
 }
 
@@ -778,11 +779,12 @@ async function loadBudgets(){
 }
 
 async function loadYTD(){
-  const {data,error} = await SB.from('daily_revenue_metrics')
+  const {data,error} = await SB.from('daily_revenue')
     .select('entry_date,room_revenue,rooms_occupied,rooms_available')
     .eq('property_id',state.activeProp.id)
     .gte('entry_date',`${state.year}-01-01`)
     .lte('entry_date',`${state.year}-12-31`);
+  if(error) console.error('loadYTD error:',error);
   state.ytdData = error?[]:data;
 }
 
