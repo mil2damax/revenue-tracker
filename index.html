@@ -3,2334 +3,1557 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Milkam Catbird Seat — WKFCW</title>
+<title>Milkam Catbird Seat</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-/* ── RESET & BASE ── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#0d1117;--ink2:#1c2333;--ink3:#2d3748;
+  --fog:#8892a4;--mist:#c8d0dc;--border:#e2e0db;
+  --paper:#f5f2ec;--cream:#faf8f4;--white:#ffffff;
+  --gold:#c9973a;--gold-lt:#f5e9cc;--gold-dim:#3d2e10;
+  --red:#b91c1c;--red-lt:#fef2f2;
+  --green:#15803d;--green-lt:#f0fdf4;
+  --amber:#b45309;--amber-lt:#fffbeb;
+  --blue:#1d4ed8;--blue-lt:#eff6ff;
+  --shadow:0 1px 3px rgba(13,17,23,.07),0 4px 16px rgba(13,17,23,.04);
+  --shadow-lg:0 8px 32px rgba(13,17,23,.12);
+  --radius:10px;
+  --mono:'DM Mono',monospace;
+  --serif:'Cormorant Garamond',serif;
+  --sans:'DM Sans',sans-serif;
+}
+html{font-size:15px}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:hidden}
 
-:root {
-  --ink:       #0d1117;
-  --ink-2:     #1c2333;
-  --ink-3:     #2d3748;
-  --fog:       #8892a4;
-  --mist:      #c8d0dc;
-  --paper:     #f4f1eb;
-  --cream:     #faf8f4;
-  --gold:      #c9973a;
-  --gold-lt:   #e8c97a;
-  --gold-dim:  #3d2e10;
-  --red:       #c0392b;
-  --red-lt:    #fde8e6;
-  --green:     #1e7e4e;
-  --green-lt:  #e6f4ec;
-  --amber:     #d97706;
-  --amber-lt:  #fef3c7;
-  --blue:      #1d4ed8;
-  --blue-lt:   #eff6ff;
-  --card-bg:   #ffffff;
-  --border:    #e2e0db;
-  --shadow:    0 1px 3px rgba(13,17,23,0.08), 0 4px 16px rgba(13,17,23,0.04);
-  --shadow-lg: 0 8px 32px rgba(13,17,23,0.12), 0 2px 8px rgba(13,17,23,0.06);
-  --radius:    10px;
-  --mono:      'DM Mono', monospace;
-  --serif:     'Playfair Display', serif;
-  --sans:      'DM Sans', sans-serif;
+/* ── LOCK / SELECTOR SCREEN ── */
+#entry-screen{
+  position:fixed;inset:0;
+  background:var(--ink);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  z-index:1000;
+  transition:opacity .45s ease;
 }
+#entry-screen.hidden{opacity:0;pointer-events:none}
 
-html { font-size: 15px; }
-body {
-  font-family: var(--sans);
-  background: var(--paper);
-  color: var(--ink);
-  min-height: 100vh;
-  overflow-x: hidden;
-}
+.entry-logo{font-family:var(--serif);font-size:2.6rem;color:var(--gold);letter-spacing:.02em;margin-bottom:.2rem}
+.entry-tagline{font-family:var(--mono);font-size:.62rem;color:var(--fog);letter-spacing:.2em;text-transform:uppercase;margin-bottom:3rem}
 
-/* ── LOCK SCREEN ── */
-#lock-screen {
-  position: fixed; inset: 0;
-  background: var(--ink);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  z-index: 1000;
-  transition: opacity 0.5s ease;
+/* Property Selector */
+#prop-selector{display:flex;flex-direction:column;gap:.75rem;width:320px}
+.prop-btn{
+  display:flex;align-items:center;gap:1rem;
+  padding:1rem 1.25rem;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);
+  color:#fff;cursor:pointer;
+  transition:all .15s ease;
+  text-align:left;
 }
-#lock-screen.hidden { opacity: 0; pointer-events: none; }
+.prop-btn:hover{background:rgba(255,255,255,.09);border-color:rgba(201,151,58,.4)}
+.prop-btn.owner-btn{border-color:rgba(201,151,58,.3);background:rgba(201,151,58,.06)}
+.prop-btn.owner-btn:hover{background:rgba(201,151,58,.12)}
+.prop-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.prop-icon.owner{background:rgba(201,151,58,.15)}
+.prop-icon.wkfcw{background:rgba(29,78,216,.15)}
+.prop-icon.rdurm{background:rgba(21,128,61,.15)}
+.prop-icon.rdutt{background:rgba(180,83,9,.15)}
+.prop-name{font-family:var(--sans);font-size:.9rem;font-weight:500;color:#fff;line-height:1.2}
+.prop-code{font-family:var(--mono);font-size:.58rem;color:var(--fog);letter-spacing:.1em;margin-top:.15rem}
+.prop-coming{font-family:var(--mono);font-size:.55rem;color:rgba(201,151,58,.6);letter-spacing:.08em;margin-left:auto;flex-shrink:0}
 
-.lock-logo {
-  font-family: var(--serif);
-  font-size: 2.2rem;
-  color: var(--gold);
-  letter-spacing: 0.02em;
-  margin-bottom: 0.25rem;
+/* PIN Screen */
+#pin-screen{display:none;flex-direction:column;align-items:center}
+#pin-screen.show{display:flex}
+.pin-back{
+  font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--fog);background:none;border:none;
+  cursor:pointer;margin-bottom:2rem;padding:.5rem 1rem;
+  border:1px solid rgba(255,255,255,.08);border-radius:6px;
+  transition:all .15s;
 }
-.lock-sub {
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  color: var(--fog);
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  margin-bottom: 3rem;
-}
-.lock-label {
-  font-family: var(--mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--fog);
-  margin-bottom: 1rem;
-}
-.pin-dots {
-  display: flex; gap: 12px; margin-bottom: 2rem;
-}
-.pin-dot {
-  width: 12px; height: 12px;
-  border-radius: 50%;
-  border: 1.5px solid var(--fog);
-  transition: all 0.15s ease;
-}
-.pin-dot.filled {
-  background: var(--gold);
-  border-color: var(--gold);
-  box-shadow: 0 0 10px rgba(201,151,58,0.4);
-}
-.pin-dot.error {
-  background: var(--red);
-  border-color: var(--red);
-  animation: shake 0.3s ease;
-}
-@keyframes shake {
-  0%,100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
-}
+.pin-back:hover{color:var(--mist);border-color:rgba(255,255,255,.2)}
+.pin-for{font-family:var(--serif);font-size:1.4rem;color:var(--gold);margin-bottom:.25rem}
+.pin-label{font-family:var(--mono);font-size:.6rem;color:var(--fog);letter-spacing:.15em;text-transform:uppercase;margin-bottom:1.5rem}
+.pin-dots{display:flex;gap:10px;margin-bottom:2rem}
+.pin-dot{width:11px;height:11px;border-radius:50%;border:1.5px solid var(--fog);transition:all .15s}
+.pin-dot.filled{background:var(--gold);border-color:var(--gold);box-shadow:0 0 8px rgba(201,151,58,.4)}
+.pin-dot.error{background:var(--red);border-color:var(--red);animation:shake .3s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.pin-pad{display:grid;grid-template-columns:repeat(3,58px);gap:9px}
+.pin-key{width:58px;height:58px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-family:var(--sans);font-size:1.2rem;font-weight:300;cursor:pointer;transition:all .1s;display:flex;align-items:center;justify-content:center}
+.pin-key:hover{background:rgba(255,255,255,.12)}
+.pin-key:active{transform:scale(.92)}
+.pin-key.wide{border-radius:29px;font-size:.7rem;letter-spacing:.1em}
+.pin-err{font-family:var(--mono);font-size:.62rem;color:var(--red);letter-spacing:.1em;margin-top:1.25rem;opacity:0;transition:opacity .2s}
+.pin-err.show{opacity:1}
 
-.pin-pad {
-  display: grid;
-  grid-template-columns: repeat(3, 60px);
-  gap: 10px;
-}
-.pin-key {
-  width: 60px; height: 60px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.05);
-  color: #fff;
-  font-family: var(--sans);
-  font-size: 1.25rem;
-  font-weight: 300;
-  cursor: pointer;
-  transition: all 0.1s ease;
-  display: flex; align-items: center; justify-content: center;
-}
-.pin-key:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); }
-.pin-key:active { transform: scale(0.92); }
-.pin-key.wide { border-radius: 30px; font-size: 0.75rem; letter-spacing: 0.1em; }
-.pin-error-msg {
-  font-family: var(--mono);
-  font-size: 0.65rem;
-  color: var(--red);
-  letter-spacing: 0.1em;
-  margin-top: 1.5rem;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-.pin-error-msg.show { opacity: 1; }
+/* ── APP SHELL ── */
+#app{display:none}
+#app.visible{display:block}
 
 /* ── TOP BAR ── */
-#app { display: none; }
-#app.visible { display: block; }
+.topbar{
+  position:sticky;top:0;z-index:100;
+  background:var(--ink);
+  display:flex;align-items:center;
+  padding:0 1.5rem;height:52px;gap:1.5rem;
+}
+.topbar-brand{font-family:var(--serif);font-size:1.1rem;color:var(--gold);flex-shrink:0;letter-spacing:.02em}
+.topbar-prop-tag{
+  font-family:var(--mono);font-size:.58rem;
+  letter-spacing:.14em;text-transform:uppercase;
+  padding:.25rem .65rem;border-radius:20px;
+  flex-shrink:0;
+}
+.tag-owner{background:rgba(201,151,58,.15);color:var(--gold)}
+.tag-wkfcw{background:rgba(29,78,216,.15);color:#93c5fd}
+.tag-rdurm{background:rgba(21,128,61,.15);color:#86efac}
+.tag-rdutt{background:rgba(180,83,9,.15);color:#fcd34d}
 
-.topbar {
-  position: sticky; top: 0; z-index: 100;
-  background: var(--ink);
-  display: flex; align-items: center;
-  padding: 0 2rem;
-  height: 56px;
-  gap: 2rem;
-}
-.topbar-brand {
-  font-family: var(--serif);
-  font-size: 1.15rem;
-  color: var(--gold);
-  flex-shrink: 0;
-}
-.topbar-prop {
-  font-family: var(--mono);
-  font-size: 0.65rem;
-  color: var(--fog);
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-}
-.topbar-nav {
-  display: flex; gap: 0; margin-left: auto;
-}
-.nav-btn {
-  padding: 0 1.1rem;
-  height: 56px;
-  border: none; background: none;
-  color: var(--fog);
-  font-family: var(--mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border-bottom: 2px solid transparent;
-  white-space: nowrap;
-}
-.nav-btn:hover { color: var(--mist); }
-.nav-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
-.topbar-lock {
-  margin-left: 1rem;
-  padding: 0 0.75rem;
-  height: 32px;
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: transparent;
-  color: var(--fog);
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.topbar-lock:hover { border-color: var(--gold); color: var(--gold); }
+.topbar-nav{display:flex;gap:0;margin-left:auto}
+.nav-btn{padding:0 .9rem;height:52px;border:none;background:none;color:var(--fog);font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s;border-bottom:2px solid transparent;white-space:nowrap}
+.nav-btn:hover{color:var(--mist)}
+.nav-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+.topbar-actions{display:flex;gap:.5rem;margin-left:.75rem}
+.topbar-action-btn{padding:0 .75rem;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:transparent;color:var(--fog);font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+.topbar-action-btn:hover{border-color:var(--gold);color:var(--gold)}
 
 /* ── VIEWS ── */
-.view { display: none; }
-.view.active { display: block; }
+.view{display:none}
+.view.active{display:block}
 
 /* ── PAGE HEADER ── */
-.page-header {
-  padding: 2.5rem 2rem 1.5rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--cream);
-}
-.page-title {
-  font-family: var(--serif);
-  font-size: 1.75rem;
-  color: var(--ink);
-  margin-bottom: 0.25rem;
-}
-.page-subtitle {
-  font-family: var(--mono);
-  font-size: 0.65rem;
-  color: var(--fog);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
+.page-header{padding:2rem 2rem 1.25rem;border-bottom:1px solid var(--border);background:var(--cream)}
+.page-title{font-family:var(--serif);font-size:1.65rem;color:var(--ink);margin-bottom:.2rem}
+.page-sub{font-family:var(--mono);font-size:.6rem;color:var(--fog);letter-spacing:.12em;text-transform:uppercase}
 
-/* ── CONTENT AREA ── */
-.content { padding: 2rem; max-width: 1400px; margin: 0 auto; }
+/* ── CONTENT ── */
+.content{padding:1.75rem 2rem;max-width:1440px;margin:0 auto}
+@media(max-width:900px){.content{padding:1rem}}
 
-/* ── KPI CARDS ── */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-.kpi-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.25rem 1.5rem;
-  box-shadow: var(--shadow);
-  position: relative;
-  overflow: hidden;
-}
-.kpi-card::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0;
-  height: 3px;
-}
-.kpi-card.gold::before  { background: var(--gold); }
-.kpi-card.green::before { background: var(--green); }
-.kpi-card.blue::before  { background: var(--blue); }
-.kpi-card.red::before   { background: var(--red); }
-.kpi-card.amber::before { background: var(--amber); }
-
-.kpi-label {
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--fog);
-  margin-bottom: 0.5rem;
-}
-.kpi-value {
-  font-family: var(--serif);
-  font-size: 1.9rem;
-  color: var(--ink);
-  line-height: 1;
-  margin-bottom: 0.4rem;
-}
-.kpi-delta {
-  font-family: var(--mono);
-  font-size: 0.65rem;
-  display: flex; align-items: center; gap: 0.3rem;
-}
-.kpi-delta.up   { color: var(--green); }
-.kpi-delta.down { color: var(--red); }
-.kpi-delta.flat { color: var(--fog); }
-.kpi-meta {
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  color: var(--mist);
-  margin-top: 0.2rem;
-}
+/* ── KPI GRID ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem;margin-bottom:1.75rem}
+.kpi-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1.4rem;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.kpi-card.gold::before{background:var(--gold)}
+.kpi-card.green::before{background:var(--green)}
+.kpi-card.blue::before{background:var(--blue)}
+.kpi-card.red::before{background:var(--red)}
+.kpi-card.amber::before{background:var(--amber)}
+.kpi-label{font-family:var(--mono);font-size:.58rem;letter-spacing:.13em;text-transform:uppercase;color:var(--fog);margin-bottom:.4rem}
+.kpi-value{font-family:var(--serif);font-size:1.8rem;color:var(--ink);line-height:1;margin-bottom:.35rem}
+.kpi-delta{font-family:var(--mono);font-size:.6rem}
+.kpi-delta.up{color:var(--green)}
+.kpi-delta.down{color:var(--red)}
+.kpi-delta.flat{color:var(--fog)}
+.kpi-meta{font-family:var(--mono);font-size:.57rem;color:var(--mist);margin-top:.15rem}
 
 /* ── SECTION CARDS ── */
-.section-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  margin-bottom: 1.5rem;
-  overflow: hidden;
-}
-.section-head {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
-  background: var(--cream);
-}
-.section-title {
-  font-family: var(--mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  font-weight: 500;
-}
-.section-badge {
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  padding: 0.2rem 0.6rem;
-  border-radius: 20px;
-  letter-spacing: 0.08em;
-}
-.badge-ok     { background: var(--green-lt); color: var(--green); }
-.badge-warn   { background: var(--amber-lt); color: var(--amber); }
-.badge-alert  { background: var(--red-lt);   color: var(--red); }
-.badge-info   { background: var(--blue-lt);  color: var(--blue); }
-
-/* ── TABLES ── */
-.data-table { width: 100%; border-collapse: collapse; }
-.data-table th {
-  font-family: var(--mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--fog);
-  padding: 0.75rem 1rem;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
-  background: var(--cream);
-  white-space: nowrap;
-}
-.data-table th.right { text-align: right; }
-.data-table td {
-  padding: 0.7rem 1rem;
-  font-size: 0.875rem;
-  border-bottom: 1px solid var(--border);
-  vertical-align: middle;
-}
-.data-table td.right { text-align: right; font-family: var(--mono); font-size: 0.8rem; }
-.data-table td.mono  { font-family: var(--mono); font-size: 0.8rem; }
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover td { background: var(--cream); }
-.data-table tr.total-row td {
-  font-weight: 600;
-  background: var(--cream);
-  border-top: 2px solid var(--border);
-}
-
-/* ── COMPARISON ROW ── */
-.compare-row {
-  display: flex; gap: 0.5rem; align-items: center;
-}
-.compare-val { font-family: var(--mono); font-size: 0.75rem; }
-.compare-ly  { font-family: var(--mono); font-size: 0.65rem; color: var(--fog); }
-.compare-chg.up   { font-family: var(--mono); font-size: 0.65rem; color: var(--green); }
-.compare-chg.down { font-family: var(--mono); font-size: 0.65rem; color: var(--red); }
-
-/* ── DATE NAV ── */
-.date-nav {
-  display: flex; align-items: center; gap: 0.75rem;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--cream);
-}
-.date-btn {
-  width: 28px; height: 28px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--card-bg);
-  color: var(--ink-3);
-  font-size: 0.8rem;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s;
-}
-.date-btn:hover { border-color: var(--gold); color: var(--gold); }
-.date-display {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--ink);
-  letter-spacing: 0.06em;
-  min-width: 120px;
-}
-.date-today-btn {
-  padding: 0 0.75rem;
-  height: 28px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--card-bg);
-  color: var(--fog);
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.date-today-btn:hover { border-color: var(--gold); color: var(--gold); }
+.section-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:1.5rem;overflow:hidden}
+.section-head{padding:.875rem 1.4rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--cream);gap:1rem}
+.section-title{font-family:var(--mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);font-weight:500}
+.section-badge{font-family:var(--mono);font-size:.58rem;padding:.18rem .55rem;border-radius:20px;letter-spacing:.07em;white-space:nowrap}
+.badge-ok{background:var(--green-lt);color:var(--green)}
+.badge-warn{background:var(--amber-lt);color:var(--amber)}
+.badge-alert{background:var(--red-lt);color:var(--red)}
+.badge-info{background:var(--blue-lt);color:var(--blue)}
+.badge-gold{background:var(--gold-lt);color:var(--gold-dim)}
 
 /* ── ALERT STRIP ── */
-.alert-strip {
-  display: flex; gap: 0.75rem; flex-wrap: wrap;
-  padding: 0.75rem 1.5rem;
-  border-bottom: 1px solid var(--border);
-}
-.alert-chip {
-  display: flex; align-items: center; gap: 0.4rem;
-  padding: 0.3rem 0.75rem;
-  border-radius: 20px;
-  font-family: var(--mono);
-  font-size: 0.62rem;
-  letter-spacing: 0.06em;
-  font-weight: 500;
-  cursor: default;
-}
-.alert-chip.warn  { background: var(--amber-lt); color: var(--amber); border: 1px solid rgba(217,119,6,0.2); }
-.alert-chip.alert { background: var(--red-lt);   color: var(--red);   border: 1px solid rgba(192,57,43,0.2); }
-.alert-chip.ok    { background: var(--green-lt); color: var(--green); border: 1px solid rgba(30,126,78,0.2); }
-.alert-chip.info  { background: var(--blue-lt);  color: var(--blue);  border: 1px solid rgba(29,78,216,0.2); }
+.alert-strip{display:flex;gap:.6rem;flex-wrap:wrap;padding:.65rem 1.4rem;border-bottom:1px solid var(--border);min-height:42px;align-items:center}
+.alert-chip{display:flex;align-items:center;gap:.35rem;padding:.25rem .7rem;border-radius:20px;font-family:var(--mono);font-size:.6rem;letter-spacing:.05em;font-weight:500}
+.alert-chip.warn{background:var(--amber-lt);color:var(--amber);border:1px solid rgba(180,83,9,.2)}
+.alert-chip.alert{background:var(--red-lt);color:var(--red);border:1px solid rgba(185,28,28,.2)}
+.alert-chip.ok{background:var(--green-lt);color:var(--green);border:1px solid rgba(21,128,61,.2)}
+.alert-chip.info{background:var(--blue-lt);color:var(--blue);border:1px solid rgba(29,78,216,.2)}
 
-/* ── AR AGING BARS ── */
-.aging-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1px;
-  background: var(--border);
-}
-.aging-cell {
-  background: var(--card-bg);
-  padding: 1.25rem 1.5rem;
-}
-.aging-company {
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--fog);
-  margin-bottom: 0.75rem;
-}
-.aging-total {
-  font-family: var(--serif);
-  font-size: 1.5rem;
-  color: var(--ink);
-  margin-bottom: 0.75rem;
-}
-.aging-bar-row {
-  display: flex; align-items: center; gap: 0.75rem;
-  margin-bottom: 0.4rem;
-}
-.aging-bar-label {
-  font-family: var(--mono);
-  font-size: 0.58rem;
-  color: var(--fog);
-  width: 52px;
-  flex-shrink: 0;
-  letter-spacing: 0.06em;
-}
-.aging-bar-track {
-  flex: 1; height: 6px;
-  background: var(--paper);
-  border-radius: 3px;
-  overflow: hidden;
-}
-.aging-bar-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.6s ease;
-}
-.bar-current { background: var(--green); }
-.bar-30      { background: var(--amber); }
-.bar-60      { background: #f97316; }
-.bar-90      { background: var(--red); }
-.bar-120     { background: #991b1b; }
-.bar-150     { background: #4c0519; }
-.aging-bar-val {
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  color: var(--ink-3);
-  width: 64px;
-  text-align: right;
-  flex-shrink: 0;
-}
-.aging-trend {
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border);
-}
-.trend-up   { color: var(--red); }
-.trend-down { color: var(--green); }
-.trend-flat { color: var(--fog); }
+/* ── DATE NAV ── */
+.date-nav{display:flex;align-items:center;gap:.65rem;padding:.875rem 1.4rem;border-bottom:1px solid var(--border);background:var(--cream)}
+.date-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:var(--white);color:var(--ink3);font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.date-btn:hover{border-color:var(--gold);color:var(--gold)}
+.date-display{font-family:var(--mono);font-size:.72rem;color:var(--ink);letter-spacing:.05em;min-width:130px}
+.date-today-btn{padding:0 .7rem;height:26px;border-radius:6px;border:1px solid var(--border);background:var(--white);color:var(--fog);font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+.date-today-btn:hover{border-color:var(--gold);color:var(--gold)}
+.spacer{flex:1}
 
-/* ── UPLOAD ZONE ── */
-.upload-area {
-  border: 2px dashed var(--border);
-  border-radius: var(--radius);
-  padding: 2.5rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background: var(--cream);
-  position: relative;
-}
-.upload-area:hover, .upload-area.dragover {
-  border-color: var(--gold);
-  background: rgba(201,151,58,0.04);
-}
-.upload-area input[type="file"] {
-  position: absolute; inset: 0;
-  opacity: 0; cursor: pointer;
-}
-.upload-icon {
-  font-size: 2rem; margin-bottom: 0.75rem;
-  filter: grayscale(1) opacity(0.4);
-}
-.upload-title {
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  margin-bottom: 0.35rem;
-}
-.upload-sub {
-  font-family: var(--sans);
-  font-size: 0.8rem;
-  color: var(--fog);
-}
+/* ── TABLES ── */
+.data-table{width:100%;border-collapse:collapse}
+.data-table th{font-family:var(--mono);font-size:.57rem;letter-spacing:.11em;text-transform:uppercase;color:var(--fog);padding:.7rem 1rem;text-align:left;border-bottom:1px solid var(--border);background:var(--cream);white-space:nowrap}
+.data-table th.r{text-align:right}
+.data-table td{padding:.65rem 1rem;font-size:.85rem;border-bottom:1px solid var(--border);vertical-align:middle}
+.data-table td.r{text-align:right;font-family:var(--mono);font-size:.78rem}
+.data-table td.mono{font-family:var(--mono);font-size:.75rem}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:var(--cream)}
+.data-table tr.tot td{font-weight:600;background:var(--cream);border-top:2px solid var(--border)}
+.tbl-wrap{overflow-x:auto}
 
-.upload-results {
-  margin-top: 1.5rem;
-  display: flex; flex-direction: column; gap: 0.5rem;
-}
-.upload-item {
-  display: flex; align-items: center; gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 0.85rem;
-}
-.upload-item-icon { font-size: 1.1rem; flex-shrink: 0; }
-.upload-item-name { flex: 1; font-family: var(--mono); font-size: 0.72rem; color: var(--ink-3); }
-.upload-item-type {
-  font-family: var(--mono); font-size: 0.6rem;
-  padding: 0.15rem 0.5rem; border-radius: 20px;
-  letter-spacing: 0.06em;
-}
-.type-detected  { background: var(--green-lt); color: var(--green); }
-.type-unknown   { background: var(--amber-lt); color: var(--amber); }
-.type-error     { background: var(--red-lt);   color: var(--red); }
-.upload-item-status { font-family: var(--mono); font-size: 0.65rem; color: var(--fog); }
+/* ── AGING BARS ── */
+.aging-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;background:var(--border)}
+.aging-cell{background:var(--white);padding:1.25rem 1.4rem}
+.aging-co{font-family:var(--mono);font-size:.58rem;letter-spacing:.13em;text-transform:uppercase;color:var(--fog);margin-bottom:.65rem}
+.aging-tot{font-family:var(--serif);font-size:1.45rem;color:var(--ink);margin-bottom:.75rem}
+.aging-row{display:flex;align-items:center;gap:.65rem;margin-bottom:.35rem}
+.aging-lbl{font-family:var(--mono);font-size:.56rem;color:var(--fog);width:48px;flex-shrink:0;letter-spacing:.05em}
+.aging-track{flex:1;height:5px;background:var(--paper);border-radius:3px;overflow:hidden}
+.aging-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.fill-cur{background:var(--green)}
+.fill-30{background:var(--amber)}
+.fill-60{background:#f97316}
+.fill-90{background:var(--red)}
+.fill-120{background:#991b1b}
+.fill-150{background:#4c0519}
+.aging-val{font-family:var(--mono);font-size:.58rem;color:var(--ink3);width:70px;text-align:right;flex-shrink:0}
 
-.upload-commit-btn {
-  margin-top: 1.25rem;
-  padding: 0.85rem 2rem;
-  background: var(--ink);
-  color: var(--gold);
-  border: none;
-  border-radius: 8px;
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.upload-commit-btn:hover { background: var(--ink-2); }
-.upload-commit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+/* ── UPLOAD ── */
+.upload-area{border:2px dashed var(--border);border-radius:var(--radius);padding:2.25rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--cream);position:relative}
+.upload-area:hover,.upload-area.dragover{border-color:var(--gold);background:rgba(201,151,58,.03)}
+.upload-area input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.upload-icon{font-size:1.8rem;margin-bottom:.6rem;opacity:.4}
+.upload-title{font-family:var(--mono);font-size:.67rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:.3rem}
+.upload-sub{font-size:.8rem;color:var(--fog)}
+.upload-results{margin-top:1.25rem;display:flex;flex-direction:column;gap:.45rem}
+.upload-item{display:flex;align-items:center;gap:.65rem;padding:.65rem .9rem;background:var(--white);border:1px solid var(--border);border-radius:8px}
+.upload-item-name{flex:1;font-family:var(--mono);font-size:.68rem;color:var(--ink3)}
+.upload-item-type{font-family:var(--mono);font-size:.57rem;padding:.13rem .5rem;border-radius:20px;letter-spacing:.05em}
+.type-ok{background:var(--green-lt);color:var(--green)}
+.type-unk{background:var(--amber-lt);color:var(--amber)}
+.type-err{background:var(--red-lt);color:var(--red)}
+.upload-item-note{font-family:var(--mono);font-size:.6rem;color:var(--fog)}
+.upload-commit{margin-top:1.1rem;padding:.8rem 1.75rem;background:var(--ink);color:var(--gold);border:none;border-radius:8px;font-family:var(--mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+.upload-commit:hover{background:var(--ink2)}
+.upload-commit:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── FORM ── */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.9rem;padding:1.4rem}
+.form-group{display:flex;flex-direction:column;gap:.35rem}
+.form-label{font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fog)}
+.form-input{padding:.55rem .7rem;border:1px solid var(--border);border-radius:6px;font-family:var(--mono);font-size:.78rem;background:var(--white);color:var(--ink);transition:border-color .15s}
+.form-input:focus{outline:none;border-color:var(--gold)}
+.form-actions{padding:0 1.4rem 1.4rem;display:flex;gap:.65rem}
+.btn-primary{padding:.6rem 1.4rem;background:var(--ink);color:var(--gold);border:none;border-radius:7px;font-family:var(--mono);font-size:.63rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+.btn-primary:hover{background:var(--ink2)}
+.btn-sec{padding:.6rem 1.4rem;background:transparent;color:var(--fog);border:1px solid var(--border);border-radius:7px;font-family:var(--mono);font-size:.63rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+.btn-sec:hover{border-color:var(--ink3);color:var(--ink3)}
 
 /* ── TABS ── */
-.tab-bar {
-  display: flex; gap: 0;
-  border-bottom: 1px solid var(--border);
-  padding: 0 1.5rem;
-  background: var(--cream);
-}
-.tab-btn {
-  padding: 0.75rem 1.25rem;
-  border: none; background: none;
-  font-family: var(--mono);
-  font-size: 0.62rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--fog);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  transition: all 0.15s;
-}
-.tab-btn:hover { color: var(--ink-3); }
-.tab-btn.active { color: var(--ink); border-bottom-color: var(--gold); }
-.tab-content { display: none; padding: 1.5rem; }
-.tab-content.active { display: block; }
-
-/* ── CHART CONTAINER ── */
-.chart-wrap {
-  padding: 1.5rem;
-  height: 260px;
-  position: relative;
-}
-.chart-placeholder {
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  height: 100%;
-  color: var(--fog);
-  font-family: var(--mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  gap: 0.5rem;
-}
-canvas { width: 100% !important; }
-
-/* ── EMPTY STATE ── */
-.empty-state {
-  text-align: center;
-  padding: 3rem 2rem;
-  color: var(--fog);
-}
-.empty-state-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.3; }
-.empty-state-title {
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  margin-bottom: 0.5rem;
-  color: var(--ink-3);
-}
-.empty-state-sub { font-size: 0.85rem; color: var(--fog); }
-
-/* ── LOADING ── */
-.loading-pulse {
-  display: flex; align-items: center; gap: 0.5rem;
-  padding: 2rem;
-  font-family: var(--mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.1em;
-  color: var(--fog);
-}
-@keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:1} }
-.pulse-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--gold);
-  animation: pulse 1.2s ease infinite;
-}
-.pulse-dot:nth-child(2) { animation-delay: 0.2s; }
-.pulse-dot:nth-child(3) { animation-delay: 0.4s; }
+.tab-bar{display:flex;border-bottom:1px solid var(--border);padding:0 1.4rem;background:var(--cream)}
+.tab-btn{padding:.7rem 1.1rem;border:none;background:none;font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fog);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.tab-btn:hover{color:var(--ink3)}
+.tab-btn.active{color:var(--ink);border-bottom-color:var(--gold)}
+.tab-content{display:none;padding:1.4rem}
+.tab-content.active{display:block}
 
 /* ── GRID LAYOUTS ── */
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
-@media (max-width: 900px) {
-  .two-col, .three-col { grid-template-columns: 1fr; }
-  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-  .topbar-nav .nav-btn { padding: 0 0.6rem; font-size: 0.58rem; }
-  .content { padding: 1rem; }
-}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem}
+@media(max-width:960px){.two-col,.three-col{grid-template-columns:1fr}}
 
-/* ── PILL TAGS ── */
-.pill {
-  display: inline-block;
-  padding: 0.15rem 0.55rem;
-  border-radius: 20px;
-  font-family: var(--mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.06em;
-  font-weight: 500;
-}
-.pill-red    { background: var(--red-lt);   color: var(--red); }
-.pill-green  { background: var(--green-lt); color: var(--green); }
-.pill-amber  { background: var(--amber-lt); color: var(--amber); }
-.pill-blue   { background: var(--blue-lt);  color: var(--blue); }
-.pill-gray   { background: var(--paper);    color: var(--fog); border: 1px solid var(--border); }
+/* ── OWNER SUMMARY CARDS ── */
+.prop-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-bottom:1.75rem}
+.prop-summary-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;cursor:pointer;transition:all .2s}
+.prop-summary-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-1px)}
+.psc-header{padding:.875rem 1.25rem;display:flex;align-items:center;gap:.75rem}
+.psc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.dot-wkfcw{background:#3b82f6}
+.dot-rdurm{background:#22c55e}
+.dot-rdutt{background:#f59e0b}
+.psc-name{font-weight:600;font-size:.9rem}
+.psc-code{font-family:var(--mono);font-size:.58rem;color:var(--fog);letter-spacing:.1em}
+.psc-body{padding:1rem 1.25rem;border-top:1px solid var(--border)}
+.psc-kpi-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:.75rem}
+.psc-kpi{text-align:center}
+.psc-kpi-val{font-family:var(--serif);font-size:1.2rem;color:var(--ink)}
+.psc-kpi-lbl{font-family:var(--mono);font-size:.52rem;color:var(--fog);letter-spacing:.08em;text-transform:uppercase}
+.psc-footer{padding:.65rem 1.25rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.psc-foot-lbl{font-family:var(--mono);font-size:.58rem;color:var(--fog);letter-spacing:.08em}
+.psc-foot-val{font-family:var(--mono);font-size:.7rem;font-weight:500;color:var(--ink3)}
+.psc-coming{display:flex;align-items:center;justify-content:center;padding:2rem;color:var(--fog);font-family:var(--mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase}
 
-/* ── MISC ── */
-.divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
-.text-right { text-align: right; }
-.mt-1 { margin-top: 1rem; }
-.mt-2 { margin-top: 1.5rem; }
-.gap-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
-.spacer { flex: 1; }
+/* ── PILL ── */
+.pill{display:inline-block;padding:.12rem .5rem;border-radius:20px;font-family:var(--mono);font-size:.56rem;letter-spacing:.05em;font-weight:500}
+.pill-red{background:var(--red-lt);color:var(--red)}
+.pill-green{background:var(--green-lt);color:var(--green)}
+.pill-amber{background:var(--amber-lt);color:var(--amber)}
+.pill-blue{background:var(--blue-lt);color:var(--blue)}
+.pill-gray{background:var(--paper);color:var(--fog);border:1px solid var(--border)}
+.pill-gold{background:var(--gold-lt);color:var(--gold-dim)}
 
-/* ── MONTHLY HISTORY TABLE ── */
-.month-bar {
-  display: inline-block;
-  height: 8px;
-  background: var(--gold);
-  border-radius: 2px;
-  opacity: 0.7;
-  vertical-align: middle;
-  transition: width 0.4s ease;
-}
+/* ── MONTH BAR ── */
+.month-bar{display:inline-block;height:7px;background:var(--gold);border-radius:2px;opacity:.65;vertical-align:middle}
 
-/* ── MANUAL ENTRY FORM ── */
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  padding: 1.5rem;
-}
-.form-group { display: flex; flex-direction: column; gap: 0.4rem; }
-.form-label {
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--fog);
-}
-.form-input {
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-family: var(--mono);
-  font-size: 0.8rem;
-  background: var(--card-bg);
-  color: var(--ink);
-  transition: border-color 0.15s;
-}
-.form-input:focus { outline: none; border-color: var(--gold); }
-.form-actions {
-  padding: 0 1.5rem 1.5rem;
-  display: flex; gap: 0.75rem;
-}
-.btn-primary {
-  padding: 0.65rem 1.5rem;
-  background: var(--ink);
-  color: var(--gold);
-  border: none; border-radius: 7px;
-  font-family: var(--mono); font-size: 0.65rem;
-  letter-spacing: 0.1em; text-transform: uppercase;
-  cursor: pointer; transition: all 0.15s;
-}
-.btn-primary:hover { background: var(--ink-2); }
-.btn-secondary {
-  padding: 0.65rem 1.5rem;
-  background: transparent;
-  color: var(--fog);
-  border: 1px solid var(--border); border-radius: 7px;
-  font-family: var(--mono); font-size: 0.65rem;
-  letter-spacing: 0.1em; text-transform: uppercase;
-  cursor: pointer; transition: all 0.15s;
-}
-.btn-secondary:hover { border-color: var(--ink-3); color: var(--ink-3); }
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:2.5rem 2rem;color:var(--fog)}
+.empty-icon{font-size:2rem;margin-bottom:.75rem;opacity:.3}
+.empty-title{font-family:var(--mono);font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.4rem;color:var(--ink3)}
+.empty-sub{font-size:.82rem;color:var(--fog)}
+
+/* ── LOADING ── */
+.loading{display:flex;align-items:center;gap:.5rem;padding:1.75rem;font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;color:var(--fog)}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+.pdot{width:5px;height:5px;border-radius:50%;background:var(--gold);animation:pulse 1.2s ease infinite}
+.pdot:nth-child(2){animation-delay:.2s}
+.pdot:nth-child(3){animation-delay:.4s}
+
+/* ── COMING SOON ── */
+.coming-soon{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4rem 2rem;text-align:center}
+.coming-soon-badge{font-family:var(--mono);font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;padding:.3rem .9rem;border-radius:20px;background:var(--amber-lt);color:var(--amber);margin-bottom:1.25rem}
+.coming-soon-title{font-family:var(--serif);font-size:1.5rem;color:var(--ink);margin-bottom:.5rem}
+.coming-soon-sub{font-size:.85rem;color:var(--fog);max-width:360px}
 
 /* ── TOAST ── */
-#toast {
-  position: fixed; bottom: 2rem; right: 2rem;
-  padding: 0.85rem 1.25rem;
-  border-radius: 8px;
-  font-family: var(--mono); font-size: 0.7rem;
-  letter-spacing: 0.06em;
-  box-shadow: var(--shadow-lg);
-  z-index: 999;
-  transform: translateY(100px); opacity: 0;
-  transition: all 0.3s ease;
-  max-width: 320px;
-}
-#toast.show { transform: translateY(0); opacity: 1; }
-#toast.success { background: var(--ink); color: var(--gold); }
-#toast.error   { background: #2d0b0b; color: #f87171; }
-#toast.info    { background: #0f172a; color: #93c5fd; }
+#toast{position:fixed;bottom:1.75rem;right:1.75rem;padding:.8rem 1.1rem;border-radius:8px;font-family:var(--mono);font-size:.67rem;letter-spacing:.05em;box-shadow:var(--shadow-lg);z-index:999;transform:translateY(80px);opacity:0;transition:all .3s ease;max-width:300px}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.success{background:var(--ink);color:var(--gold)}
+#toast.error{background:#2d0b0b;color:#f87171}
+#toast.info{background:#0f172a;color:#93c5fd}
 </style>
 </head>
 <body>
 
-<!-- ══ LOCK SCREEN ══ -->
-<div id="lock-screen">
-  <div class="lock-logo">Milkam Catbird Seat</div>
-  <div class="lock-sub">WKFCW · Candlewood Suites Wake Forest</div>
-  <div class="lock-label">Enter PIN</div>
-  <div class="pin-dots" id="pin-dots">
-    <div class="pin-dot" id="d0"></div>
-    <div class="pin-dot" id="d1"></div>
-    <div class="pin-dot" id="d2"></div>
-    <div class="pin-dot" id="d3"></div>
+<!-- ══ ENTRY SCREEN ══ -->
+<div id="entry-screen">
+  <!-- Property Selector -->
+  <div id="prop-selector-wrap">
+    <div class="entry-logo">Catbird Seat</div>
+    <div class="entry-tagline">Milkam Hospitality · Revenue Intelligence</div>
+    <div id="prop-selector">
+      <button class="prop-btn owner-btn" data-prop="OWNER">
+        <div class="prop-icon owner">🏢</div>
+        <div><div class="prop-name">Owner View</div><div class="prop-code">All Properties</div></div>
+      </button>
+      <button class="prop-btn" data-prop="WKFCW">
+        <div class="prop-icon wkfcw">🏨</div>
+        <div><div class="prop-name">Candlewood Suites Wake Forest</div><div class="prop-code">WKFCW</div></div>
+      </button>
+      <button class="prop-btn" data-prop="RDURM">
+        <div class="prop-icon rdurm">🏨</div>
+        <div><div class="prop-name">Tru by Hilton Wake Forest</div><div class="prop-code">RDURM</div></div>
+        <div class="prop-coming">PEP</div>
+      </button>
+      <button class="prop-btn" data-prop="RDUTT">
+        <div class="prop-icon rdutt">🏨</div>
+        <div><div class="prop-name">Home2 Suites Raleigh North</div><div class="prop-code">RDUTT</div></div>
+        <div class="prop-coming">PEP</div>
+      </button>
+    </div>
   </div>
-  <div class="pin-pad" id="pin-pad">
-    <button class="pin-key" data-key="1">1</button>
-    <button class="pin-key" data-key="2">2</button>
-    <button class="pin-key" data-key="3">3</button>
-    <button class="pin-key" data-key="4">4</button>
-    <button class="pin-key" data-key="5">5</button>
-    <button class="pin-key" data-key="6">6</button>
-    <button class="pin-key" data-key="7">7</button>
-    <button class="pin-key" data-key="8">8</button>
-    <button class="pin-key" data-key="9">9</button>
-    <button class="pin-key wide" data-key="clear">CLR</button>
-    <button class="pin-key" data-key="0">0</button>
-    <button class="pin-key wide" data-key="del">⌫</button>
+
+  <!-- PIN Screen -->
+  <div id="pin-screen">
+    <button class="pin-back" id="pin-back-btn">← Back</button>
+    <div class="pin-for" id="pin-for-label">Owner View</div>
+    <div class="pin-label">Enter PIN</div>
+    <div class="pin-dots">
+      <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
+    </div>
+    <div class="pin-pad">
+      <button class="pin-key" data-k="1">1</button><button class="pin-key" data-k="2">2</button><button class="pin-key" data-k="3">3</button>
+      <button class="pin-key" data-k="4">4</button><button class="pin-key" data-k="5">5</button><button class="pin-key" data-k="6">6</button>
+      <button class="pin-key" data-k="7">7</button><button class="pin-key" data-k="8">8</button><button class="pin-key" data-k="9">9</button>
+      <button class="pin-key wide" data-k="clr">CLR</button><button class="pin-key" data-k="0">0</button><button class="pin-key wide" data-k="del">⌫</button>
+    </div>
+    <div class="pin-err" id="pin-err">Incorrect PIN</div>
   </div>
-  <div class="pin-error-msg" id="pin-error">Incorrect PIN</div>
 </div>
 
 <!-- ══ APP ══ -->
 <div id="app">
-
-  <!-- Top Bar -->
   <div class="topbar">
     <div class="topbar-brand">Catbird Seat</div>
-    <div class="topbar-prop">WKFCW · Wake Forest</div>
-    <nav class="topbar-nav">
+    <div class="topbar-prop-tag" id="topbar-prop-tag">OWNER</div>
+    <nav class="topbar-nav" id="topbar-nav">
+      <!-- injected based on context -->
+    </nav>
+    <div class="topbar-actions">
+      <button class="topbar-action-btn" id="switch-prop-btn">Switch</button>
+      <button class="topbar-action-btn" id="lock-btn">Lock</button>
+    </div>
+  </div>
+  <div id="app-body"></div>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ═══════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════
+const SUPABASE_URL = 'https://ltbjavxegskmhyjqpext.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0YmphdnhlZ3NrbWh5anFwZXh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTU5NzksImV4cCI6MjA5NjI5MTk3OX0.mE-bSDLH7K9UXTqKDQKOuiEy9gv6Qi1xRj9Q2a9gw6I';
+
+// ⚠️ CHANGE THESE PINS BEFORE GOING LIVE
+const PINS = {
+  OWNER: '1234',
+  WKFCW: '2345',
+  RDURM: '3456',
+  RDUTT: '4567'
+};
+
+const PROPS = {
+  WKFCW: { name: 'Candlewood Suites Wake Forest', short: 'Candlewood WF', pms: 'HotelKey', active: true },
+  RDURM: { name: 'Tru by Hilton Wake Forest',     short: 'Tru WF',         pms: 'PEP',      active: false },
+  RDUTT: { name: 'Home2 Suites Raleigh North',    short: 'Home2 Raleigh',  pms: 'PEP',      active: false }
+};
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let S = {
+  mode: null,        // 'OWNER' or property code
+  currentDate: new Date().toISOString().slice(0,10),
+  daily: {},         // keyed by date
+  ar: [],
+  overrides: [],
+  adjs: [],
+  inhouse: [],
+  monthly: [],
+  pending: [],
+  charts: {}
+};
+
+// ═══════════════════════════════════════════
+// SUPABASE
+// ═══════════════════════════════════════════
+async function sbGet(table, qs=''){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}${qs}`,{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}});
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbUpsert(table, data, conflict){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=${conflict}`,{
+    method:'POST',
+    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
+    body: JSON.stringify(Array.isArray(data)?data:[data])
+  });
+  if(!r.ok) throw new Error(await r.text());
+}
+async function sbPost(table, data){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`,{
+    method:'POST',
+    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+    body: JSON.stringify(Array.isArray(data)?data:[data])
+  });
+  if(!r.ok) throw new Error(await r.text());
+}
+
+// ═══════════════════════════════════════════
+// ENTRY / PIN
+// ═══════════════════════════════════════════
+let pinEntry='', pinTarget=null;
+
+document.getElementById('prop-selector').addEventListener('click', e=>{
+  const btn = e.target.closest('.prop-btn');
+  if(!btn) return;
+  pinTarget = btn.dataset.prop;
+  document.getElementById('pin-for-label').textContent =
+    pinTarget==='OWNER' ? 'Owner View' : PROPS[pinTarget]?.short || pinTarget;
+  document.getElementById('prop-selector-wrap').style.display='none';
+  document.getElementById('pin-screen').classList.add('show');
+  pinEntry=''; updateDots();
+});
+
+document.getElementById('pin-back-btn').addEventListener('click', ()=>{
+  document.getElementById('pin-screen').classList.remove('show');
+  document.getElementById('prop-selector-wrap').style.display='';
+  pinEntry=''; updateDots();
+});
+
+document.querySelector('.pin-pad').addEventListener('click', e=>{
+  const btn = e.target.closest('.pin-key');
+  if(!btn) return;
+  const k = btn.dataset.k;
+  if(k==='clr'){pinEntry='';updateDots();return}
+  if(k==='del'){pinEntry=pinEntry.slice(0,-1);updateDots();return}
+  if(pinEntry.length>=4) return;
+  pinEntry+=k; updateDots();
+  if(pinEntry.length===4){
+    if(pinEntry===PINS[pinTarget]) enterApp(pinTarget);
+    else pinError();
+  }
+});
+
+function updateDots(){
+  for(let i=0;i<4;i++){
+    const d=document.getElementById('pd'+i);
+    d.className='pin-dot'+(i<pinEntry.length?' filled':'');
+  }
+}
+function pinError(){
+  for(let i=0;i<4;i++) document.getElementById('pd'+i).className='pin-dot error';
+  document.getElementById('pin-err').classList.add('show');
+  setTimeout(()=>{
+    pinEntry=''; updateDots();
+    document.getElementById('pin-err').classList.remove('show');
+  },800);
+}
+
+function enterApp(mode){
+  S.mode = mode;
+  document.getElementById('entry-screen').classList.add('hidden');
+  setTimeout(()=>document.getElementById('entry-screen').style.display='none', 450);
+  document.getElementById('app').classList.add('visible');
+  buildAppShell();
+  loadAllData().then(renderCurrentView);
+}
+
+// ═══════════════════════════════════════════
+// APP SHELL
+// ═══════════════════════════════════════════
+function buildAppShell(){
+  const tag = document.getElementById('topbar-prop-tag');
+  if(S.mode==='OWNER'){
+    tag.textContent='OWNER VIEW';
+    tag.className='topbar-prop-tag tag-owner';
+  } else {
+    tag.textContent=S.mode;
+    tag.className='topbar-prop-tag tag-'+S.mode.toLowerCase();
+  }
+
+  const isOwner = S.mode==='OWNER';
+  const propActive = S.mode!=='OWNER' && PROPS[S.mode]?.active;
+  const propInactive = S.mode!=='OWNER' && !PROPS[S.mode]?.active;
+
+  let navHtml = '';
+  if(isOwner){
+    navHtml = `
+      <button class="nav-btn active" data-view="owner-summary">Overview</button>
+      <button class="nav-btn" data-view="owner-ar">AR / Aging</button>
+      <button class="nav-btn" data-view="owner-performance">Performance</button>`;
+  } else if(propActive){
+    navHtml = `
       <button class="nav-btn active" data-view="daily">Daily</button>
       <button class="nav-btn" data-view="performance">Performance</button>
       <button class="nav-btn" data-view="ar">AR / Aging</button>
       <button class="nav-btn" data-view="accountability">Accountability</button>
       <button class="nav-btn" data-view="history">History</button>
-      <button class="nav-btn" data-view="upload">Upload</button>
-    </nav>
-    <button class="topbar-lock" id="lock-btn">Lock</button>
-  </div>
+      <button class="nav-btn" data-view="upload">Upload</button>`;
+  } else {
+    navHtml = `<button class="nav-btn active" data-view="coming-soon">Overview</button>`;
+  }
+  document.getElementById('topbar-nav').innerHTML = navHtml;
 
-  <!-- ── VIEW: DAILY ── -->
-  <div class="view active" id="view-daily">
+  document.getElementById('topbar-nav').addEventListener('click', e=>{
+    const btn = e.target.closest('.nav-btn');
+    if(!btn) return;
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderView(btn.dataset.view);
+  });
+
+  document.getElementById('lock-btn').addEventListener('click', lockApp);
+  document.getElementById('switch-prop-btn').addEventListener('click', switchProp);
+}
+
+function switchProp(){
+  lockApp();
+}
+
+function lockApp(){
+  S = {mode:null,currentDate:new Date().toISOString().slice(0,10),daily:{},ar:[],overrides:[],adjs:[],inhouse:[],monthly:[],pending:[],charts:{}};
+  pinEntry=''; pinTarget=null;
+  document.getElementById('entry-screen').style.display='flex';
+  document.getElementById('entry-screen').classList.remove('hidden');
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('pin-screen').classList.remove('show');
+  document.getElementById('prop-selector-wrap').style.display='';
+  document.getElementById('app-body').innerHTML='';
+  document.getElementById('topbar-nav').innerHTML='';
+  updateDots();
+}
+
+function renderCurrentView(){
+  const active = document.querySelector('.nav-btn.active');
+  if(active) renderView(active.dataset.view);
+}
+
+function renderView(view){
+  const body = document.getElementById('app-body');
+  // Destroy old charts
+  Object.values(S.charts).forEach(c=>{try{c.destroy()}catch(e){}});
+  S.charts={};
+
+  if(view==='owner-summary')    { body.innerHTML = buildOwnerSummary(); wireOwnerSummary(); }
+  else if(view==='owner-ar')    { body.innerHTML = buildOwnerAR(); }
+  else if(view==='owner-performance') { body.innerHTML = buildOwnerPerf(); setTimeout(renderOwnerPerfChart,100); }
+  else if(view==='daily')       { body.innerHTML = buildDaily(); wireDaily(); renderDailyContent(); }
+  else if(view==='performance') { body.innerHTML = buildPerformance(); setTimeout(renderPerfCharts,100); }
+  else if(view==='ar')          { body.innerHTML = buildAR(); }
+  else if(view==='accountability') { body.innerHTML = buildAccountability(); }
+  else if(view==='history')     { body.innerHTML = buildHistory(); wireHistory(); }
+  else if(view==='upload')      { body.innerHTML = buildUpload(); wireUpload(); }
+  else if(view==='coming-soon') { body.innerHTML = buildComingSoon(); }
+}
+
+// ═══════════════════════════════════════════
+// DATA LOADING
+// ═══════════════════════════════════════════
+async function loadAllData(){
+  const prop = S.mode;
+  const isOwner = prop==='OWNER';
+  const propFilter = isOwner ? '' : `&property=eq.${prop}`;
+
+  try {
+    const [daily, ar, overrides, adjs, inhouse, monthly] = await Promise.all([
+      sbGet('daily_revenue', `?order=date.desc&limit=400${propFilter}`),
+      sbGet('ar_aging',      `?order=date.desc&limit=120${propFilter}`),
+      sbGet('rate_overrides',`?order=stay_date.desc&limit=600${propFilter}`),
+      sbGet('adjustments',   `?order=date.desc&limit=600${propFilter}`),
+      sbGet('inhouse_balances',`?order=date.desc&limit=300${propFilter}`),
+      sbGet('monthly_revenue',`?order=period_start.asc${propFilter}`)
+    ]);
+    S.daily={}; daily.forEach(r=>{ const k=`${r.property||'WKFCW'}_${r.date}`; S.daily[k]=r; });
+    S.ar=ar; S.overrides=overrides; S.adjs=adjs; S.inhouse=inhouse; S.monthly=monthly;
+  } catch(e){ console.warn('Load error:',e); }
+}
+
+function dailyRow(date, prop){
+  const p = prop || S.mode;
+  return S.daily[`${p}_${date}`] || null;
+}
+function propDaily(prop){
+  return Object.values(S.daily).filter(r=>r.property===prop);
+}
+function allDaily(){
+  return Object.values(S.daily);
+}
+
+// ═══════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════
+const fmt$ = n => n==null?'—':'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtPct = n => n==null?'—':Number(n).toFixed(2)+'%';
+const fmtN = n => n==null?'—':Number(n).toLocaleString('en-US');
+const fmtDate = d => { if(!d) return '—'; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}); };
+const fmtMonth = d => { if(!d) return '—'; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',year:'numeric'}); };
+const loading = () => `<div class="loading"><div class="pdot"></div><div class="pdot"></div><div class="pdot"></div><span>Loading...</span></div>`;
+const empty = (title,sub) => `<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">${title}</div><div class="empty-sub">${sub}</div></div>`;
+
+function deltaChip(curr, prev){
+  if(!curr||!prev||prev===0) return '';
+  const d = ((curr-prev)/Math.abs(prev)*100).toFixed(1);
+  const cls = d>0?'up':d<0?'down':'flat';
+  const arrow = d>0?'▲':d<0?'▼':'—';
+  return `<span class="kpi-delta ${cls}">${arrow} ${Math.abs(d)}% vs LY</span>`;
+}
+
+function toast(msg,type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`show ${type}`;
+  setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+// ═══════════════════════════════════════════
+// ── OWNER VIEWS ──
+// ═══════════════════════════════════════════
+function buildOwnerSummary(){
+  const cards = Object.entries(PROPS).map(([code, p])=>{
+    if(!p.active) return `
+      <div class="prop-summary-card" data-prop="${code}">
+        <div class="psc-header">
+          <div class="psc-dot dot-${code.toLowerCase()}"></div>
+          <div><div class="psc-name">${p.short}</div><div class="psc-code">${code} · ${p.pms}</div></div>
+        </div>
+        <div class="psc-coming">Coming Soon — ${p.pms} integration pending</div>
+      </div>`;
+
+    const rows = propDaily(code).sort((a,b)=>a.date.localeCompare(b.date));
+    const today = rows[rows.length-1];
+    const month = rows[0]?.date.slice(0,7);
+    const mtd = rows.filter(r=>r.date.startsWith(month||''));
+    const mtdRev = mtd.reduce((s,r)=>s+(r.room_revenue||0),0);
+    const avgOcc = mtd.length ? mtd.reduce((s,r)=>s+(r.occ_pct||0),0)/mtd.length : null;
+    const avgADR = mtd.length ? mtd.reduce((s,r)=>s+(r.adr||0),0)/mtd.length : null;
+    const lyMtdRev = mtd.reduce((s,r)=>s+(r.ly_room_revenue||0),0);
+    const revChg = mtdRev && lyMtdRev ? ((mtdRev-lyMtdRev)/lyMtdRev*100).toFixed(1) : null;
+
+    return `
+      <div class="prop-summary-card" data-prop="${code}">
+        <div class="psc-header">
+          <div class="psc-dot dot-${code.toLowerCase()}"></div>
+          <div><div class="psc-name">${p.short}</div><div class="psc-code">${code} · ${p.pms}</div></div>
+        </div>
+        <div class="psc-body">
+          <div class="psc-kpi-row">
+            <div class="psc-kpi"><div class="psc-kpi-val">${today?fmtPct(today.occ_pct):'—'}</div><div class="psc-kpi-lbl">Today Occ</div></div>
+            <div class="psc-kpi"><div class="psc-kpi-val">${today?fmt$(today.adr):'—'}</div><div class="psc-kpi-lbl">Today ADR</div></div>
+            <div class="psc-kpi"><div class="psc-kpi-val">${fmt$(mtdRev||null)}</div><div class="psc-kpi-lbl">MTD Rev</div></div>
+          </div>
+          ${revChg ? `<div style="font-family:var(--mono);font-size:.6rem;color:${revChg>0?'var(--green)':'var(--red)'}">MTD Rev vs LY: ${revChg>0?'+':''}${revChg}%</div>` : ''}
+        </div>
+        <div class="psc-footer">
+          <span class="psc-foot-lbl">Avg Occ MTD</span><span class="psc-foot-val">${fmtPct(avgOcc)}</span>
+          <span class="psc-foot-lbl" style="margin-left:1rem">Avg ADR MTD</span><span class="psc-foot-val">${fmt$(avgADR)}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Combined KPIs
+  const allRows = allDaily();
+  const todayStr = S.currentDate;
+  const curMonth = todayStr.slice(0,7);
+  const curYear  = todayStr.slice(0,4);
+  const mtdAll = allRows.filter(r=>r.date.startsWith(curMonth));
+  const ytdAll = allRows.filter(r=>r.date.startsWith(curYear));
+  const mtdRevAll = mtdAll.reduce((s,r)=>s+(r.room_revenue||0),0);
+  const ytdRevAll = ytdAll.reduce((s,r)=>s+(r.room_revenue||0),0);
+  const lyMtdAll  = mtdAll.reduce((s,r)=>s+(r.ly_room_revenue||0),0);
+
+  // AR totals
+  const latestARDate = S.ar[0]?.date;
+  const latestAR = latestARDate ? S.ar.filter(r=>r.date===latestARDate) : [];
+  const arTotal = latestAR.reduce((s,r)=>s+(r.total||0),0);
+  const ar90plus = latestAR.reduce((s,r)=>s+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0);
+
+  return `
+    <div class="page-header">
+      <div class="page-title">Owner Overview</div>
+      <div class="page-sub">All Properties · ${fmtDate(todayStr)}</div>
+    </div>
+    <div class="content">
+      <div class="kpi-grid">
+        <div class="kpi-card gold">
+          <div class="kpi-label">MTD Room Revenue</div>
+          <div class="kpi-value">${fmt$(mtdRevAll||null)}</div>
+          ${lyMtdAll>0?deltaChip(mtdRevAll,lyMtdAll):''}
+          <div class="kpi-meta">All active properties</div>
+        </div>
+        <div class="kpi-card blue">
+          <div class="kpi-label">YTD Room Revenue</div>
+          <div class="kpi-value">${fmt$(ytdRevAll||null)}</div>
+          <div class="kpi-meta">${curYear} to date</div>
+        </div>
+        <div class="kpi-card ${ar90plus>50000?'red':'amber'}">
+          <div class="kpi-label">Total AR Outstanding</div>
+          <div class="kpi-value">${fmt$(arTotal||null)}</div>
+          <div class="kpi-meta">90+ days: ${fmt$(ar90plus||null)}</div>
+        </div>
+        <div class="kpi-card amber">
+          <div class="kpi-label">Rate Override Impact MTD</div>
+          <div class="kpi-value">${fmt$(S.overrides.filter(r=>r.stay_date?.startsWith(curMonth)).reduce((s,r)=>s+(r.override_amount||0),0)||null)}</div>
+          <div class="kpi-meta">${S.overrides.filter(r=>r.stay_date?.startsWith(curMonth)).length} overrides</div>
+        </div>
+      </div>
+      <div class="prop-summary-grid" id="prop-cards">${cards}</div>
+    </div>`;
+}
+
+function wireOwnerSummary(){
+  document.querySelectorAll('.prop-summary-card[data-prop]').forEach(card=>{
+    const code = card.dataset.prop;
+    if(PROPS[code]?.active){
+      card.addEventListener('click', ()=>{
+        // Switch to that property view (owner stays logged in, just scopes view)
+        toast(`Viewing ${code} data`, 'info');
+      });
+    }
+  });
+}
+
+function buildOwnerAR(){
+  if(!S.ar.length) return `<div class="page-header"><div class="page-title">AR / Aging</div></div><div class="content">${empty('No AR data','Upload Direct Bill Aging reports')}</div>`;
+  const latestDate = S.ar[0].date;
+  const rows = S.ar.filter(r=>r.date===latestDate);
+  const total = rows.reduce((s,r)=>s+(r.total||0),0);
+  const arByProp = {};
+  rows.forEach(r=>{ if(!arByProp[r.property]) arByProp[r.property]=0; arByProp[r.property]+=(r.total||0); });
+
+  return `
+    <div class="page-header">
+      <div class="page-title">AR / Aging — All Properties</div>
+      <div class="page-sub">Total outstanding: ${fmt$(total)} · As of ${fmtDate(latestDate)}</div>
+    </div>
+    <div class="content">
+      <div class="section-card">
+        <div class="section-head"><div class="section-title">Direct Bill Aging by Property</div><div class="section-badge badge-alert">${fmt$(total)} total</div></div>
+        <div class="aging-grid">${rows.map(r=>agingCellHtml(r)).join('')}</div>
+      </div>
+      <div class="section-card">
+        <div class="section-head"><div class="section-title">Day-over-Day Trend</div></div>
+        ${buildARTrendTable()}
+      </div>
+    </div>`;
+}
+
+function buildOwnerPerf(){
+  return `
+    <div class="page-header">
+      <div class="page-title">Performance — All Properties</div>
+      <div class="page-sub">Monthly revenue history</div>
+    </div>
+    <div class="content">
+      <div class="section-card">
+        <div class="section-head"><div class="section-title">Monthly Revenue by Property</div></div>
+        <div style="padding:1.4rem;height:320px;position:relative"><canvas id="chart-owner-perf"></canvas></div>
+      </div>
+      ${buildMonthlyTableHtml()}
+    </div>`;
+}
+
+function renderOwnerPerfChart(){
+  const ctx = document.getElementById('chart-owner-perf');
+  if(!ctx||!S.monthly.length) return;
+  const labels = [...new Set(S.monthly.map(r=>fmtMonth(r.period_start)))];
+  const datasets = Object.keys(PROPS).filter(p=>PROPS[p].active).map((prop,i)=>{
+    const colors = ['rgba(201,151,58,0.8)','rgba(34,197,94,0.8)','rgba(59,130,246,0.8)'];
+    return {
+      label: PROPS[prop].short,
+      data: labels.map(lbl=>{
+        const r = S.monthly.find(m=>m.property===prop && fmtMonth(m.period_start)===lbl);
+        return r?.room_revenue||0;
+      }),
+      backgroundColor: colors[i],
+      borderRadius:3
+    };
+  });
+  S.charts.ownerPerf = new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{family:'DM Mono',size:10}}}},scales:{y:{ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k',font:{family:'DM Mono',size:9}},grid:{color:'#e2e0db'}},x:{ticks:{font:{family:'DM Mono',size:9},maxRotation:45},grid:{display:false}}}}});
+}
+
+// ═══════════════════════════════════════════
+// ── PROPERTY DAILY VIEW ──
+// ═══════════════════════════════════════════
+function buildDaily(){
+  return `
     <div class="page-header">
       <div class="page-title">Daily Operations</div>
-      <div class="page-subtitle">Revenue · Occupancy · Accountability flags</div>
+      <div class="page-sub">${PROPS[S.mode]?.name} · Revenue · Accountability flags</div>
     </div>
-
-    <div class="section-card" style="border-radius:0;border-left:none;border-right:none;border-top:none;">
+    <div class="section-card" style="border-radius:0;border-left:none;border-right:none;border-top:none;margin-bottom:0">
       <div class="date-nav">
-        <button class="date-btn" id="daily-prev">‹</button>
-        <div class="date-display" id="daily-date-label">—</div>
-        <button class="date-btn" id="daily-next">›</button>
-        <button class="date-today-btn" id="daily-today">Today</button>
+        <button class="date-btn" id="d-prev">‹</button>
+        <div class="date-display" id="d-label">—</div>
+        <button class="date-btn" id="d-next">›</button>
+        <button class="date-today-btn" id="d-today">Today</button>
         <div class="spacer"></div>
-        <div style="font-family:var(--mono);font-size:0.6rem;color:var(--fog)" id="daily-source-label"></div>
+        <div style="font-family:var(--mono);font-size:.58rem;color:var(--fog)" id="d-src"></div>
       </div>
-      <div class="alert-strip" id="daily-alerts"></div>
+      <div class="alert-strip" id="d-alerts"></div>
     </div>
-
     <div class="content">
-
-      <!-- KPI Row -->
-      <div class="kpi-grid" id="daily-kpis">
-        <div class="loading-pulse">
-          <div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div>
-          <span>Loading...</span>
-        </div>
-      </div>
-
+      <div class="kpi-grid" id="d-kpis">${loading()}</div>
       <div class="two-col">
-        <!-- MTD Summary -->
         <div class="section-card">
-          <div class="section-head">
-            <div class="section-title">Month to Date</div>
-            <div class="section-badge badge-info" id="mtd-badge">—</div>
-          </div>
-          <div id="mtd-content" style="padding:1.5rem;">
-            <div class="loading-pulse"><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div></div>
-          </div>
+          <div class="section-head"><div class="section-title">Month to Date</div><div class="section-badge badge-info" id="mtd-badge">—</div></div>
+          <div id="mtd-body">${loading()}</div>
         </div>
-
-        <!-- YTD Summary -->
         <div class="section-card">
-          <div class="section-head">
-            <div class="section-title">Year to Date</div>
-            <div class="section-badge badge-info" id="ytd-badge">—</div>
-          </div>
-          <div id="ytd-content" style="padding:1.5rem;">
-            <div class="loading-pulse"><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div></div>
-          </div>
+          <div class="section-head"><div class="section-title">Year to Date</div><div class="section-badge badge-info" id="ytd-badge">—</div></div>
+          <div id="ytd-body">${loading()}</div>
         </div>
       </div>
-
-      <!-- AR Snapshot -->
       <div class="section-card">
-        <div class="section-head">
-          <div class="section-title">AR Aging Snapshot</div>
-          <div class="section-badge" id="ar-snap-badge">—</div>
-        </div>
-        <div id="ar-snap-content">
-          <div class="loading-pulse" style="padding:1.5rem;"><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div></div>
-        </div>
+        <div class="section-head"><div class="section-title">AR Snapshot — Latest</div><div class="section-badge badge-info" id="ar-snap-badge">—</div></div>
+        <div id="ar-snap-body">${loading()}</div>
       </div>
-
-      <!-- Rate Overrides for day -->
       <div class="section-card">
-        <div class="section-head">
-          <div class="section-title">Rate Overrides — This Day</div>
-          <div class="section-badge" id="override-day-badge">—</div>
-        </div>
-        <div id="override-day-content">
-          <div class="empty-state">
-            <div class="empty-state-icon">📋</div>
-            <div class="empty-state-title">No data loaded</div>
-            <div class="empty-state-sub">Upload the Rate Override report for this date</div>
-          </div>
-        </div>
+        <div class="section-head"><div class="section-title">Rate Overrides — This Day</div><div class="section-badge" id="ovr-badge">—</div></div>
+        <div id="ovr-body">${empty('No override data','Upload Rate Override report for this date')}</div>
       </div>
-
-      <!-- Adjustments for day -->
       <div class="section-card">
-        <div class="section-head">
-          <div class="section-title">Adjustments & Refunds — This Day</div>
-          <div class="section-badge" id="adj-day-badge">—</div>
-        </div>
-        <div id="adj-day-content">
-          <div class="empty-state">
-            <div class="empty-state-icon">📋</div>
-            <div class="empty-state-title">No data loaded</div>
-            <div class="empty-state-sub">Upload the Adjustments & Refunds report for this date</div>
-          </div>
-        </div>
+        <div class="section-head"><div class="section-title">Adjustments &amp; Refunds — This Day</div><div class="section-badge" id="adj-badge">—</div></div>
+        <div id="adj-body">${empty('No adjustment data','Upload Adjustments & Refunds report for this date')}</div>
       </div>
+    </div>`;
+}
 
-    </div>
-  </div>
+function wireDaily(){
+  document.getElementById('d-label').textContent = fmtDate(S.currentDate);
+  document.getElementById('d-prev').addEventListener('click',()=>{
+    const d=new Date(S.currentDate+'T00:00:00'); d.setDate(d.getDate()-1);
+    S.currentDate=d.toISOString().slice(0,10);
+    document.getElementById('d-label').textContent=fmtDate(S.currentDate);
+    renderDailyContent();
+  });
+  document.getElementById('d-next').addEventListener('click',()=>{
+    const d=new Date(S.currentDate+'T00:00:00'); d.setDate(d.getDate()+1);
+    S.currentDate=d.toISOString().slice(0,10);
+    document.getElementById('d-label').textContent=fmtDate(S.currentDate);
+    renderDailyContent();
+  });
+  document.getElementById('d-today').addEventListener('click',()=>{
+    S.currentDate=new Date().toISOString().slice(0,10);
+    document.getElementById('d-label').textContent=fmtDate(S.currentDate);
+    renderDailyContent();
+  });
+}
 
-  <!-- ── VIEW: PERFORMANCE ── -->
-  <div class="view" id="view-performance">
+function renderDailyContent(){
+  const d = S.currentDate;
+  const prop = S.mode;
+  const row = dailyRow(d, prop);
+  const dayOvr = S.overrides.filter(r=>r.stay_date===d && r.property===prop);
+  const dayAdj = S.adjs.filter(r=>r.date===d && r.property===prop);
+  const refunds = dayAdj.filter(r=>r.transaction_type==='REFUND');
+  const mgrDisc = dayAdj.filter(r=>r.reason_code==='MANAGER_DISCRETION');
+  const ovrNet  = dayOvr.reduce((s,r)=>s+(r.override_amount||0),0);
+  const latestAR = S.ar.filter(r=>r.property===prop);
+  const arTotal  = latestAR.length ? latestAR.slice(0,2).reduce((s,r)=>s+(r.total||0),0) : 0;
+
+  // Alerts
+  const alerts = [];
+  if(dayOvr.length)   alerts.push(`<div class="alert-chip ${ovrNet<-100?'alert':'warn'}">⚡ ${dayOvr.length} override${dayOvr.length>1?'s':''} — net ${fmt$(ovrNet)}</div>`);
+  if(refunds.length)  alerts.push(`<div class="alert-chip alert">↩ ${refunds.length} refund${refunds.length>1?'s':''} — ${fmt$(refunds.reduce((s,r)=>s+Math.abs(r.adjusted_amount||0),0))}</div>`);
+  if(mgrDisc.length)  alerts.push(`<div class="alert-chip warn">🔑 ${mgrDisc.length} manager discretion</div>`);
+  if(arTotal>160000)  alerts.push(`<div class="alert-chip alert">🏦 AR Total ${fmt$(arTotal)}</div>`);
+  if(!alerts.length)  alerts.push(`<div class="alert-chip ok">✓ No flags for this date</div>`);
+  document.getElementById('d-alerts').innerHTML = alerts.join('');
+  document.getElementById('d-src').textContent = row ? 'Source: HotelKey Daily' : '';
+
+  // KPIs
+  if(row){
+    document.getElementById('d-kpis').innerHTML = `
+      <div class="kpi-card gold"><div class="kpi-label">Occupancy</div><div class="kpi-value">${fmtPct(row.occ_pct)}</div>${deltaChip(row.occ_pct,row.ly_occ_pct)}<div class="kpi-meta">LY: ${fmtPct(row.ly_occ_pct)}</div></div>
+      <div class="kpi-card green"><div class="kpi-label">ADR</div><div class="kpi-value">${fmt$(row.adr)}</div>${deltaChip(row.adr,row.ly_adr)}<div class="kpi-meta">LY: ${fmt$(row.ly_adr)}</div></div>
+      <div class="kpi-card blue"><div class="kpi-label">RevPAR</div><div class="kpi-value">${fmt$(row.revpar)}</div><div class="kpi-meta">${fmtN(row.rooms_sold)} / ${fmtN(row.rooms_available)} rooms</div></div>
+      <div class="kpi-card gold"><div class="kpi-label">Room Revenue</div><div class="kpi-value">${fmt$(row.room_revenue)}</div>${deltaChip(row.room_revenue,row.ly_room_revenue)}<div class="kpi-meta">LY: ${fmt$(row.ly_room_revenue)}</div></div>
+      <div class="kpi-card amber"><div class="kpi-label">Misc Revenue</div><div class="kpi-value">${fmt$(row.misc_revenue)}</div><div class="kpi-meta">Total: ${fmt$(row.total_revenue)}</div></div>`;
+  } else {
+    document.getElementById('d-kpis').innerHTML = `<div style="grid-column:1/-1">${empty('No data for '+fmtDate(d),'Upload the Hotel Statistics report for this date')}</div>`;
+  }
+
+  // MTD
+  const [yr,mo] = d.split('-');
+  const mtdRows = Object.values(S.daily).filter(r=>r.property===prop && r.date.startsWith(`${yr}-${mo}`));
+  if(mtdRows.length){
+    const mtdRev  = mtdRows.reduce((s,r)=>s+(r.room_revenue||0),0);
+    const mtdMisc = mtdRows.reduce((s,r)=>s+(r.misc_revenue||0),0);
+    const mtdOcc  = mtdRows.reduce((s,r)=>s+(r.occ_pct||0),0)/mtdRows.length;
+    const mtdADR  = mtdRows.reduce((s,r)=>s+(r.adr||0),0)/mtdRows.length;
+    const lyMtd   = mtdRows.reduce((s,r)=>s+(r.ly_room_revenue||0),0);
+    document.getElementById('mtd-badge').textContent = `${mtdRows.length} days`;
+    document.getElementById('mtd-body').innerHTML = `<table class="data-table">
+      <tr><td>Room Revenue</td><td class="r">${fmt$(mtdRev)}</td></tr>
+      <tr><td>Misc Revenue</td><td class="r">${fmt$(mtdMisc)}</td></tr>
+      <tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(mtdRev+mtdMisc)}</td></tr>
+      <tr><td>Avg Occupancy</td><td class="r">${fmtPct(mtdOcc)}</td></tr>
+      <tr><td>Avg ADR</td><td class="r">${fmt$(mtdADR)}</td></tr>
+      ${lyMtd>0?`<tr><td>LY Room Revenue</td><td class="r" style="color:var(--fog)">${fmt$(lyMtd)} ${deltaChip(mtdRev,lyMtd)}</td></tr>`:''}
+    </table>`;
+  } else {
+    document.getElementById('mtd-body').innerHTML = empty('No MTD data','No daily records for this month yet');
+    document.getElementById('mtd-badge').textContent = '0 days';
+  }
+
+  // YTD
+  const ytdRows = Object.values(S.daily).filter(r=>r.property===prop && r.date.startsWith(yr));
+  if(ytdRows.length){
+    const ytdRev  = ytdRows.reduce((s,r)=>s+(r.room_revenue||0),0);
+    const ytdMisc = ytdRows.reduce((s,r)=>s+(r.misc_revenue||0),0);
+    const ytdOcc  = ytdRows.reduce((s,r)=>s+(r.occ_pct||0),0)/ytdRows.length;
+    const ytdADR  = ytdRows.reduce((s,r)=>s+(r.adr||0),0)/ytdRows.length;
+    const lyYtd   = ytdRows.reduce((s,r)=>s+(r.ly_room_revenue||0),0);
+    document.getElementById('ytd-badge').textContent = `${ytdRows.length} days`;
+    document.getElementById('ytd-body').innerHTML = `<table class="data-table">
+      <tr><td>Room Revenue</td><td class="r">${fmt$(ytdRev)}</td></tr>
+      <tr><td>Misc Revenue</td><td class="r">${fmt$(ytdMisc)}</td></tr>
+      <tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdRev+ytdMisc)}</td></tr>
+      <tr><td>Avg Occupancy</td><td class="r">${fmtPct(ytdOcc)}</td></tr>
+      <tr><td>Avg ADR</td><td class="r">${fmt$(ytdADR)}</td></tr>
+      ${lyYtd>0?`<tr><td>LY Room Revenue</td><td class="r" style="color:var(--fog)">${fmt$(lyYtd)} ${deltaChip(ytdRev,lyYtd)}</td></tr>`:''}
+    </table>`;
+  } else {
+    document.getElementById('ytd-body').innerHTML = empty('No YTD data','');
+    document.getElementById('ytd-badge').textContent = '0 days';
+  }
+
+  // AR Snap
+  const propAR = S.ar.filter(r=>r.property===prop);
+  if(propAR.length){
+    const ld = propAR[0].date;
+    const arRows = propAR.filter(r=>r.date===ld);
+    const tot = arRows.reduce((s,r)=>s+(r.total||0),0);
+    const o90 = arRows.reduce((s,r)=>s+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0);
+    document.getElementById('ar-snap-badge').textContent = fmt$(tot);
+    document.getElementById('ar-snap-badge').className = `section-badge ${o90>50000?'badge-alert':o90>20000?'badge-warn':'badge-ok'}`;
+    document.getElementById('ar-snap-body').innerHTML = `<div class="aging-grid">${arRows.map(r=>agingCellHtml(r)).join('')}</div><div style="padding:.6rem 1.4rem;font-family:var(--mono);font-size:.58rem;color:var(--fog)">As of ${fmtDate(ld)}</div>`;
+  } else {
+    document.getElementById('ar-snap-body').innerHTML = empty('No AR data','Upload Direct Bill Aging report');
+    document.getElementById('ar-snap-badge').textContent = '—';
+  }
+
+  // Overrides
+  if(dayOvr.length){
+    const net = dayOvr.reduce((s,r)=>s+(r.override_amount||0),0);
+    document.getElementById('ovr-badge').textContent=`${dayOvr.length} — net ${fmt$(net)}`;
+    document.getElementById('ovr-badge').className=`section-badge ${net<-50?'badge-alert':'badge-warn'}`;
+    document.getElementById('ovr-body').innerHTML=`<div class="tbl-wrap">${overrideTableHtml(dayOvr)}</div>`;
+  } else {
+    document.getElementById('ovr-badge').textContent='None';
+    document.getElementById('ovr-badge').className='section-badge badge-ok';
+    document.getElementById('ovr-body').innerHTML=empty('No overrides for '+fmtDate(d),'');
+  }
+
+  // Adjustments
+  if(dayAdj.length){
+    const tot = dayAdj.reduce((s,r)=>s+Math.abs(r.adjusted_amount||0),0);
+    document.getElementById('adj-badge').textContent=`${dayAdj.length} events`;
+    document.getElementById('adj-badge').className=`section-badge ${refunds.length?'badge-alert':'badge-warn'}`;
+    document.getElementById('adj-body').innerHTML=`<div class="tbl-wrap">${adjTableHtml(dayAdj)}</div>`;
+  } else {
+    document.getElementById('adj-badge').textContent='None';
+    document.getElementById('adj-badge').className='section-badge badge-ok';
+    document.getElementById('adj-body').innerHTML=empty('No adjustments for '+fmtDate(d),'');
+  }
+}
+
+// ═══════════════════════════════════════════
+// ── PERFORMANCE VIEW ──
+// ═══════════════════════════════════════════
+function buildPerformance(){
+  return `
     <div class="page-header">
       <div class="page-title">Performance</div>
-      <div class="page-subtitle">Trends · Comparisons · Monthly history from Jan 2023</div>
+      <div class="page-sub">${PROPS[S.mode]?.name} · Trends · History from Jan 2023</div>
     </div>
     <div class="content">
-
-      <!-- Trailing 30 days chart -->
       <div class="section-card">
-        <div class="section-head">
-          <div class="section-title">Daily Revenue — Trailing 30 Days</div>
-        </div>
-        <div class="chart-wrap">
-          <canvas id="chart-daily-rev"></canvas>
-        </div>
+        <div class="section-head"><div class="section-title">Daily Revenue — Trailing 30 Days</div></div>
+        <div style="padding:1.4rem;height:240px;position:relative"><canvas id="chart-daily-30"></canvas></div>
       </div>
-
-      <!-- Monthly history -->
       <div class="section-card">
-        <div class="section-head">
-          <div class="section-title">Monthly Revenue — Full History</div>
-          <div class="section-badge badge-info" id="history-range-badge">Jan 2023 – Present</div>
-        </div>
+        <div class="section-head"><div class="section-title">Monthly History</div><div class="section-badge badge-info">Jan 2023 – Present</div></div>
         <div class="tab-bar">
-          <button class="tab-btn active" data-tab="perf-table">Table</button>
-          <button class="tab-btn" data-tab="perf-chart">Chart</button>
+          <button class="tab-btn active" data-tab="p-table">Table</button>
+          <button class="tab-btn" data-tab="p-chart">Chart</button>
         </div>
-        <div class="tab-content active" id="tab-perf-table">
-          <div id="monthly-table-content">
-            <div class="loading-pulse"><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div><span>Loading history...</span></div>
-          </div>
-        </div>
-        <div class="tab-content" id="tab-perf-chart">
-          <div class="chart-wrap" style="height:320px;">
-            <canvas id="chart-monthly-rev"></canvas>
-          </div>
-        </div>
+        <div class="tab-content active" id="tab-p-table">${buildMonthlyTableHtml()}</div>
+        <div class="tab-content" id="tab-p-chart"><div style="height:300px;position:relative"><canvas id="chart-monthly"></canvas></div></div>
       </div>
+    </div>`;
+}
 
-    </div>
-  </div>
+function renderPerfCharts(){
+  // Daily 30
+  const prop = S.mode;
+  const rows = Object.values(S.daily).filter(r=>r.property===prop).sort((a,b)=>a.date.localeCompare(b.date)).slice(-30);
+  const ctx1 = document.getElementById('chart-daily-30');
+  if(ctx1 && rows.length){
+    S.charts.daily30 = new Chart(ctx1,{type:'line',data:{
+      labels:rows.map(r=>r.date.slice(5)),
+      datasets:[
+        {label:'Room Revenue',data:rows.map(r=>r.room_revenue||0),borderColor:'rgba(201,151,58,1)',backgroundColor:'rgba(201,151,58,.08)',borderWidth:2,pointRadius:2,fill:true,tension:.3},
+        {label:'LY',data:rows.map(r=>r.ly_room_revenue||null),borderColor:'rgba(136,146,164,.5)',borderWidth:1.5,borderDash:[4,3],pointRadius:0,fill:false,tension:.3}
+      ]
+    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{family:'DM Mono',size:10}}}},scales:{y:{ticks:{callback:v=>'$'+(v/1000).toFixed(1)+'k',font:{family:'DM Mono',size:9}},grid:{color:'#e2e0db'}},x:{ticks:{font:{family:'DM Mono',size:9}},grid:{display:false}}}}});
+  }
+  // Tab switch for monthly chart
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      btn.closest('.section-card').querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      btn.closest('.section-card').querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-'+btn.dataset.tab)?.classList.add('active');
+      if(btn.dataset.tab==='p-chart') renderMonthlyChart();
+    });
+  });
+}
 
-  <!-- ── VIEW: AR / AGING ── -->
-  <div class="view" id="view-ar">
+function renderMonthlyChart(){
+  const ctx = document.getElementById('chart-monthly');
+  if(!ctx) return;
+  const data = S.monthly.filter(r=>r.property===S.mode);
+  if(!data.length) return;
+  if(S.charts.monthly) S.charts.monthly.destroy();
+  S.charts.monthly = new Chart(ctx,{type:'bar',data:{
+    labels:data.map(r=>fmtMonth(r.period_start)),
+    datasets:[{label:'Room Revenue',data:data.map(r=>r.room_revenue||0),backgroundColor:'rgba(201,151,58,.75)',borderColor:'rgba(201,151,58,1)',borderWidth:1,borderRadius:3}]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k',font:{family:'DM Mono',size:9}},grid:{color:'#e2e0db'}},x:{ticks:{font:{family:'DM Mono',size:9},maxRotation:45},grid:{display:false}}}}});
+}
+
+function buildMonthlyTableHtml(){
+  const data = S.monthly.filter(r=>!S.mode||S.mode==='OWNER'||r.property===S.mode);
+  if(!data.length) return empty('No historical data','Add monthly records in the History tab');
+  const maxRev = Math.max(...data.map(r=>r.room_revenue||0));
+  return `<div class="tbl-wrap"><table class="data-table">
+    <thead><tr>
+      ${S.mode==='OWNER'?'<th>Property</th>':''}
+      <th>Month</th><th class="r">Occ%</th><th class="r">ADR</th>
+      <th class="r">RevPAR</th><th class="r">Room Revenue</th>
+      <th class="r">Total Revenue</th><th>Source</th><th style="width:100px"></th>
+    </tr></thead>
+    <tbody>${data.map(r=>`<tr>
+      ${S.mode==='OWNER'?`<td class="mono">${r.property}</td>`:''}
+      <td class="mono">${fmtMonth(r.period_start)}</td>
+      <td class="r">${fmtPct(r.occ_pct)}</td><td class="r">${fmt$(r.adr)}</td>
+      <td class="r">${fmt$(r.revpar)}</td>
+      <td class="r" style="font-weight:500">${fmt$(r.room_revenue)}</td>
+      <td class="r">${fmt$(r.total_revenue)}</td>
+      <td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source||'—'}</span></td>
+      <td><div class="month-bar" style="width:${maxRev>0?Math.round((r.room_revenue||0)/maxRev*90):0}px"></div></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+// ═══════════════════════════════════════════
+// ── AR VIEW ──
+// ═══════════════════════════════════════════
+function buildAR(){
+  const prop = S.mode;
+  const propAR = S.ar.filter(r=>r.property===prop);
+  const latest = propAR[0]?.date;
+  const latestRows = latest ? propAR.filter(r=>r.date===latest) : [];
+  const total = latestRows.reduce((s,r)=>s+(r.total||0),0);
+  const propIH = S.inhouse.filter(r=>r.property===prop);
+  const latestIH = propIH[0]?.date;
+  const ihRows = latestIH ? propIH.filter(r=>r.date===latestIH) : [];
+
+  return `
     <div class="page-header">
       <div class="page-title">AR &amp; Aging</div>
-      <div class="page-subtitle">CLC · IHG Reward Night Reimbursements · In-House Balances</div>
+      <div class="page-sub">${PROPS[prop]?.name} · CLC · IHG Rewards · In-House</div>
     </div>
     <div class="content">
-
-      <!-- Aging detail -->
       <div class="section-card">
-        <div class="section-head">
-          <div class="section-title">Direct Bill Aging — Latest Snapshot</div>
-          <div class="section-badge badge-alert" id="ar-total-badge">—</div>
-        </div>
-        <div id="ar-detail-content">
-          <div class="loading-pulse" style="padding:1.5rem;"><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div></div>
-        </div>
+        <div class="section-head"><div class="section-title">Direct Bill Aging — Latest</div><div class="section-badge badge-alert">${fmt$(total)}</div></div>
+        ${latestRows.length
+          ? `<div class="aging-grid">${latestRows.map(r=>agingCellHtml(r)).join('')}</div><div style="padding:.6rem 1.4rem;font-family:var(--mono);font-size:.58rem;color:var(--fog)">As of ${fmtDate(latest)}</div>`
+          : empty('No AR data','Upload Direct Bill Aging report')}
       </div>
-
-      <!-- 4-day trend -->
       <div class="section-card">
-        <div class="section-head">
-          <div class="section-title">AR Trend — Day over Day</div>
-        </div>
-        <div id="ar-trend-content" style="padding:1.5rem;">
-          <div class="loading-pulse"><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div></div>
-        </div>
+        <div class="section-head"><div class="section-title">AR Trend — Day over Day</div></div>
+        <div style="padding:1.4rem">${buildARTrendTable(prop)}</div>
       </div>
-
-      <!-- In-house balances -->
       <div class="section-card">
-        <div class="section-head">
-          <div class="section-title">In-House Guest Balances — Latest</div>
-          <div class="section-badge badge-info" id="inhouse-badge">—</div>
-        </div>
-        <div id="inhouse-content">
-          <div class="empty-state">
-            <div class="empty-state-icon">🏨</div>
-            <div class="empty-state-title">No data loaded</div>
-            <div class="empty-state-sub">Upload the In-House Guest Balances report</div>
-          </div>
-        </div>
+        <div class="section-head"><div class="section-title">In-House Guest Balances — Latest</div><div class="section-badge badge-info">${ihRows.length} guests</div></div>
+        ${ihRows.length
+          ? `<div class="tbl-wrap"><table class="data-table">
+              <thead><tr><th>Room</th><th>Guest</th><th>Company</th><th class="r">Rate/Night</th><th class="r">Balance</th><th>Payment</th></tr></thead>
+              <tbody>${ihRows.map(r=>`<tr>
+                <td class="mono">${r.room_number||'—'}</td><td>${r.guest_name||'—'}</td>
+                <td>${r.company?`<span class="pill pill-blue">${r.company}</span>`:'—'}</td>
+                <td class="r">${fmt$(r.room_rate)}</td>
+                <td class="r" style="font-weight:500">${fmt$(r.folio_balance)}</td>
+                <td class="mono" style="font-size:.7rem">${r.payment_method||'—'}</td>
+              </tr>`).join('')}</tbody>
+              <tfoot><tr class="tot"><td colspan="4">Total</td><td class="r">${fmt$(ihRows.reduce((s,r)=>s+(r.folio_balance||0),0))}</td><td></td></tr></tfoot>
+            </table></div><div style="padding:.6rem 1.4rem;font-family:var(--mono);font-size:.58rem;color:var(--fog)">As of ${fmtDate(latestIH)}</div>`
+          : empty('No in-house data','Upload In-House Guest Balances report')}
       </div>
+    </div>`;
+}
 
-    </div>
-  </div>
+function buildARTrendTable(prop){
+  const propAR = S.ar.filter(r=>!prop||r.property===prop);
+  const dates = [...new Set(propAR.map(r=>r.date))].sort().slice(-7);
+  if(dates.length<2) return empty('Not enough data for trend','Upload more Daily AR reports');
+  return `<table class="data-table">
+    <thead><tr><th>Date</th><th class="r">CLC</th><th class="r">IHG Rewards</th><th class="r">Total</th><th class="r">Change</th></tr></thead>
+    <tbody>${dates.map((dt,i)=>{
+      const rows = propAR.filter(r=>r.date===dt);
+      const tot = rows.reduce((s,r)=>s+(r.total||0),0);
+      let chg='';
+      if(i>0){
+        const prev = propAR.filter(r=>r.date===dates[i-1]).reduce((s,r)=>s+(r.total||0),0);
+        const diff = tot-prev;
+        chg=`<span style="color:${diff>0?'var(--red)':'var(--green)'};font-family:var(--mono);font-size:.68rem">${diff>0?'+':''}${fmt$(diff)}</span>`;
+      }
+      const clc = rows.find(r=>r.company==='CLC');
+      const ihg = rows.find(r=>r.company==='IHG_REWARDS');
+      return `<tr><td class="mono">${fmtDate(dt)}</td><td class="r">${fmt$(clc?.total)}</td><td class="r">${fmt$(ihg?.total)}</td><td class="r" style="font-weight:500">${fmt$(tot)}</td><td class="r">${chg}</td></tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
 
-  <!-- ── VIEW: ACCOUNTABILITY ── -->
-  <div class="view" id="view-accountability">
+// ═══════════════════════════════════════════
+// ── ACCOUNTABILITY VIEW ──
+// ═══════════════════════════════════════════
+function buildAccountability(){
+  const prop = S.mode;
+  const propOvr = S.overrides.filter(r=>r.property===prop);
+  const propAdj = S.adjs.filter(r=>r.property===prop);
+  const refunds  = propAdj.filter(r=>r.transaction_type==='REFUND');
+
+  // Overrides by clerk
+  const byClerk={};
+  propOvr.forEach(r=>{
+    const u=r.username||'Unknown';
+    if(!byClerk[u]) byClerk[u]={count:0,net:0};
+    byClerk[u].count++; byClerk[u].net+=(r.override_amount||0);
+  });
+  const clerkRows = Object.entries(byClerk).sort((a,b)=>a[1].net-b[1].net);
+
+  return `
     <div class="page-header">
       <div class="page-title">Accountability</div>
-      <div class="page-subtitle">Rate overrides · Adjustments · Refunds · Staff actions</div>
+      <div class="page-sub">${PROPS[prop]?.name} · Rate overrides · Adjustments · Refunds</div>
     </div>
     <div class="content">
-
-      <!-- Override summary by clerk -->
       <div class="section-card">
-        <div class="section-head">
-          <div class="section-title">Rate Overrides by Staff Member</div>
-          <div class="section-badge" id="override-clerk-badge">—</div>
-        </div>
-        <div id="override-clerk-content">
-          <div class="empty-state">
-            <div class="empty-state-icon">📊</div>
-            <div class="empty-state-title">No override data</div>
-            <div class="empty-state-sub">Upload Rate Override reports to see staff breakdown</div>
-          </div>
-        </div>
+        <div class="section-head"><div class="section-title">Rate Overrides by Staff Member</div><div class="section-badge badge-warn">${propOvr.length} total</div></div>
+        ${clerkRows.length
+          ? `<table class="data-table">
+              <thead><tr><th>Staff Member</th><th class="r">Count</th><th class="r">Net Revenue Impact</th><th class="r">Avg per Override</th></tr></thead>
+              <tbody>${clerkRows.map(([name,d])=>`<tr>
+                <td style="font-weight:500">${name}</td>
+                <td class="r mono">${d.count}</td>
+                <td class="r"><span class="${d.net<0?'pill pill-red':'pill pill-green'}">${fmt$(d.net)}</span></td>
+                <td class="r mono">${fmt$(d.net/d.count)}</td>
+              </tr>`).join('')}</tbody>
+              <tfoot><tr class="tot"><td>Total</td><td class="r mono">${propOvr.length}</td><td class="r">${fmt$(propOvr.reduce((s,r)=>s+(r.override_amount||0),0))}</td><td></td></tr></tfoot>
+            </table>`
+          : empty('No override data','Upload Rate Override reports')}
       </div>
-
-      <!-- All overrides table -->
       <div class="section-card">
-        <div class="section-head">
-          <div class="section-title">All Rate Overrides — Detail</div>
-          <div class="section-badge badge-info" id="override-all-badge">—</div>
-        </div>
-        <div id="override-all-content">
-          <div class="empty-state">
-            <div class="empty-state-icon">📋</div>
-            <div class="empty-state-title">No override data</div>
-            <div class="empty-state-sub">Upload Rate Override reports</div>
-          </div>
-        </div>
+        <div class="section-head"><div class="section-title">All Rate Overrides</div><div class="section-badge badge-info">${propOvr.length} records</div></div>
+        ${propOvr.length ? `<div class="tbl-wrap">${overrideTableHtml(propOvr.slice(0,100))}</div>` : empty('No overrides','Upload Rate Override reports')}
       </div>
-
-      <!-- Adjustments & Refunds -->
       <div class="section-card">
-        <div class="section-head">
-          <div class="section-title">Adjustments &amp; Refunds — All</div>
-          <div class="section-badge" id="adj-all-badge">—</div>
-        </div>
-        <div id="adj-all-content">
-          <div class="empty-state">
-            <div class="empty-state-icon">📋</div>
-            <div class="empty-state-title">No adjustment data</div>
-            <div class="empty-state-sub">Upload Adjustments & Refunds reports</div>
-          </div>
-        </div>
+        <div class="section-head"><div class="section-title">Adjustments &amp; Refunds — All</div><div class="section-badge ${refunds.length?'badge-alert':'badge-ok'}">${propAdj.length} events · ${refunds.length} refunds</div></div>
+        ${propAdj.length ? `<div class="tbl-wrap">${adjTableHtml(propAdj.slice(0,100))}</div>` : empty('No adjustment data','Upload Adjustments & Refunds reports')}
       </div>
+    </div>`;
+}
 
-    </div>
-  </div>
-
-  <!-- ── VIEW: HISTORY ── -->
-  <div class="view" id="view-history">
+// ═══════════════════════════════════════════
+// ── HISTORY VIEW ──
+// ═══════════════════════════════════════════
+function buildHistory(){
+  const prop = S.mode;
+  const propMonthly = S.monthly.filter(r=>r.property===prop);
+  return `
     <div class="page-header">
       <div class="page-title">Historical Data</div>
-      <div class="page-subtitle">Jan 2023 – May 2026 · Manual entry for Opera Flash &amp; HotelKey MTD</div>
+      <div class="page-sub">${PROPS[prop]?.name} · Jan 2023 – May 2026 · Manual entry</div>
     </div>
     <div class="content">
-
       <div class="two-col">
-        <!-- Manual entry form -->
         <div class="section-card">
-          <div class="section-head">
-            <div class="section-title">Add Monthly Record</div>
-          </div>
+          <div class="section-head"><div class="section-title">Add Monthly Record</div></div>
           <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">Month Start</label>
-              <input type="date" class="form-input" id="hist-period-start" placeholder="2023-01-01">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Month End</label>
-              <input type="date" class="form-input" id="hist-period-end" placeholder="2023-01-31">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Occupancy %</label>
-              <input type="number" class="form-input" id="hist-occ" placeholder="95.30" step="0.01">
-            </div>
-            <div class="form-group">
-              <label class="form-label">ADR ($)</label>
-              <input type="number" class="form-input" id="hist-adr" placeholder="83.83" step="0.01">
-            </div>
-            <div class="form-group">
-              <label class="form-label">RevPAR ($)</label>
-              <input type="number" class="form-input" id="hist-revpar" placeholder="79.89" step="0.01">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Rooms Sold</label>
-              <input type="number" class="form-input" id="hist-rooms-sold" placeholder="2393">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Rooms Available</label>
-              <input type="number" class="form-input" id="hist-rooms-avail" placeholder="2511">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Room Revenue ($)</label>
-              <input type="number" class="form-input" id="hist-room-rev" placeholder="200614.71" step="0.01">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Misc / Other Revenue ($)</label>
-              <input type="number" class="form-input" id="hist-misc-rev" placeholder="3002.44" step="0.01">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Total Revenue ($)</label>
-              <input type="number" class="form-input" id="hist-total-rev" placeholder="203617.15" step="0.01">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Source</label>
-              <select class="form-input" id="hist-source">
+            <div class="form-group"><label class="form-label">Month Start</label><input type="date" class="form-input" id="h-start"></div>
+            <div class="form-group"><label class="form-label">Month End</label><input type="date" class="form-input" id="h-end"></div>
+            <div class="form-group"><label class="form-label">Occupancy %</label><input type="number" class="form-input" id="h-occ" placeholder="95.30" step="0.01"></div>
+            <div class="form-group"><label class="form-label">ADR ($)</label><input type="number" class="form-input" id="h-adr" placeholder="83.83" step="0.01"></div>
+            <div class="form-group"><label class="form-label">RevPAR ($)</label><input type="number" class="form-input" id="h-revpar" placeholder="79.89" step="0.01"></div>
+            <div class="form-group"><label class="form-label">Rooms Sold</label><input type="number" class="form-input" id="h-rsold" placeholder="2393"></div>
+            <div class="form-group"><label class="form-label">Rooms Available</label><input type="number" class="form-input" id="h-ravail" placeholder="2511"></div>
+            <div class="form-group"><label class="form-label">Room Revenue ($)</label><input type="number" class="form-input" id="h-rrev" placeholder="200614.71" step="0.01"></div>
+            <div class="form-group"><label class="form-label">Misc Revenue ($)</label><input type="number" class="form-input" id="h-misc" placeholder="3002.44" step="0.01"></div>
+            <div class="form-group"><label class="form-label">Total Revenue ($)</label><input type="number" class="form-input" id="h-trev" placeholder="203617.15" step="0.01"></div>
+            <div class="form-group"><label class="form-label">Source</label>
+              <select class="form-input" id="h-src">
                 <option value="opera_flash">Opera Flash</option>
                 <option value="hotelkey_mtd">HotelKey MTD</option>
                 <option value="combined">Combined (May 2025)</option>
               </select>
             </div>
-            <div class="form-group">
-              <label class="form-label">Notes</label>
-              <input type="text" class="form-input" id="hist-notes" placeholder="Optional">
-            </div>
+            <div class="form-group"><label class="form-label">Notes</label><input type="text" class="form-input" id="h-notes" placeholder="Optional"></div>
           </div>
           <div class="form-actions">
-            <button class="btn-primary" id="hist-save-btn">Save Record</button>
-            <button class="btn-secondary" id="hist-clear-btn">Clear</button>
+            <button class="btn-primary" id="h-save">Save Record</button>
+            <button class="btn-sec" id="h-clear">Clear</button>
           </div>
         </div>
-
-        <!-- Loaded months list -->
         <div class="section-card">
-          <div class="section-head">
-            <div class="section-title">Loaded Monthly Records</div>
-            <div class="section-badge badge-info" id="hist-count-badge">0 months</div>
-          </div>
-          <div id="hist-list-content" style="max-height:520px;overflow-y:auto;">
-            <div class="empty-state">
-              <div class="empty-state-icon">📅</div>
-              <div class="empty-state-title">No historical data yet</div>
-              <div class="empty-state-sub">Use the form to enter Opera Flash data starting Jan 2023</div>
-            </div>
+          <div class="section-head"><div class="section-title">Loaded Records</div><div class="section-badge badge-info" id="h-count">${propMonthly.length} months</div></div>
+          <div id="h-list" style="max-height:500px;overflow-y:auto">
+            ${propMonthly.length
+              ? `<table class="data-table"><thead><tr><th>Month</th><th class="r">Revenue</th><th class="r">Occ%</th><th>Source</th></tr></thead>
+                <tbody>${[...propMonthly].reverse().map(r=>`<tr>
+                  <td class="mono">${fmtMonth(r.period_start)}</td>
+                  <td class="r">${fmt$(r.room_revenue)}</td>
+                  <td class="r">${fmtPct(r.occ_pct)}</td>
+                  <td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source}</span></td>
+                </tr>`).join('')}</tbody></table>`
+              : empty('No historical data yet','Use the form to enter Opera Flash data')}
           </div>
         </div>
       </div>
+    </div>`;
+}
 
-    </div>
-  </div>
+function wireHistory(){
+  document.getElementById('h-save').addEventListener('click', async()=>{
+    const start = document.getElementById('h-start').value;
+    const end   = document.getElementById('h-end').value;
+    if(!start||!end){ toast('Period start and end required','error'); return; }
+    const rec = {
+      property: S.mode,
+      period_start: start, period_end: end,
+      occ_pct:    parseFloat(document.getElementById('h-occ').value)||null,
+      adr:        parseFloat(document.getElementById('h-adr').value)||null,
+      revpar:     parseFloat(document.getElementById('h-revpar').value)||null,
+      rooms_sold:      parseInt(document.getElementById('h-rsold').value)||null,
+      rooms_available: parseInt(document.getElementById('h-ravail').value)||null,
+      room_revenue:  parseFloat(document.getElementById('h-rrev').value)||null,
+      misc_revenue:  parseFloat(document.getElementById('h-misc').value)||null,
+      total_revenue: parseFloat(document.getElementById('h-trev').value)||null,
+      source: document.getElementById('h-src').value,
+      notes:  document.getElementById('h-notes').value||null
+    };
+    try {
+      await sbUpsert('monthly_revenue', rec, 'property,period_start');
+      await loadAllData();
+      renderView('history');
+      toast(`Saved ${fmtMonth(start)}`);
+    } catch(e){ toast('Save failed: '+e.message,'error'); }
+  });
+  document.getElementById('h-clear').addEventListener('click',()=>{
+    ['h-start','h-end','h-occ','h-adr','h-revpar','h-rsold','h-ravail','h-rrev','h-misc','h-trev','h-notes'].forEach(id=>document.getElementById(id).value='');
+  });
+}
 
-  <!-- ── VIEW: UPLOAD ── -->
-  <div class="view" id="view-upload">
+// ═══════════════════════════════════════════
+// ── UPLOAD VIEW ──
+// ═══════════════════════════════════════════
+function buildUpload(){
+  return `
     <div class="page-header">
       <div class="page-title">Upload Reports</div>
-      <div class="page-subtitle">Drop HotelKey exports here — identified by content, not filename</div>
+      <div class="page-sub">${PROPS[S.mode]?.name} · Identified by content — any filename accepted</div>
     </div>
     <div class="content">
-
       <div class="section-card">
-        <div class="section-head">
-          <div class="section-title">Drop Files</div>
-          <div class="section-badge badge-info">PDF · XLSX accepted</div>
-        </div>
-        <div style="padding:1.5rem;">
-          <div class="upload-area" id="upload-zone">
-            <input type="file" id="file-input" multiple accept=".pdf,.xlsx,.xls">
+        <div class="section-head"><div class="section-title">Drop Files</div><div class="section-badge badge-info">PDF · XLSX</div></div>
+        <div style="padding:1.4rem">
+          <div class="upload-area" id="u-zone">
+            <input type="file" id="u-input" multiple accept=".pdf,.xlsx,.xls">
             <div class="upload-icon">📂</div>
             <div class="upload-title">Drop reports here or click to browse</div>
-            <div class="upload-sub">Accepts PDF and XLSX — any filename is fine</div>
+            <div class="upload-sub">Any filename is fine — reports are identified by their content</div>
           </div>
-          <div class="upload-results" id="upload-results"></div>
-          <button class="upload-commit-btn" id="upload-commit-btn" disabled>Save to Database</button>
+          <div class="upload-results" id="u-results"></div>
+          <button class="upload-commit" id="u-commit" disabled>Save to Database</button>
         </div>
       </div>
-
       <div class="section-card">
-        <div class="section-head">
-          <div class="section-title">Report Detection Guide</div>
-        </div>
-        <div style="padding:1.5rem;">
+        <div class="section-head"><div class="section-title">Detection Guide</div></div>
+        <div style="padding:1.4rem">
           <table class="data-table">
-            <thead>
-              <tr>
-                <th>Report Type</th>
-                <th>Detected By</th>
-                <th>Saves To</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Report</th><th>Detected By</th><th>Saves To</th></tr></thead>
             <tbody>
-              <tr><td><span class="pill pill-blue">Hotel Statistics</span></td><td class="mono">Contains "Hotel Statistics" + "Actual Today"</td><td class="mono">daily_revenue</td></tr>
-              <tr><td><span class="pill pill-amber">Direct Bill Aging</span></td><td class="mono">Contains "Direct Bill Aging" + "Over 150"</td><td class="mono">ar_aging</td></tr>
-              <tr><td><span class="pill pill-red">Rate Override</span></td><td class="mono">XLSX with columns "Sold Rate" + "New Rate"</td><td class="mono">rate_overrides</td></tr>
-              <tr><td><span class="pill pill-red">Adjustments & Refunds</span></td><td class="mono">Contains "Adjustments and Refunds Activity"</td><td class="mono">adjustments</td></tr>
-              <tr><td><span class="pill pill-green">In-House Balances</span></td><td class="mono">Contains "In House Guest Balances"</td><td class="mono">inhouse_balances</td></tr>
-              <tr><td><span class="pill pill-gray">Tax Report</span></td><td class="mono">Contains "Tax Report" + "Payable Tax"</td><td class="mono">daily_revenue (tax fields)</td></tr>
+              <tr><td><span class="pill pill-blue">Hotel Statistics</span></td><td class="mono">"Hotel Statistics" + "Actual Today"</td><td class="mono">daily_revenue</td></tr>
+              <tr><td><span class="pill pill-amber">Direct Bill Aging</span></td><td class="mono">"Direct Bill Aging" + "Over 150"</td><td class="mono">ar_aging</td></tr>
+              <tr><td><span class="pill pill-red">Rate Override</span></td><td class="mono">XLSX with "Sold Rate" + "New Rate"</td><td class="mono">rate_overrides</td></tr>
+              <tr><td><span class="pill pill-red">Adjustments & Refunds</span></td><td class="mono">"Adjustments and Refunds Activity"</td><td class="mono">adjustments</td></tr>
+              <tr><td><span class="pill pill-green">In-House Balances</span></td><td class="mono">"In House Guest Balances"</td><td class="mono">inhouse_balances</td></tr>
             </tbody>
           </table>
-          <div style="margin-top:1rem;font-family:var(--mono);font-size:0.65rem;color:var(--fog);">
-            User Activity, Clerk Activity, and Closed Folio Balance reports are noted but not stored row-by-row — they are displayed directly from the uploaded file content.
-          </div>
         </div>
       </div>
-
-    </div>
-  </div>
-
-</div><!-- /app -->
-
-<div id="toast"></div>
-
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-<script>
-// ═══════════════════════════════════════════════════
-// CONFIG
-// ═══════════════════════════════════════════════════
-const SUPABASE_URL = 'https://ltbjavxegskmhyjqpext.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0YmphdnhlZ3NrbWh5anFwZXh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTU5NzksImV4cCI6MjA5NjI5MTk3OX0.mE-bSDLH7K9UXTqKDQKOuiEy9gv6Qi1xRj9Q2a9gw6I';
-const PIN = '1234'; // Change this to your desired PIN
-
-// ═══════════════════════════════════════════════════
-// SUPABASE HELPERS
-// ═══════════════════════════════════════════════════
-async function sbFetch(table, params = '') {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${params}`, {
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json'
-    }
-  });
-  if (!res.ok) throw new Error(`${table}: ${res.status}`);
-  return res.json();
+    </div>`;
 }
 
-async function sbInsert(table, data, upsertOn = null) {
-  const headers = {
-    'apikey': SUPABASE_KEY,
-    'Authorization': `Bearer ${SUPABASE_KEY}`,
-    'Content-Type': 'application/json',
-    'Prefer': upsertOn ? `resolution=merge-duplicates` : 'return=minimal'
-  };
-  if (upsertOn) headers['Prefer'] = 'resolution=merge-duplicates,return=minimal';
-  const url = upsertOn
-    ? `${SUPABASE_URL}/rest/v1/${table}?on_conflict=${upsertOn}`
-    : `${SUPABASE_URL}/rest/v1/${table}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(Array.isArray(data) ? data : [data])
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err);
-  }
-  return true;
-}
+function wireUpload(){
+  const zone = document.getElementById('u-zone');
+  const input = document.getElementById('u-input');
+  const results = document.getElementById('u-results');
+  const commit = document.getElementById('u-commit');
 
-// ═══════════════════════════════════════════════════
-// PIN LOCK
-// ═══════════════════════════════════════════════════
-let pinEntry = '';
+  zone.addEventListener('dragover', e=>{e.preventDefault();zone.classList.add('dragover')});
+  zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
+  zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');handleFiles([...e.dataTransfer.files])});
+  input.addEventListener('change',()=>handleFiles([...input.files]));
 
-function updateDots() {
-  for (let i = 0; i < 4; i++) {
-    const d = document.getElementById(`d${i}`);
-    d.className = 'pin-dot' + (i < pinEntry.length ? ' filled' : '');
-  }
-}
+  async function handleFiles(files){
+    S.pending=[];results.innerHTML='';
+    for(const file of files){
+      const ext=file.name.split('.').pop().toLowerCase();
+      let type='UNKNOWN', data=null;
+      try {
+        if(ext==='pdf'){
+          const text = await readText(file);
+          const r = detectReport(text);
+          type=r.type; data=r.data;
+        } else if(['xlsx','xls'].includes(ext)){
+          type='RATE_OVERRIDE'; data={filename:file.name,file};
+        }
+      } catch(e){ type='ERROR'; }
 
-function pinError() {
-  for (let i = 0; i < 4; i++) {
-    document.getElementById(`d${i}`).className = 'pin-dot error';
-  }
-  document.getElementById('pin-error').classList.add('show');
-  setTimeout(() => {
-    pinEntry = '';
-    updateDots();
-    document.getElementById('pin-error').classList.remove('show');
-  }, 800);
-}
+      const saveable=['HOTEL_STATISTICS','AR_AGING','ADJUSTMENTS','INHOUSE_BALANCES'].includes(type);
+      if(saveable && data) S.pending.push({type,data,name:file.name});
 
-function unlockApp() {
-  document.getElementById('lock-screen').classList.add('hidden');
-  document.getElementById('app').classList.add('visible');
-  setTimeout(() => document.getElementById('lock-screen').style.display = 'none', 500);
-  initApp();
-}
-
-document.getElementById('pin-pad').addEventListener('click', e => {
-  const btn = e.target.closest('.pin-key');
-  if (!btn) return;
-  const key = btn.dataset.key;
-  if (key === 'clear') { pinEntry = ''; updateDots(); return; }
-  if (key === 'del') { pinEntry = pinEntry.slice(0, -1); updateDots(); return; }
-  if (pinEntry.length >= 4) return;
-  pinEntry += key;
-  updateDots();
-  if (pinEntry.length === 4) {
-    if (pinEntry === PIN) { unlockApp(); }
-    else { pinError(); }
-  }
-});
-
-document.getElementById('lock-btn').addEventListener('click', () => {
-  pinEntry = '';
-  updateDots();
-  document.getElementById('lock-screen').style.display = 'flex';
-  document.getElementById('lock-screen').classList.remove('hidden');
-  document.getElementById('app').classList.remove('visible');
-});
-
-// ═══════════════════════════════════════════════════
-// NAVIGATION
-// ═══════════════════════════════════════════════════
-document.querySelectorAll('.nav-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById(`view-${btn.dataset.view}`).classList.add('active');
-  });
-});
-
-// Tab bars
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const bar = btn.closest('.section-card');
-    bar.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    bar.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    btn.classList.add('active');
-    const tabId = `tab-${btn.dataset.tab}`;
-    const tc = document.getElementById(tabId);
-    if (tc) tc.classList.add('active');
-    if (btn.dataset.tab === 'perf-chart') renderMonthlyChart();
-  });
-});
-
-// ═══════════════════════════════════════════════════
-// UTILITIES
-// ═══════════════════════════════════════════════════
-function fmt$(n) {
-  if (n == null) return '—';
-  return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function fmtPct(n) { return n == null ? '—' : Number(n).toFixed(2) + '%'; }
-function fmtNum(n) { return n == null ? '—' : Number(n).toLocaleString('en-US'); }
-function fmtDate(d) {
-  if (!d) return '—';
-  const dt = new Date(d + 'T00:00:00');
-  return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-}
-function fmtMonth(d) {
-  if (!d) return '—';
-  const dt = new Date(d + 'T00:00:00');
-  return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-}
-function delta(curr, prev) {
-  if (!curr || !prev || prev === 0) return null;
-  return ((curr - prev) / Math.abs(prev) * 100).toFixed(1);
-}
-function deltaHtml(curr, prev, prefix = '') {
-  const d = delta(curr, prev);
-  if (!d) return '';
-  const cls = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
-  const arrow = d > 0 ? '▲' : d < 0 ? '▼' : '—';
-  return `<span class="kpi-delta ${cls}">${arrow} ${Math.abs(d)}% vs LY</span>`;
-}
-
-function toast(msg, type = 'success') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = `show ${type}`;
-  setTimeout(() => t.classList.remove('show'), 3500);
-}
-
-// ═══════════════════════════════════════════════════
-// APP STATE
-// ═══════════════════════════════════════════════════
-let state = {
-  currentDate: new Date().toISOString().slice(0, 10),
-  dailyData: {},    // keyed by date
-  arData: [],
-  overrideData: [],
-  adjData: [],
-  inhouseData: [],
-  monthlyData: [],
-  pendingFiles: []
-};
-
-// ═══════════════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════════════
-async function initApp() {
-  setDailyDateLabel();
-  await Promise.all([
-    loadDailyRevenue(),
-    loadArAging(),
-    loadRateOverrides(),
-    loadAdjustments(),
-    loadInhouseBalances(),
-    loadMonthlyRevenue()
-  ]);
-  renderDailyView();
-  renderARView();
-  renderAccountabilityView();
-  renderMonthlyTable();
-  renderHistoryList();
-}
-
-// ═══════════════════════════════════════════════════
-// DATA LOADERS
-// ═══════════════════════════════════════════════════
-async function loadDailyRevenue() {
-  try {
-    const rows = await sbFetch('daily_revenue', '?order=date.desc&limit=365');
-    state.dailyData = {};
-    rows.forEach(r => state.dailyData[r.date] = r);
-  } catch(e) { console.warn('daily_revenue:', e); }
-}
-
-async function loadArAging() {
-  try {
-    state.arData = await sbFetch('ar_aging', '?order=date.desc&limit=60');
-  } catch(e) { console.warn('ar_aging:', e); }
-}
-
-async function loadRateOverrides() {
-  try {
-    state.overrideData = await sbFetch('rate_overrides', '?order=stay_date.desc&limit=500');
-  } catch(e) { console.warn('rate_overrides:', e); }
-}
-
-async function loadAdjustments() {
-  try {
-    state.adjData = await sbFetch('adjustments', '?order=date.desc&limit=500');
-  } catch(e) { console.warn('adjustments:', e); }
-}
-
-async function loadInhouseBalances() {
-  try {
-    state.inhouseData = await sbFetch('inhouse_balances', '?order=date.desc&limit=200');
-  } catch(e) { console.warn('inhouse_balances:', e); }
-}
-
-async function loadMonthlyRevenue() {
-  try {
-    state.monthlyData = await sbFetch('monthly_revenue', '?order=period_start.asc');
-  } catch(e) { console.warn('monthly_revenue:', e); }
-}
-
-// ═══════════════════════════════════════════════════
-// DAILY VIEW
-// ═══════════════════════════════════════════════════
-function setDailyDateLabel() {
-  document.getElementById('daily-date-label').textContent = fmtDate(state.currentDate);
-}
-
-document.getElementById('daily-prev').addEventListener('click', () => {
-  const d = new Date(state.currentDate + 'T00:00:00');
-  d.setDate(d.getDate() - 1);
-  state.currentDate = d.toISOString().slice(0, 10);
-  setDailyDateLabel();
-  renderDailyView();
-});
-document.getElementById('daily-next').addEventListener('click', () => {
-  const d = new Date(state.currentDate + 'T00:00:00');
-  d.setDate(d.getDate() + 1);
-  state.currentDate = d.toISOString().slice(0, 10);
-  setDailyDateLabel();
-  renderDailyView();
-});
-document.getElementById('daily-today').addEventListener('click', () => {
-  state.currentDate = new Date().toISOString().slice(0, 10);
-  setDailyDateLabel();
-  renderDailyView();
-});
-
-function renderDailyView() {
-  const d = state.currentDate;
-  const row = state.dailyData[d];
-
-  // Source label
-  document.getElementById('daily-source-label').textContent = row ? 'Source: HotelKey Daily' : '';
-
-  // Alerts
-  const alerts = [];
-  const dayOverrides = state.overrideData.filter(r => r.stay_date === d);
-  const dayAdj = state.adjData.filter(r => r.date === d);
-  const refunds = dayAdj.filter(r => r.transaction_type === 'REFUND');
-  const mgr = dayAdj.filter(r => r.reason_code === 'MANAGER_DISCRETION');
-  const overrideTotal = dayOverrides.reduce((s,r) => s + (r.override_amount||0), 0);
-
-  if (dayOverrides.length > 0) {
-    const cls = overrideTotal < -100 ? 'alert' : 'warn';
-    alerts.push(`<div class="alert-chip ${cls}">⚡ ${dayOverrides.length} rate override${dayOverrides.length>1?'s':''} — net ${fmt$(overrideTotal)}</div>`);
-  }
-  if (refunds.length > 0) {
-    const tot = refunds.reduce((s,r) => s + Math.abs(r.adjusted_amount||0), 0);
-    alerts.push(`<div class="alert-chip alert">↩ ${refunds.length} refund${refunds.length>1?'s':''} — ${fmt$(tot)}</div>`);
-  }
-  if (mgr.length > 0) alerts.push(`<div class="alert-chip warn">🔑 ${mgr.length} manager discretion adjustment${mgr.length>1?'s':''}</div>`);
-
-  // AR alert
-  const latestAR = state.arData[0];
-  if (latestAR && latestAR.total > 160000) alerts.push(`<div class="alert-chip alert">🏦 AR Total ${fmt$(latestAR.total)} — review aging</div>`);
-
-  if (alerts.length === 0) alerts.push(`<div class="alert-chip ok">✓ No flags for this date</div>`);
-  document.getElementById('daily-alerts').innerHTML = alerts.join('');
-
-  // KPIs
-  if (row) {
-    document.getElementById('daily-kpis').innerHTML = `
-      <div class="kpi-card gold">
-        <div class="kpi-label">Occupancy</div>
-        <div class="kpi-value">${fmtPct(row.occ_pct)}</div>
-        ${row.ly_occ_pct ? deltaHtml(row.occ_pct, row.ly_occ_pct) : ''}
-        <div class="kpi-meta">LY: ${fmtPct(row.ly_occ_pct)}</div>
-      </div>
-      <div class="kpi-card green">
-        <div class="kpi-label">ADR</div>
-        <div class="kpi-value">${fmt$(row.adr)}</div>
-        ${row.ly_adr ? deltaHtml(row.adr, row.ly_adr) : ''}
-        <div class="kpi-meta">LY: ${fmt$(row.ly_adr)}</div>
-      </div>
-      <div class="kpi-card blue">
-        <div class="kpi-label">RevPAR</div>
-        <div class="kpi-value">${fmt$(row.revpar)}</div>
-        <div class="kpi-meta">${fmtNum(row.rooms_sold)} / ${fmtNum(row.rooms_available)} rooms</div>
-      </div>
-      <div class="kpi-card gold">
-        <div class="kpi-label">Room Revenue</div>
-        <div class="kpi-value">${fmt$(row.room_revenue)}</div>
-        ${row.ly_room_revenue ? deltaHtml(row.room_revenue, row.ly_room_revenue) : ''}
-        <div class="kpi-meta">LY: ${fmt$(row.ly_room_revenue)}</div>
-      </div>
-      <div class="kpi-card amber">
-        <div class="kpi-label">Misc Revenue</div>
-        <div class="kpi-value">${fmt$(row.misc_revenue)}</div>
-        <div class="kpi-meta">Total: ${fmt$(row.total_revenue)}</div>
-      </div>
-    `;
-  } else {
-    document.getElementById('daily-kpis').innerHTML = `
-      <div class="empty-state" style="grid-column:1/-1">
-        <div class="empty-state-icon">📊</div>
-        <div class="empty-state-title">No data for ${fmtDate(d)}</div>
-        <div class="empty-state-sub">Upload the Hotel Statistics report for this date</div>
+      const labels={'HOTEL_STATISTICS':'Hotel Statistics','AR_AGING':'Direct Bill Aging','RATE_OVERRIDE':'Rate Override','ADJUSTMENTS':'Adjustments & Refunds','INHOUSE_BALANCES':'In-House Balances','TAX_REPORT':'Tax Report','USER_ACTIVITY':'User Activity','CLERK_ACTIVITY':'Clerk Activity','CLOSED_FOLIO':'Closed Folio','UNKNOWN':'Unrecognized','ERROR':'Read Error'};
+      results.innerHTML += `<div class="upload-item">
+        <div style="font-size:1rem">${ext==='xlsx'?'📊':'📄'}</div>
+        <div class="upload-item-name">${file.name}</div>
+        <span class="upload-item-type ${type==='UNKNOWN'?'type-unk':type==='ERROR'?'type-err':'type-ok'}">${labels[type]||type}</span>
+        <div class="upload-item-note">${saveable?'→ will save':type==='UNKNOWN'?'not saved':'display only'}</div>
       </div>`;
+    }
+    commit.disabled = S.pending.length===0;
+    commit.textContent = S.pending.length>0 ? `Save ${S.pending.length} report${S.pending.length>1?'s':''} to Database` : 'Save to Database';
   }
 
-  // MTD
-  renderMTD(d);
-  // YTD
-  renderYTD(d);
-  // AR snap
-  renderARSnap();
-  // Override day
-  renderOverrideDay(d);
-  // Adj day
-  renderAdjDay(d);
+  commit.addEventListener('click', async()=>{
+    commit.disabled=true; commit.textContent='Saving...';
+    let saved=0, errors=0;
+    for(const f of S.pending){
+      try {
+        if(f.type==='HOTEL_STATISTICS' && f.data?.date){
+          const d=f.data;
+          await sbUpsert('daily_revenue',{property:S.mode,date:d.date,occ_pct:d.occ_pct,adr:d.adr,revpar:d.revpar,rooms_sold:d.rooms_sold,rooms_available:d.rooms_available,room_revenue:d.room_revenue,misc_revenue:d.misc_revenue,total_revenue:d.total_revenue,ly_occ_pct:d.ly_occ_pct,ly_adr:d.ly_adr,ly_room_revenue:d.ly_room_revenue},'property,date');
+          saved++;
+        }
+        if(f.type==='AR_AGING' && Array.isArray(f.data)){
+          for(const row of f.data){
+            if(row.date&&row.company){ await sbUpsert('ar_aging',{...row,property:S.mode},'property,date,company'); saved++; }
+          }
+        }
+        if(f.type==='ADJUSTMENTS' && f.data?.date){
+          await sbPost('adjustments',{property:S.mode,date:f.data.date,transaction_type:'ADJUSTMENT',reason_code:'UPLOADED',remarks:'Uploaded: '+f.name});
+          saved++;
+        }
+      } catch(e){ console.error(f.name,e); errors++; }
+    }
+    await loadAllData();
+    toast(errors===0?`Saved ${saved} record${saved>1?'s':''}`:`Saved ${saved}, ${errors} failed`,(errors===0?'success':'error'));
+    commit.disabled=false; commit.textContent='Save to Database'; S.pending=[];
+  });
 }
 
-function renderMTD(d) {
-  const [year, month] = d.split('-');
-  const mtdRows = Object.values(state.dailyData).filter(r => r.date.startsWith(`${year}-${month}`));
-  if (mtdRows.length === 0) {
-    document.getElementById('mtd-content').innerHTML = '<div class="empty-state"><div class="empty-state-sub">No MTD data for this month</div></div>';
-    document.getElementById('mtd-badge').textContent = '0 days';
-    return;
-  }
-  const totalRev = mtdRows.reduce((s,r) => s+(r.room_revenue||0),0);
-  const totalMisc = mtdRows.reduce((s,r) => s+(r.misc_revenue||0),0);
-  const avgOcc = mtdRows.reduce((s,r) => s+(r.occ_pct||0),0) / mtdRows.length;
-  const avgADR = mtdRows.reduce((s,r) => s+(r.adr||0),0) / mtdRows.length;
-  const totalSold = mtdRows.reduce((s,r) => s+(r.rooms_sold||0),0);
-  const totalAvail = mtdRows.reduce((s,r) => s+(r.rooms_available||0),0);
-  const lyRevTotal = mtdRows.reduce((s,r) => s+(r.ly_room_revenue||0),0);
-
-  document.getElementById('mtd-badge').textContent = `${mtdRows.length} days`;
-  document.getElementById('mtd-content').innerHTML = `
-    <table class="data-table">
-      <tr><td>Room Revenue</td><td class="right">${fmt$(totalRev)}</td></tr>
-      <tr><td>Misc Revenue</td><td class="right">${fmt$(totalMisc)}</td></tr>
-      <tr class="total-row"><td>Total Revenue</td><td class="right">${fmt$(totalRev + totalMisc)}</td></tr>
-      <tr><td>Avg Occupancy</td><td class="right">${fmtPct(avgOcc)}</td></tr>
-      <tr><td>Avg ADR</td><td class="right">${fmt$(avgADR)}</td></tr>
-      <tr><td>Rooms Sold</td><td class="right">${fmtNum(totalSold)} / ${fmtNum(totalAvail)}</td></tr>
-      ${lyRevTotal > 0 ? `<tr><td>LY Room Revenue</td><td class="right" style="color:var(--fog)">${fmt$(lyRevTotal)} ${deltaHtml(totalRev, lyRevTotal)}</td></tr>` : ''}
-    </table>`;
-}
-
-function renderYTD(d) {
-  const year = d.split('-')[0];
-  const ytdRows = Object.values(state.dailyData).filter(r => r.date.startsWith(year));
-  if (ytdRows.length === 0) {
-    document.getElementById('ytd-content').innerHTML = '<div class="empty-state"><div class="empty-state-sub">No YTD data for this year</div></div>';
-    document.getElementById('ytd-badge').textContent = '0 days';
-    return;
-  }
-  const totalRev = ytdRows.reduce((s,r) => s+(r.room_revenue||0),0);
-  const totalMisc = ytdRows.reduce((s,r) => s+(r.misc_revenue||0),0);
-  const avgOcc = ytdRows.reduce((s,r) => s+(r.occ_pct||0),0) / ytdRows.length;
-  const avgADR = ytdRows.reduce((s,r) => s+(r.adr||0),0) / ytdRows.length;
-  const lyRevTotal = ytdRows.reduce((s,r) => s+(r.ly_room_revenue||0),0);
-
-  document.getElementById('ytd-badge').textContent = `${ytdRows.length} days`;
-  document.getElementById('ytd-content').innerHTML = `
-    <table class="data-table">
-      <tr><td>Room Revenue</td><td class="right">${fmt$(totalRev)}</td></tr>
-      <tr><td>Misc Revenue</td><td class="right">${fmt$(totalMisc)}</td></tr>
-      <tr class="total-row"><td>Total Revenue</td><td class="right">${fmt$(totalRev + totalMisc)}</td></tr>
-      <tr><td>Avg Occupancy</td><td class="right">${fmtPct(avgOcc)}</td></tr>
-      <tr><td>Avg ADR</td><td class="right">${fmt$(avgADR)}</td></tr>
-      ${lyRevTotal > 0 ? `<tr><td>LY Room Revenue</td><td class="right" style="color:var(--fog)">${fmt$(lyRevTotal)} ${deltaHtml(totalRev, lyRevTotal)}</td></tr>` : ''}
-    </table>`;
-}
-
-function renderARSnap() {
-  if (state.arData.length === 0) {
-    document.getElementById('ar-snap-content').innerHTML = '<div class="empty-state"><div class="empty-state-sub">No AR data loaded</div></div>';
-    document.getElementById('ar-snap-badge').textContent = '—';
-    document.getElementById('ar-snap-badge').className = 'section-badge badge-info';
-    return;
-  }
-  const latest = state.arData[0];
-  const latestDate = latest.date;
-  const latestRows = state.arData.filter(r => r.date === latestDate);
-  const total = latestRows.reduce((s,r) => s+(r.total||0),0);
-  const over90 = latestRows.reduce((s,r) => s+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0);
-
-  const badgeCls = over90 > 50000 ? 'badge-alert' : over90 > 20000 ? 'badge-warn' : 'badge-ok';
-  document.getElementById('ar-snap-badge').textContent = `Total ${fmt$(total)}`;
-  document.getElementById('ar-snap-badge').className = `section-badge ${badgeCls}`;
-
-  document.getElementById('ar-snap-content').innerHTML = `
-    <div class="aging-grid">
-      ${latestRows.map(co => agingCellHtml(co)).join('')}
+// ═══════════════════════════════════════════
+// ── COMING SOON VIEW ──
+// ═══════════════════════════════════════════
+function buildComingSoon(){
+  const prop = S.mode;
+  const p = PROPS[prop];
+  return `
+    <div class="page-header">
+      <div class="page-title">${p?.name||prop}</div>
+      <div class="page-sub">${p?.pms} · ${prop}</div>
     </div>
-    <div style="padding:0.75rem 1.5rem;font-family:var(--mono);font-size:0.6rem;color:var(--fog);">As of ${fmtDate(latestDate)}</div>`;
+    <div class="content">
+      <div class="section-card">
+        <div class="coming-soon">
+          <div class="coming-soon-badge">Coming Soon</div>
+          <div class="coming-soon-title">${p?.name}</div>
+          <div class="coming-soon-sub">This property runs on ${p?.pms}. Once sample reports are reviewed and parsers are built, this property will be fully active. Data infrastructure is ready.</div>
+        </div>
+      </div>
+    </div>`;
 }
 
-function agingCellHtml(co) {
-  const maxVal = Math.max(co.current_bal||0, co.over_30||0, co.over_60||0, co.over_90||0, co.over_120||0, co.over_150||0);
-  const pct = (v) => maxVal > 0 ? Math.round((v||0)/maxVal*100) : 0;
-  return `<div class="aging-cell">
-    <div class="aging-company">${co.company.replace('_',' ')}</div>
-    <div class="aging-total">${fmt$(co.total)}</div>
-    ${[
-      ['Current', co.current_bal, 'bar-current'],
-      ['30+', co.over_30, 'bar-30'],
-      ['60+', co.over_60, 'bar-60'],
-      ['90+', co.over_90, 'bar-90'],
-      ['120+', co.over_120, 'bar-120'],
-      ['150+', co.over_150, 'bar-150'],
-    ].map(([label, val, cls]) => `
-      <div class="aging-bar-row">
-        <div class="aging-bar-label">${label}</div>
-        <div class="aging-bar-track"><div class="aging-bar-fill ${cls}" style="width:${pct(val)}%"></div></div>
-        <div class="aging-bar-val">${fmt$(val)}</div>
-      </div>`).join('')}
-  </div>`;
-}
-
-function renderOverrideDay(d) {
-  const rows = state.overrideData.filter(r => r.stay_date === d);
-  if (rows.length === 0) {
-    document.getElementById('override-day-content').innerHTML = `<div class="empty-state"><div class="empty-state-sub">No rate overrides for ${fmtDate(d)}</div></div>`;
-    document.getElementById('override-day-badge').textContent = 'None';
-    document.getElementById('override-day-badge').className = 'section-badge badge-ok';
-    return;
-  }
-  const net = rows.reduce((s,r)=>s+(r.override_amount||0),0);
-  document.getElementById('override-day-badge').textContent = `${rows.length} overrides — net ${fmt$(net)}`;
-  document.getElementById('override-day-badge').className = `section-badge ${net < -50 ? 'badge-alert' : 'badge-warn'}`;
-  document.getElementById('override-day-content').innerHTML = overrideTableHtml(rows);
-}
-
-function overrideTableHtml(rows) {
-  return `<div style="overflow-x:auto"><table class="data-table">
-    <thead><tr>
-      <th>Guest</th><th>Room</th>
-      <th class="right">Sold Rate</th><th class="right">New Rate</th>
-      <th class="right">Difference</th>
-      <th>By</th><th>Reason</th>
-    </tr></thead>
-    <tbody>${rows.map(r => `<tr>
-      <td>${r.guest_name||'—'}</td>
-      <td class="mono">${r.room_number||'—'}</td>
-      <td class="right">${fmt$(r.sold_rate)}</td>
-      <td class="right">${fmt$(r.new_rate)}</td>
-      <td class="right"><span class="${(r.override_amount||0)<0?'pill pill-red':'pill pill-green'}">${fmt$(r.override_amount)}</span></td>
-      <td class="mono" style="font-size:0.72rem">${r.username||'—'}</td>
-      <td style="font-size:0.8rem;color:var(--fog)">${r.override_reason||'—'}</td>
+// ═══════════════════════════════════════════
+// SHARED TABLE BUILDERS
+// ═══════════════════════════════════════════
+function overrideTableHtml(rows){
+  return `<table class="data-table">
+    <thead><tr><th>Date</th><th>Guest</th><th>Room</th><th class="r">Sold Rate</th><th class="r">New Rate</th><th class="r">Difference</th><th>By</th><th>Reason</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td class="mono">${r.stay_date||'—'}</td>
+      <td>${r.guest_name||'—'}</td><td class="mono">${r.room_number||'—'}</td>
+      <td class="r">${fmt$(r.sold_rate)}</td><td class="r">${fmt$(r.new_rate)}</td>
+      <td class="r"><span class="${(r.override_amount||0)<0?'pill pill-red':'pill pill-green'}">${fmt$(r.override_amount)}</span></td>
+      <td class="mono" style="font-size:.7rem">${r.username||'—'}</td>
+      <td style="font-size:.78rem;color:var(--fog)">${r.override_reason||'—'}</td>
     </tr>`).join('')}</tbody>
-    <tfoot><tr class="total-row">
-      <td colspan="4">Total</td>
-      <td class="right">${fmt$(rows.reduce((s,r)=>s+(r.override_amount||0),0))}</td>
-      <td colspan="2"></td>
-    </tr></tfoot>
-  </table></div>`;
+    <tfoot><tr class="tot"><td colspan="5">Total</td><td class="r">${fmt$(rows.reduce((s,r)=>s+(r.override_amount||0),0))}</td><td colspan="2"></td></tr></tfoot>
+  </table>`;
 }
 
-function renderAdjDay(d) {
-  const rows = state.adjData.filter(r => r.date === d);
-  if (rows.length === 0) {
-    document.getElementById('adj-day-content').innerHTML = `<div class="empty-state"><div class="empty-state-sub">No adjustments for ${fmtDate(d)}</div></div>`;
-    document.getElementById('adj-day-badge').textContent = 'None';
-    document.getElementById('adj-day-badge').className = 'section-badge badge-ok';
-    return;
-  }
-  const refunds = rows.filter(r => r.transaction_type === 'REFUND');
-  const net = rows.reduce((s,r)=>s+Math.abs(r.adjusted_amount||0)+Math.abs(r.transferred_charge||0),0);
-  document.getElementById('adj-day-badge').textContent = `${rows.length} events — ${fmt$(net)}`;
-  document.getElementById('adj-day-badge').className = `section-badge ${refunds.length > 0 ? 'badge-alert' : 'badge-warn'}`;
-  document.getElementById('adj-day-content').innerHTML = adjTableHtml(rows);
-}
-
-function adjTableHtml(rows) {
-  return `<div style="overflow-x:auto"><table class="data-table">
-    <thead><tr>
-      <th>Type</th><th>Guest</th><th>Room</th>
-      <th class="right">Amount</th><th>By</th><th>Remarks</th>
-    </tr></thead>
-    <tbody>${rows.map(r => `<tr>
+function adjTableHtml(rows){
+  return `<table class="data-table">
+    <thead><tr><th>Date</th><th>Type</th><th>Guest</th><th>Room</th><th class="r">Amount</th><th>By</th><th>Remarks</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td class="mono">${r.date||'—'}</td>
       <td><span class="pill ${r.transaction_type==='REFUND'?'pill-red':r.transaction_type==='ADJUSTMENT'?'pill-amber':'pill-gray'}">${r.transaction_type||'—'}</span></td>
-      <td>${r.guest_name||'—'}</td>
-      <td class="mono">${r.room_number||'—'}</td>
-      <td class="right">${fmt$(r.adjusted_amount || r.transferred_charge)}</td>
-      <td class="mono" style="font-size:0.72rem">${r.username||'—'}</td>
-      <td style="font-size:0.78rem;color:var(--fog)">${r.remarks||'—'}</td>
-    </tr>`).join('')}</tbody>
-  </table></div>`;
-}
-
-// ═══════════════════════════════════════════════════
-// AR VIEW
-// ═══════════════════════════════════════════════════
-function renderARView() {
-  if (state.arData.length === 0) {
-    document.getElementById('ar-detail-content').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-title">No AR data</div><div class="empty-state-sub">Upload Direct Bill Aging reports</div></div>';
-    document.getElementById('ar-total-badge').textContent = '—';
-    return;
-  }
-
-  const latest = state.arData[0];
-  const latestDate = latest.date;
-  const latestRows = state.arData.filter(r => r.date === latestDate);
-  const total = latestRows.reduce((s,r) => s+(r.total||0),0);
-
-  document.getElementById('ar-total-badge').textContent = `Total ${fmt$(total)}`;
-  document.getElementById('ar-detail-content').innerHTML = `<div class="aging-grid">${latestRows.map(co => agingCellHtml(co)).join('')}</div>
-    <div style="padding:0.75rem 1.5rem;font-family:var(--mono);font-size:0.6rem;color:var(--fog);">As of ${fmtDate(latestDate)}</div>`;
-
-  // Trend
-  const dates = [...new Set(state.arData.map(r => r.date))].sort().slice(-7);
-  if (dates.length > 1) {
-    const trendHtml = `<table class="data-table">
-      <thead><tr><th>Date</th><th class="right">CLC</th><th class="right">IHG Rewards</th><th class="right">Total</th><th class="right">Change</th></tr></thead>
-      <tbody>${dates.map((dt, i) => {
-        const rows = state.arData.filter(r => r.date === dt);
-        const tot = rows.reduce((s,r)=>s+(r.total||0),0);
-        let chg = '';
-        if (i > 0) {
-          const prevDt = dates[i-1];
-          const prevTot = state.arData.filter(r => r.date === prevDt).reduce((s,r)=>s+(r.total||0),0);
-          const diff = tot - prevTot;
-          chg = `<span style="color:${diff>0?'var(--red)':'var(--green)'};font-family:var(--mono);font-size:0.7rem">${diff>0?'+':''}${fmt$(diff)}</span>`;
-        }
-        const clc = rows.find(r=>r.company==='CLC');
-        const ihg = rows.find(r=>r.company==='IHG_REWARDS');
-        return `<tr><td class="mono">${fmtDate(dt)}</td><td class="right">${fmt$(clc?.total)}</td><td class="right">${fmt$(ihg?.total)}</td><td class="right" style="font-weight:600">${fmt$(tot)}</td><td class="right">${chg}</td></tr>`;
-      }).join('')}</tbody>
-    </table>`;
-    document.getElementById('ar-trend-content').innerHTML = trendHtml;
-  }
-
-  // In-house
-  if (state.inhouseData.length > 0) {
-    const latestIH = state.inhouseData[0].date;
-    const ihRows = state.inhouseData.filter(r => r.date === latestIH);
-    const totalBal = ihRows.reduce((s,r)=>s+(r.folio_balance||0),0);
-    document.getElementById('inhouse-badge').textContent = `${ihRows.length} guests — ${fmt$(totalBal)}`;
-    document.getElementById('inhouse-content').innerHTML = `<div style="overflow-x:auto"><table class="data-table">
-      <thead><tr>
-        <th>Room</th><th>Guest</th><th>Company</th>
-        <th class="right">Rate/Night</th><th class="right">Folio Balance</th><th>Payment</th>
-      </tr></thead>
-      <tbody>${ihRows.map(r=>`<tr>
-        <td class="mono">${r.room_number||'—'}</td>
-        <td>${r.guest_name||'—'}</td>
-        <td>${r.company ? `<span class="pill pill-blue">${r.company}</span>` : '—'}</td>
-        <td class="right">${fmt$(r.room_rate)}</td>
-        <td class="right" style="font-weight:500">${fmt$(r.folio_balance)}</td>
-        <td class="mono" style="font-size:0.7rem">${r.payment_method||'—'}</td>
-      </tr>`).join('')}</tbody>
-      <tfoot><tr class="total-row"><td colspan="4">Total</td><td class="right">${fmt$(totalBal)}</td><td></td></tr></tfoot>
-    </table></div><div style="padding:0.75rem 1.5rem;font-family:var(--mono);font-size:0.6rem;color:var(--fog);">As of ${fmtDate(latestIH)}</div>`;
-  }
-}
-
-// ═══════════════════════════════════════════════════
-// ACCOUNTABILITY VIEW
-// ═══════════════════════════════════════════════════
-function renderAccountabilityView() {
-  // Overrides by clerk
-  if (state.overrideData.length > 0) {
-    const byClerk = {};
-    state.overrideData.forEach(r => {
-      const u = r.username || 'Unknown';
-      if (!byClerk[u]) byClerk[u] = { count: 0, net: 0 };
-      byClerk[u].count++;
-      byClerk[u].net += (r.override_amount||0);
-    });
-    const clerkRows = Object.entries(byClerk).sort((a,b) => a[1].net - b[1].net);
-    document.getElementById('override-clerk-badge').textContent = `${state.overrideData.length} total overrides`;
-    document.getElementById('override-clerk-badge').className = 'section-badge badge-warn';
-    document.getElementById('override-clerk-content').innerHTML = `<table class="data-table">
-      <thead><tr><th>Staff Member</th><th class="right">Count</th><th class="right">Net Revenue Impact</th><th class="right">Avg per Override</th></tr></thead>
-      <tbody>${clerkRows.map(([name, d]) => `<tr>
-        <td style="font-weight:500">${name}</td>
-        <td class="right mono">${d.count}</td>
-        <td class="right"><span class="${d.net<0?'pill pill-red':'pill pill-green'}">${fmt$(d.net)}</span></td>
-        <td class="right mono">${fmt$(d.net/d.count)}</td>
-      </tr>`).join('')}</tbody>
-      <tfoot><tr class="total-row">
-        <td>Total</td>
-        <td class="right mono">${state.overrideData.length}</td>
-        <td class="right">${fmt$(state.overrideData.reduce((s,r)=>s+(r.override_amount||0),0))}</td>
-        <td></td>
-      </tr></tfoot>
-    </table>`;
-
-    document.getElementById('override-all-badge').textContent = `${state.overrideData.length} records`;
-    document.getElementById('override-all-badge').className = 'section-badge badge-info';
-    document.getElementById('override-all-content').innerHTML = `<div style="overflow-x:auto">${overrideTableHtml(state.overrideData.slice(0, 100))}</div>`;
-  }
-
-  // Adjustments all
-  if (state.adjData.length > 0) {
-    const refunds = state.adjData.filter(r=>r.transaction_type==='REFUND');
-    const total = state.adjData.reduce((s,r)=>s+Math.abs(r.adjusted_amount||0),0);
-    document.getElementById('adj-all-badge').textContent = `${state.adjData.length} events — ${refunds.length} refunds`;
-    document.getElementById('adj-all-badge').className = `section-badge ${refunds.length>0?'badge-warn':'badge-ok'}`;
-    document.getElementById('adj-all-content').innerHTML = `<div style="overflow-x:auto">${adjTableHtml(state.adjData.slice(0, 100))}</div>`;
-  }
-}
-
-// ═══════════════════════════════════════════════════
-// MONTHLY TABLE
-// ═══════════════════════════════════════════════════
-function renderMonthlyTable() {
-  if (state.monthlyData.length === 0) {
-    document.getElementById('monthly-table-content').innerHTML = `<div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-title">No historical data</div><div class="empty-state-sub">Add monthly records in the History tab</div></div>`;
-    return;
-  }
-  const maxRev = Math.max(...state.monthlyData.map(r=>r.room_revenue||0));
-  document.getElementById('monthly-table-content').innerHTML = `<div style="overflow-x:auto"><table class="data-table">
-    <thead><tr>
-      <th>Month</th><th class="right">Occ%</th><th class="right">ADR</th>
-      <th class="right">RevPAR</th><th class="right">Room Revenue</th>
-      <th class="right">Total Revenue</th><th>Source</th><th style="width:120px">Bar</th>
-    </tr></thead>
-    <tbody>${state.monthlyData.map(r=>`<tr>
-      <td class="mono">${fmtMonth(r.period_start)}</td>
-      <td class="right">${fmtPct(r.occ_pct)}</td>
-      <td class="right">${fmt$(r.adr)}</td>
-      <td class="right">${fmt$(r.revpar)}</td>
-      <td class="right" style="font-weight:500">${fmt$(r.room_revenue)}</td>
-      <td class="right">${fmt$(r.total_revenue)}</td>
-      <td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source||'—'}</span></td>
-      <td><div class="month-bar" style="width:${maxRev>0?Math.round((r.room_revenue||0)/maxRev*110):0}px"></div></td>
-    </tr>`).join('')}</tbody>
-  </table></div>`;
-}
-
-let monthlyChart = null;
-function renderMonthlyChart() {
-  if (state.monthlyData.length === 0) return;
-  const ctx = document.getElementById('chart-monthly-rev').getContext('2d');
-  if (monthlyChart) monthlyChart.destroy();
-  monthlyChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: state.monthlyData.map(r => fmtMonth(r.period_start)),
-      datasets: [{
-        label: 'Room Revenue',
-        data: state.monthlyData.map(r => r.room_revenue || 0),
-        backgroundColor: 'rgba(201,151,58,0.7)',
-        borderColor: 'rgba(201,151,58,1)',
-        borderWidth: 1,
-        borderRadius: 3
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k', font: { family: 'DM Mono', size: 10 } }, grid: { color: '#e2e0db' } },
-        x: { ticks: { font: { family: 'DM Mono', size: 9 }, maxRotation: 45 }, grid: { display: false } }
-      }
-    }
-  });
-}
-
-// ═══════════════════════════════════════════════════
-// PERFORMANCE CHARTS
-// ═══════════════════════════════════════════════════
-function renderDailyChart() {
-  const rows = Object.values(state.dailyData).sort((a,b)=>a.date.localeCompare(b.date)).slice(-30);
-  if (rows.length === 0) return;
-  const ctx = document.getElementById('chart-daily-rev').getContext('2d');
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: rows.map(r => r.date.slice(5)),
-      datasets: [
-        {
-          label: 'Room Revenue',
-          data: rows.map(r => r.room_revenue || 0),
-          borderColor: 'rgba(201,151,58,1)',
-          backgroundColor: 'rgba(201,151,58,0.08)',
-          borderWidth: 2,
-          pointRadius: 3,
-          fill: true,
-          tension: 0.3
-        },
-        {
-          label: 'LY Room Revenue',
-          data: rows.map(r => r.ly_room_revenue || null),
-          borderColor: 'rgba(136,146,164,0.5)',
-          borderWidth: 1.5,
-          borderDash: [4,3],
-          pointRadius: 0,
-          fill: false,
-          tension: 0.3
-        }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { labels: { font: { family: 'DM Mono', size: 10 } } } },
-      scales: {
-        y: { ticks: { callback: v => '$' + (v/1000).toFixed(1)+'k', font: { family: 'DM Mono', size: 10 } }, grid: { color: '#e2e0db' } },
-        x: { ticks: { font: { family: 'DM Mono', size: 9 } }, grid: { display: false } }
-      }
-    }
-  });
-}
-
-// ═══════════════════════════════════════════════════
-// HISTORY MANUAL ENTRY
-// ═══════════════════════════════════════════════════
-function renderHistoryList() {
-  const el = document.getElementById('hist-list-content');
-  const badge = document.getElementById('hist-count-badge');
-  if (state.monthlyData.length === 0) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-title">No historical data yet</div><div class="empty-state-sub">Use the form to enter Opera Flash data starting Jan 2023</div></div>`;
-    badge.textContent = '0 months';
-    return;
-  }
-  badge.textContent = `${state.monthlyData.length} months`;
-  el.innerHTML = `<table class="data-table">
-    <thead><tr><th>Month</th><th class="right">Revenue</th><th class="right">Occ%</th><th>Source</th></tr></thead>
-    <tbody>${[...state.monthlyData].reverse().map(r=>`<tr>
-      <td class="mono">${fmtMonth(r.period_start)}</td>
-      <td class="right">${fmt$(r.room_revenue)}</td>
-      <td class="right">${fmtPct(r.occ_pct)}</td>
-      <td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source}</span></td>
+      <td>${r.guest_name||'—'}</td><td class="mono">${r.room_number||'—'}</td>
+      <td class="r">${fmt$(r.adjusted_amount||r.transferred_charge)}</td>
+      <td class="mono" style="font-size:.7rem">${r.username||'—'}</td>
+      <td style="font-size:.78rem;color:var(--fog)">${r.remarks||'—'}</td>
     </tr>`).join('')}</tbody>
   </table>`;
 }
 
-document.getElementById('hist-save-btn').addEventListener('click', async () => {
-  const start = document.getElementById('hist-period-start').value;
-  const end   = document.getElementById('hist-period-end').value;
-  if (!start || !end) { toast('Period start and end are required', 'error'); return; }
-
-  const rec = {
-    period_start:    start,
-    period_end:      end,
-    occ_pct:         parseFloat(document.getElementById('hist-occ').value) || null,
-    adr:             parseFloat(document.getElementById('hist-adr').value) || null,
-    revpar:          parseFloat(document.getElementById('hist-revpar').value) || null,
-    rooms_sold:      parseInt(document.getElementById('hist-rooms-sold').value) || null,
-    rooms_available: parseInt(document.getElementById('hist-rooms-avail').value) || null,
-    room_revenue:    parseFloat(document.getElementById('hist-room-rev').value) || null,
-    misc_revenue:    parseFloat(document.getElementById('hist-misc-rev').value) || null,
-    total_revenue:   parseFloat(document.getElementById('hist-total-rev').value) || null,
-    source:          document.getElementById('hist-source').value,
-    notes:           document.getElementById('hist-notes').value || null
-  };
-
-  try {
-    await sbInsert('monthly_revenue', rec, 'period_start');
-    await loadMonthlyRevenue();
-    renderHistoryList();
-    renderMonthlyTable();
-    toast(`Saved ${fmtMonth(start)}`);
-    document.getElementById('hist-clear-btn').click();
-  } catch(e) {
-    toast('Save failed: ' + e.message, 'error');
-  }
-});
-
-document.getElementById('hist-clear-btn').addEventListener('click', () => {
-  ['hist-period-start','hist-period-end','hist-occ','hist-adr','hist-revpar',
-   'hist-rooms-sold','hist-rooms-avail','hist-room-rev','hist-misc-rev',
-   'hist-total-rev','hist-notes'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('hist-source').value = 'opera_flash';
-});
-
-// ═══════════════════════════════════════════════════
-// UPLOAD & FILE DETECTION
-// ═══════════════════════════════════════════════════
-const uploadZone = document.getElementById('upload-zone');
-const fileInput  = document.getElementById('file-input');
-const uploadResults = document.getElementById('upload-results');
-const commitBtn  = document.getElementById('upload-commit-btn');
-
-uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-uploadZone.addEventListener('drop', e => {
-  e.preventDefault();
-  uploadZone.classList.remove('dragover');
-  handleFiles([...e.dataTransfer.files]);
-});
-fileInput.addEventListener('change', () => handleFiles([...fileInput.files]));
-
-async function handleFiles(files) {
-  state.pendingFiles = [];
-  uploadResults.innerHTML = '';
-
-  for (const file of files) {
-    const item = document.createElement('div');
-    item.className = 'upload-item';
-    const ext = file.name.split('.').pop().toLowerCase();
-
-    let detected = 'UNKNOWN';
-    let detectedLabel = 'Detecting...';
-    let parsedData = null;
-
-    try {
-      if (ext === 'pdf') {
-        const text = await readFileAsText(file);
-        const result = detectPDFReport(text, file.name);
-        detected = result.type;
-        parsedData = result.data;
-      } else if (ext === 'xlsx' || ext === 'xls') {
-        detected = 'RATE_OVERRIDE';
-        parsedData = { raw: file, filename: file.name };
-      }
-    } catch(e) {
-      detected = 'ERROR';
-    }
-
-    const typeClass = detected === 'UNKNOWN' ? 'type-unknown' : detected === 'ERROR' ? 'type-error' : 'type-detected';
-    const typeLabel = {
-      HOTEL_STATISTICS: 'Hotel Statistics',
-      AR_AGING: 'Direct Bill Aging',
-      RATE_OVERRIDE: 'Rate Override',
-      ADJUSTMENTS: 'Adjustments & Refunds',
-      INHOUSE_BALANCES: 'In-House Balances',
-      TAX_REPORT: 'Tax Report',
-      USER_ACTIVITY: 'User Activity',
-      CLERK_ACTIVITY: 'Clerk Activity',
-      CLOSED_FOLIO: 'Closed Folio',
-      UNKNOWN: 'Unrecognized',
-      ERROR: 'Read Error'
-    }[detected] || detected;
-
-    const saveable = ['HOTEL_STATISTICS','AR_AGING','ADJUSTMENTS','INHOUSE_BALANCES','RATE_OVERRIDE'].includes(detected);
-    if (saveable && parsedData) state.pendingFiles.push({ type: detected, data: parsedData, name: file.name });
-
-    item.innerHTML = `
-      <div class="upload-item-icon">${ext==='xlsx'?'📊':'📄'}</div>
-      <div class="upload-item-name">${file.name}</div>
-      <span class="upload-item-type ${typeClass}">${typeLabel}</span>
-      <div class="upload-item-status">${saveable ? '→ will save' : detected==='UNKNOWN'?'not saved':'display only'}</div>
-    `;
-    uploadResults.appendChild(item);
-  }
-
-  commitBtn.disabled = state.pendingFiles.length === 0;
-  commitBtn.textContent = state.pendingFiles.length > 0
-    ? `Save ${state.pendingFiles.length} report${state.pendingFiles.length>1?'s':''} to Database`
-    : 'Save to Database';
+function agingCellHtml(co){
+  const vals=[co.current_bal,co.over_30,co.over_60,co.over_90,co.over_120,co.over_150].map(v=>v||0);
+  const max=Math.max(...vals)||1;
+  const pct=v=>Math.round(v/max*100);
+  const labels=['Current','30+','60+','90+','120+','150+'];
+  const cls=['fill-cur','fill-30','fill-60','fill-90','fill-120','fill-150'];
+  return `<div class="aging-cell">
+    <div class="aging-co">${(co.company||'').replace('_',' ')} ${co.property?'· '+co.property:''}</div>
+    <div class="aging-tot">${fmt$(co.total)}</div>
+    ${vals.map((v,i)=>`<div class="aging-row">
+      <div class="aging-lbl">${labels[i]}</div>
+      <div class="aging-track"><div class="aging-fill ${cls[i]}" style="width:${pct(v)}%"></div></div>
+      <div class="aging-val">${fmt$(v)}</div>
+    </div>`).join('')}
+  </div>`;
 }
 
-function readFileAsText(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result);
-    reader.onerror = reject;
-    reader.readAsText(file);
-  });
+// ═══════════════════════════════════════════
+// FILE PARSING
+// ═══════════════════════════════════════════
+function readText(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsText(file); }); }
+
+function detectReport(text){
+  const t=text.toUpperCase();
+  if(t.includes('HOTEL STATISTICS')&&(t.includes('ACTUAL TODAY')||t.includes('M-T-D'))) return {type:'HOTEL_STATISTICS',data:parseHotelStats(text)};
+  if(t.includes('DIRECT BILL AGING')&&t.includes('OVER 150')) return {type:'AR_AGING',data:parseARPDF(text)};
+  if(t.includes('ADJUSTMENTS AND REFUNDS')||( t.includes('ADJUSTMENT')&&t.includes('REASON CODE'))) return {type:'ADJUSTMENTS',data:parseAdjPDF(text)};
+  if(t.includes('IN HOUSE GUEST BALANCES')||t.includes('IN-HOUSE GUEST BALANCES')) return {type:'INHOUSE_BALANCES',data:parseIHPDF(text)};
+  if(t.includes('TAX REPORT')&&t.includes('PAYABLE TAX')) return {type:'TAX_REPORT',data:null};
+  if(t.includes('USER ACTIVITY REPORT')) return {type:'USER_ACTIVITY',data:null};
+  if(t.includes('CLERK ACTIVITY')) return {type:'CLERK_ACTIVITY',data:null};
+  if(t.includes('CLOSED FOLIO BALANCES')) return {type:'CLOSED_FOLIO',data:null};
+  if(t.includes('RATE OVERRIDE')) return {type:'RATE_OVERRIDE',data:null};
+  return {type:'UNKNOWN',data:null};
 }
 
-// ── PDF DETECTION BY CONTENT ──
-function detectPDFReport(text, filename) {
-  const t = text.toUpperCase();
-
-  // Hotel Statistics
-  if (t.includes('HOTEL STATISTICS') && (t.includes('ACTUAL TODAY') || t.includes('M-T-D'))) {
-    return { type: 'HOTEL_STATISTICS', data: parseHotelStatistics(text) };
-  }
-  // Direct Bill Aging
-  if (t.includes('DIRECT BILL AGING') && t.includes('OVER 150')) {
-    return { type: 'AR_AGING', data: parseARAgingPDF(text) };
-  }
-  // Adjustments & Refunds
-  if (t.includes('ADJUSTMENTS AND REFUNDS') || (t.includes('ADJUSTMENT') && t.includes('REASON CODE'))) {
-    return { type: 'ADJUSTMENTS', data: parseAdjustmentsPDF(text) };
-  }
-  // In-House Guest Balances
-  if (t.includes('IN HOUSE GUEST BALANCES') || t.includes('IN-HOUSE GUEST BALANCES')) {
-    return { type: 'INHOUSE_BALANCES', data: parseInhousePDF(text) };
-  }
-  // Tax Report
-  if (t.includes('TAX REPORT') && t.includes('PAYABLE TAX')) {
-    return { type: 'TAX_REPORT', data: null };
-  }
-  // User Activity
-  if (t.includes('USER ACTIVITY REPORT')) {
-    return { type: 'USER_ACTIVITY', data: null };
-  }
-  // Clerk Activity
-  if (t.includes('CLERK ACTIVITY')) {
-    return { type: 'CLERK_ACTIVITY', data: null };
-  }
-  // Closed Folio
-  if (t.includes('CLOSED FOLIO BALANCES')) {
-    return { type: 'CLOSED_FOLIO', data: null };
-  }
-  return { type: 'UNKNOWN', data: null };
-}
-
-// ── PARSERS ──
-function extractDate(text) {
-  // Try "Date: Mon DD, YYYY" format from HotelKey
-  const m1 = text.match(/Date:\s*(\w+\s+\d+,?\s*\d{4})/i);
-  if (m1) {
-    const d = new Date(m1[1]);
-    if (!isNaN(d)) return d.toISOString().slice(0,10);
-  }
-  // Try "Date Range: Mon DD, YYYY - Mon DD, YYYY"
-  const m2 = text.match(/Date Range:\s*(\w+\s+\d+,?\s*\d{4})/i);
-  if (m2) {
-    const d = new Date(m2[1]);
-    if (!isNaN(d)) return d.toISOString().slice(0,10);
-  }
-  // Try MM-DD-YY from Opera Flash header
-  const m3 = text.match(/(\d{2}-\d{2}-\d{2})/);
-  if (m3) {
-    const parts = m3[1].split('-');
-    return `20${parts[2]}-${parts[0]}-${parts[1]}`;
-  }
+function extractDate(text){
+  const m1=text.match(/Date:\s*(\w+\s+\d+,?\s*\d{4})/i);
+  if(m1){const d=new Date(m1[1]);if(!isNaN(d))return d.toISOString().slice(0,10);}
+  const m2=text.match(/Date Range:\s*(\w+\s+\d+,?\s*\d{4})/i);
+  if(m2){const d=new Date(m2[1]);if(!isNaN(d))return d.toISOString().slice(0,10);}
+  const m3=text.match(/(\d{2}-\d{2}-\d{2})/);
+  if(m3){const p=m3[1].split('-');return `20${p[2]}-${p[0]}-${p[1]}`;}
   return null;
 }
 
-function parseNum(s) {
-  if (!s) return null;
-  const n = parseFloat(s.replace(/[$,%]/g,'').replace(/,/g,''));
-  return isNaN(n) ? null : n;
-}
+function pn(s){if(!s)return null;const n=parseFloat(String(s).replace(/[$,%]/g,'').replace(/,/g,''));return isNaN(n)?null:n;}
 
-function parseHotelStatistics(text) {
-  const date = extractDate(text);
-  // Pull "Actual Today" column values using line-by-line parsing
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-
-  function findVal(keyword) {
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].toUpperCase().includes(keyword.toUpperCase())) {
-        // Look for numeric values in next few tokens
-        const combined = lines.slice(i, i+3).join(' ');
-        const nums = combined.match(/[\d,]+\.?\d*/g);
-        if (nums && nums.length > 0) return parseNum(nums[0]);
+function parseHotelStats(text){
+  const date=extractDate(text);
+  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+  function findVal(kw){
+    for(let i=0;i<lines.length;i++){
+      if(lines[i].toUpperCase().includes(kw.toUpperCase())){
+        const combined=lines.slice(i,i+3).join(' ');
+        const nums=combined.match(/[\d,]+\.?\d*/g);
+        if(nums&&nums.length>0)return pn(nums[0]);
       }
     }
     return null;
   }
-
-  // Find key values — Actual Today column
-  let occ = findVal('Occupancy Including Out');
-  let adr = findVal('ADR Including');
-  let revpar = findVal('RevPAR');
-  let rooms_sold = findVal('Room Sold');
-  let rooms_avail = findVal('Rooms Available');
-
-  // Revenue totals from "Totals" row under Room Revenue section
-  let room_revenue = null, misc_revenue = null;
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i] === 'Totals' || lines[i].toLowerCase().startsWith('totals')) {
-      const nums = lines.slice(i, i+4).join(' ').match(/\$?[\d,]+\.?\d*/g);
-      if (nums && nums.length >= 1) {
-        room_revenue = parseNum(nums[0]);
-        break;
-      }
+  let room_revenue=null;
+  for(let i=0;i<lines.length;i++){
+    if(lines[i]==='Totals'||lines[i].toLowerCase()==='totals'){
+      const combined=lines.slice(i,i+4).join(' ');
+      const nums=combined.match(/\$?[\d,]+\.?\d*/g);
+      if(nums&&nums.length>=1){room_revenue=pn(nums[0]);break;}
     }
   }
-
-  // Try to get LY values (LY-M-T-D column)
-  let ly_occ = null, ly_adr = null, ly_room_rev = null;
-
-  return { date, occ_pct: occ, adr, revpar, rooms_sold, rooms_available: rooms_avail, room_revenue, misc_revenue, ly_occ_pct: ly_occ, ly_adr, ly_room_revenue: ly_room_rev };
+  return {date,occ_pct:findVal('Occupancy Including Out'),adr:findVal('ADR Including'),revpar:findVal('RevPAR'),rooms_sold:findVal('Room Sold'),rooms_available:findVal('Rooms Available'),room_revenue,misc_revenue:null,total_revenue:null,ly_occ_pct:null,ly_adr:null,ly_room_revenue:null};
 }
 
-function parseARAgingPDF(text) {
-  const date = extractDate(text);
-  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
-  const result = [];
-
-  ['CLC', 'IHG REWARD'].forEach(co => {
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].toUpperCase().includes(co)) {
-        const combined = lines.slice(i, i+5).join(' ');
-        const nums = combined.match(/[-$\d,]+\.?\d*/g)?.map(parseNum).filter(n=>n!==null) || [];
-        if (nums.length >= 7) {
-          result.push({
-            date,
-            company: co === 'CLC' ? 'CLC' : 'IHG_REWARDS',
-            current_bal: nums[0],
-            over_30: nums[2],
-            over_60: nums[3],
-            over_90: nums[4],
-            over_120: nums[5],
-            over_150: nums[6],
-            total: nums[7] || null
-          });
+function parseARPDF(text){
+  const date=extractDate(text);
+  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const result=[];
+  ['CLC','IHG REWARD'].forEach(co=>{
+    for(let i=0;i<lines.length;i++){
+      if(lines[i].toUpperCase().includes(co)){
+        const combined=lines.slice(i,i+5).join(' ');
+        const nums=combined.match(/[-$\d,]+\.?\d*/g)?.map(pn).filter(n=>n!==null)||[];
+        if(nums.length>=7){
+          result.push({date,company:co==='CLC'?'CLC':'IHG_REWARDS',current_bal:nums[0],over_30:nums[2],over_60:nums[3],over_90:nums[4],over_120:nums[5],over_150:nums[6],total:nums[7]||null});
           break;
         }
       }
     }
   });
-
   return result;
 }
 
-function parseAdjustmentsPDF(text) {
-  const date = extractDate(text);
-  // Return minimal parsed object — detailed parsing handled at commit time
-  return { date, raw: text };
-}
-
-function parseInhousePDF(text) {
-  const date = extractDate(text);
-  return { date, raw: text };
-}
-
-// ── COMMIT TO SUPABASE ──
-commitBtn.addEventListener('click', async () => {
-  commitBtn.disabled = true;
-  commitBtn.textContent = 'Saving...';
-  let saved = 0, errors = 0;
-
-  for (const file of state.pendingFiles) {
-    try {
-      if (file.type === 'HOTEL_STATISTICS' && file.data?.date) {
-        const d = file.data;
-        await sbInsert('daily_revenue', {
-          date: d.date,
-          occ_pct: d.occ_pct,
-          adr: d.adr,
-          revpar: d.revpar,
-          rooms_sold: d.rooms_sold,
-          rooms_available: d.rooms_available,
-          room_revenue: d.room_revenue,
-          misc_revenue: d.misc_revenue,
-          total_revenue: d.room_revenue && d.misc_revenue ? d.room_revenue + d.misc_revenue : d.room_revenue,
-          ly_occ_pct: d.ly_occ_pct,
-          ly_adr: d.ly_adr,
-          ly_room_revenue: d.ly_room_revenue
-        }, 'date');
-        saved++;
-      }
-
-      if (file.type === 'AR_AGING' && Array.isArray(file.data)) {
-        for (const row of file.data) {
-          if (row.date && row.company) {
-            await sbInsert('ar_aging', row, 'date,company');
-            saved++;
-          }
-        }
-      }
-
-      if (file.type === 'ADJUSTMENTS' && file.data?.date) {
-        // Basic save with raw note
-        await sbInsert('adjustments', {
-          date: file.data.date,
-          transaction_type: 'ADJUSTMENT',
-          reason_code: 'UPLOADED',
-          remarks: `Uploaded from: ${file.name}`
-        });
-        saved++;
-      }
-
-    } catch(e) {
-      console.error(file.name, e);
-      errors++;
-    }
-  }
-
-  // Reload
-  await Promise.all([loadDailyRevenue(), loadArAging(), loadAdjustments(), loadRateOverrides(), loadInhouseBalances()]);
-  renderDailyView();
-  renderARView();
-  renderAccountabilityView();
-
-  if (errors === 0) {
-    toast(`Saved ${saved} record${saved>1?'s':''}`, 'success');
-  } else {
-    toast(`Saved ${saved}, ${errors} failed — check console`, 'error');
-  }
-
-  commitBtn.disabled = false;
-  commitBtn.textContent = 'Save to Database';
-  state.pendingFiles = [];
-});
-
-// ── Render daily chart when Performance tab activated ──
-document.querySelectorAll('.nav-btn').forEach(btn => {
-  if (btn.dataset.view === 'performance') {
-    btn.addEventListener('click', () => {
-      setTimeout(renderDailyChart, 100);
-    });
-  }
-});
-
+function parseAdjPDF(text){ return {date:extractDate(text),raw:text}; }
+function parseIHPDF(text){ return {date:extractDate(text),raw:text}; }
 </script>
 </body>
 </html>
