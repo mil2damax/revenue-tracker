@@ -275,6 +275,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 const SUPABASE_URL = 'https://ltbjavxegskmhyjqpext.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0YmphdnhlZ3NrbWh5anFwZXh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTU5NzksImV4cCI6MjA5NjI5MTk3OX0.mE-bSDLH7K9UXTqKDQKOuiEy9gv6Qi1xRj9Q2a9gw6I';
 const PINS = { OWNER:'0616', WKFCW:'2011', RDURM:'2023', RDUTT:'2021' };
+const EDGE_FN_URL = 'https://ltbjavxegskmhyjqpext.supabase.co/functions/v1/process-night-audit';
 const PROPS = {
   WKFCW:{ name:'Candlewood Suites Wake Forest', short:'Candlewood WF', pms:'HotelKey', active:true },
   RDURM:{ name:'Tru by Hilton Wake Forest',     short:'Tru WF',        pms:'PEP',      active:false },
@@ -854,39 +855,95 @@ function wireUploadView(id){
   commit.addEventListener('click',()=>commitFiles(id));
 }
 async function handleFiles(files,id){
-  S.pending=[]; document.getElementById(id+'-results').innerHTML='';
-  const labels={'HOTEL_STATISTICS':'Hotel Statistics','AR_AGING':'Direct Bill Aging','RATE_OVERRIDE':'Rate Override','ADJUSTMENTS':'Adjustments & Refunds','INHOUSE_BALANCES':'In-House Balances','OPERA_FLASH':'Opera Flash (Monthly)','TAX_REPORT':'Tax Report','USER_ACTIVITY':'User Activity','CLERK_ACTIVITY':'Clerk Activity','CLOSED_FOLIO':'Closed Folio','UNKNOWN':'Unrecognized','ERROR':'Read Error'};
+  // No browser parsing — just queue files for Edge Function processing
+  S.pending=[...files];
+  const results=document.getElementById(id+'-results');
+  results.innerHTML='';
   for(const file of files){
-    const ext=file.name.split('.').pop().toLowerCase(); let type='UNKNOWN', data=null;
-    try {
-      if(ext==='pdf'){ const text=await readPDF(file); const r=detectReport(text); type=r.type; data=r.data; }
-      else if(['xlsx','xls'].includes(ext)){ type='RATE_OVERRIDE'; data={filename:file.name,file}; }
-    } catch(e){ type='ERROR'; }
-    const saveable=['HOTEL_STATISTICS','AR_AGING','ADJUSTMENTS','INHOUSE_BALANCES','OPERA_FLASH'].includes(type);
-    if(saveable&&data) S.pending.push({type,data,name:file.name});
-    document.getElementById(id+'-results').innerHTML+=`<div class="upload-item"><div style="font-size:1rem">${ext==='xlsx'?'📊':'📄'}</div><div class="upload-item-name">${file.name}</div><span class="upload-item-type ${type==='UNKNOWN'?'type-unk':type==='ERROR'?'type-err':'type-ok'}">${labels[type]||type}</span><div class="upload-item-note">${saveable?'→ will save':type==='UNKNOWN'?'not saved':'display only'}</div></div>`;
+    const ext=file.name.split('.').pop().toLowerCase();
+    const isValid=['pdf','xlsx','xls'].includes(ext);
+    results.innerHTML+=`<div class="upload-item">
+      <div style="font-size:1rem">${ext==='xlsx'?'📊':'📄'}</div>
+      <div class="upload-item-name">${file.name}</div>
+      <span class="upload-item-type ${isValid?'type-ok':'type-unk'}">${isValid?'Ready to upload':'Unsupported'}</span>
+      <div class="upload-item-note">${isValid?'→ will send to processor':'skipped'}</div>
+    </div>`;
   }
   const commit=document.getElementById(id+'-commit');
-  commit.disabled=S.pending.length===0;
-  commit.textContent=S.pending.length>0?`Save ${S.pending.length} report${S.pending.length>1?'s':''} to Database`:'Save to Database';
+  const validFiles=files.filter(f=>['pdf','xlsx','xls'].includes(f.name.split('.').pop().toLowerCase()));
+  commit.disabled=validFiles.length===0;
+  commit.textContent=validFiles.length>0?`Upload ${validFiles.length} file${validFiles.length>1?'s':''} for Processing`:'Upload for Processing';
 }
 async function commitFiles(id){
   const propEl=document.getElementById(id+'-prop');
   const prop=propEl?propEl.value:S.mode;
   const commit=document.getElementById(id+'-commit');
-  commit.disabled=true; commit.textContent='Saving...';
+  const results=document.getElementById(id+'-results');
+  commit.disabled=true; commit.textContent='Processing...';
+
+  const validFiles=S.pending.filter(f=>['pdf','xlsx','xls'].includes(f.name.split('.').pop().toLowerCase()));
   let saved=0, errors=0;
-  for(const f of S.pending){
+
+  for(const file of validFiles){
+    // Update status to processing
+    const items=results.querySelectorAll('.upload-item');
+    for(const item of items){
+      if(item.querySelector('.upload-item-name')?.textContent===file.name){
+        item.querySelector('.upload-item-note').textContent='Sending to processor...';
+      }
+    }
+
     try {
-      if(f.type==='HOTEL_STATISTICS'&&f.data?.date){ const d=f.data; await sbUpsert('daily_revenue',{property:prop,date:d.date,occ_pct:d.occ_pct,adr:d.adr,revpar:d.revpar,rooms_sold:d.rooms_sold,rooms_available:d.rooms_available,room_revenue:d.room_revenue,misc_revenue:d.misc_revenue,total_revenue:d.total_revenue,ly_occ_pct:d.ly_occ_pct,ly_adr:d.ly_adr,ly_room_revenue:d.ly_room_revenue},'property,date'); saved++; }
-      if(f.type==='AR_AGING'&&Array.isArray(f.data)){ for(const row of f.data){ if(row.date&&row.company){ await sbUpsert('ar_aging',{...row,property:prop},'property,date,company'); saved++; } } }
-      if(f.type==='OPERA_FLASH'&&f.data?.period_start){ const d=f.data; await sbUpsert('monthly_revenue',{property:prop,period_start:d.period_start,period_end:d.period_end,occ_pct:d.occ_pct,adr:d.adr,revpar:d.revpar,room_revenue:d.room_revenue,misc_revenue:d.misc_revenue,total_revenue:d.total_revenue,rooms_sold:d.rooms_sold,rooms_available:d.rooms_available,source:'opera_flash'},'property,period_start'); saved++; }
-      if(f.type==='ADJUSTMENTS'&&f.data?.date){ await sbPost('adjustments',{property:prop,date:f.data.date,transaction_type:'ADJUSTMENT',reason_code:'UPLOADED',remarks:'Uploaded: '+f.name}); saved++; }
-    } catch(e){ console.error(f.name,e); errors++; }
+      // Send file directly to Edge Function as multipart form data
+      const formData=new FormData();
+      formData.append('file', file);
+      formData.append('property', prop);
+
+      const res=await fetch(EDGE_FN_URL, {
+        method:'POST',
+        headers:{ 'Authorization':'Bearer '+SUPABASE_KEY },
+        body: formData
+      });
+
+      const result=await res.json();
+
+      // Update status in results list
+      for(const item of items){
+        if(item.querySelector('.upload-item-name')?.textContent===file.name){
+          const note=item.querySelector('.upload-item-note');
+          const badge=item.querySelector('.upload-item-type');
+          if(result.success){
+            note.textContent=`Saved ${result.rows} row${result.rows!==1?'s':''} — ${result.type}`;
+            badge.className='upload-item-type type-ok';
+            badge.textContent=result.type?.replace(/_/g,' ')||'Processed';
+            saved++;
+          } else {
+            note.textContent='Error: '+(result.error||'Unknown error');
+            badge.className='upload-item-type type-err';
+            errors++;
+          }
+        }
+      }
+    } catch(e){
+      console.error(file.name, e);
+      errors++;
+      for(const item of items){
+        if(item.querySelector('.upload-item-name')?.textContent===file.name){
+          item.querySelector('.upload-item-note').textContent='Network error: '+e.message;
+          item.querySelector('.upload-item-type').className='upload-item-type type-err';
+        }
+      }
+    }
   }
+
   await loadAllData();
-  toast(errors===0?`Saved ${saved} record${saved>1?'s':''} for ${prop}`:`Saved ${saved}, ${errors} failed`,(errors===0?'success':'error'));
-  commit.disabled=false; commit.textContent='Save to Database'; S.pending=[];
+  toast(
+    errors===0?`Processed ${saved} file${saved!==1?'s':''} for ${prop}`:`${saved} processed, ${errors} failed`,
+    errors===0?'success':'error'
+  );
+  commit.disabled=false;
+  commit.textContent='Upload for Processing';
+  S.pending=[];
 }
 
 // ═══════════════════════════════════
