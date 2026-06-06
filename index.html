@@ -546,7 +546,8 @@ function buildAppShell(){
     navHtml = `
       <button class="nav-btn active" data-view="owner-summary">Overview</button>
       <button class="nav-btn" data-view="owner-ar">AR / Aging</button>
-      <button class="nav-btn" data-view="owner-performance">Performance</button>`;
+      <button class="nav-btn" data-view="owner-performance">Performance</button>
+      <button class="nav-btn" data-view="owner-upload">Upload</button>`;
   } else if(propActive){
     navHtml = `
       <button class="nav-btn active" data-view="daily">Daily</button>
@@ -604,6 +605,8 @@ function renderView(view){
   if(view==='owner-summary')    { body.innerHTML = buildOwnerSummary(); wireOwnerSummary(); }
   else if(view==='owner-ar')    { body.innerHTML = buildOwnerAR(); }
   else if(view==='owner-performance') { body.innerHTML = buildOwnerPerf(); setTimeout(renderOwnerPerfChart,100); }
+  else if(view==='owner-upload')      { body.innerHTML = buildOwnerUpload(); wireOwnerUpload(); }
+  else if(view==='owner-drill')       { body.innerHTML = buildOwnerDrill(); wireOwnerDrill(); }
   else if(view==='daily')       { body.innerHTML = buildDaily(); wireDaily(); renderDailyContent(); }
   else if(view==='performance') { body.innerHTML = buildPerformance(); setTimeout(renderPerfCharts,100); }
   else if(view==='ar')          { body.innerHTML = buildAR(); }
@@ -766,13 +769,178 @@ function buildOwnerSummary(){
     </div>`;
 }
 
+function buildOwnerUpload(){
+  return `
+    <div class="page-header">
+      <div class="page-title">Upload Reports</div>
+      <div class="page-sub">Owner · Upload reports for any property</div>
+    </div>
+    <div class="content">
+      <div class="section-card">
+        <div class="section-head"><div class="section-title">Select Property &amp; Drop Files</div><div class="section-badge badge-gold">Owner</div></div>
+        <div style="padding:1.4rem">
+          <div style="margin-bottom:1rem">
+            <label class="form-label" style="display:block;margin-bottom:.4rem">Upload for Property</label>
+            <select class="form-input" id="ou-prop" style="max-width:300px">
+              <option value="WKFCW">WKFCW — Candlewood Suites Wake Forest</option>
+              <option value="RDURM">RDURM — Tru by Hilton Wake Forest</option>
+              <option value="RDUTT">RDUTT — Home2 Suites Raleigh North</option>
+            </select>
+          </div>
+          <div class="upload-area" id="ou-zone">
+            <input type="file" id="ou-input" multiple accept=".pdf,.xlsx,.xls">
+            <div class="upload-icon">📂</div>
+            <div class="upload-title">Drop reports here or click to browse</div>
+            <div class="upload-sub">Any filename is fine — reports are identified by content</div>
+          </div>
+          <div class="upload-results" id="ou-results"></div>
+          <button class="upload-commit" id="ou-commit" disabled>Save to Database</button>
+        </div>
+      </div>
+      <div class="section-card">
+        <div class="section-head"><div class="section-title">Detection Guide</div></div>
+        <div style="padding:1.4rem">
+          <table class="data-table">
+            <thead><tr><th>Report</th><th>Detected By</th><th>Saves To</th></tr></thead>
+            <tbody>
+              <tr><td><span class="pill pill-blue">Hotel Statistics</span></td><td class="mono">"Hotel Statistics" + "Actual Today"</td><td class="mono">daily_revenue</td></tr>
+              <tr><td><span class="pill pill-amber">Direct Bill Aging</span></td><td class="mono">"Direct Bill Aging" + "Over 150"</td><td class="mono">ar_aging</td></tr>
+              <tr><td><span class="pill pill-red">Rate Override</span></td><td class="mono">XLSX with "Sold Rate" + "New Rate"</td><td class="mono">rate_overrides</td></tr>
+              <tr><td><span class="pill pill-red">Adjustments & Refunds</span></td><td class="mono">"Adjustments and Refunds Activity"</td><td class="mono">adjustments</td></tr>
+              <tr><td><span class="pill pill-green">In-House Balances</span></td><td class="mono">"In House Guest Balances"</td><td class="mono">inhouse_balances</td></tr>
+              <tr><td><span class="pill pill-gold">Opera Flash</span></td><td class="mono">"Manager Flash" in content</td><td class="mono">monthly_revenue</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;}
+
+function wireOwnerUpload(){
+  const zone   = document.getElementById('ou-zone');
+  const input  = document.getElementById('ou-input');
+  const results= document.getElementById('ou-results');
+  const commit = document.getElementById('ou-commit');
+
+  zone.addEventListener('dragover', e=>{e.preventDefault();zone.classList.add('dragover')});
+  zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
+  zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');handleOwnerFiles([...e.dataTransfer.files])});
+  input.addEventListener('change',()=>handleOwnerFiles([...input.files]));
+
+  async function handleOwnerFiles(files){
+    S.pending=[]; results.innerHTML='';
+    for(const file of files){
+      const ext=file.name.split('.').pop().toLowerCase();
+      let type='UNKNOWN', data=null;
+      try {
+        if(ext==='pdf'){ const text=await readText(file); const r=detectReport(text); type=r.type; data=r.data; }
+        else if(['xlsx','xls'].includes(ext)){ type='RATE_OVERRIDE'; data={filename:file.name,file}; }
+      } catch(e){ type='ERROR'; }
+      const saveable=['HOTEL_STATISTICS','AR_AGING','ADJUSTMENTS','INHOUSE_BALANCES','OPERA_FLASH'].includes(type);
+      if(saveable && data) S.pending.push({type,data,name:file.name});
+      const labels={'HOTEL_STATISTICS':'Hotel Statistics','AR_AGING':'Direct Bill Aging','RATE_OVERRIDE':'Rate Override','ADJUSTMENTS':'Adjustments & Refunds','INHOUSE_BALANCES':'In-House Balances','OPERA_FLASH':'Opera Flash (Monthly)','TAX_REPORT':'Tax Report','USER_ACTIVITY':'User Activity','CLERK_ACTIVITY':'Clerk Activity','CLOSED_FOLIO':'Closed Folio','UNKNOWN':'Unrecognized','ERROR':'Read Error'};
+      results.innerHTML+=`<div class="upload-item">
+        <div style="font-size:1rem">${ext==='xlsx'?'📊':'📄'}</div>
+        <div class="upload-item-name">${file.name}</div>
+        <span class="upload-item-type ${type==='UNKNOWN'?'type-unk':type==='ERROR'?'type-err':'type-ok'}">${labels[type]||type}</span>
+        <div class="upload-item-note">${saveable?'→ will save':type==='UNKNOWN'?'not saved':'display only'}</div>
+      </div>`;
+    }
+    commit.disabled=S.pending.length===0;
+    commit.textContent=S.pending.length>0?`Save ${S.pending.length} report${S.pending.length>1?'s':''} to Database`:'Save to Database';
+  }
+
+  commit.addEventListener('click', async()=>{
+    const prop = document.getElementById('ou-prop').value;
+    commit.disabled=true; commit.textContent='Saving...';
+    let saved=0, errors=0;
+    for(const f of S.pending){
+      try {
+        if(f.type==='HOTEL_STATISTICS'&&f.data?.date){
+          const d=f.data;
+          await sbUpsert('daily_revenue',{property:prop,date:d.date,occ_pct:d.occ_pct,adr:d.adr,revpar:d.revpar,rooms_sold:d.rooms_sold,rooms_available:d.rooms_available,room_revenue:d.room_revenue,misc_revenue:d.misc_revenue,total_revenue:d.total_revenue,ly_occ_pct:d.ly_occ_pct,ly_adr:d.ly_adr,ly_room_revenue:d.ly_room_revenue},'property,date'); saved++;
+        }
+        if(f.type==='AR_AGING'&&Array.isArray(f.data)){
+          for(const row of f.data){ if(row.date&&row.company){ await sbUpsert('ar_aging',{...row,property:prop},'property,date,company'); saved++; } }
+        }
+        if(f.type==='OPERA_FLASH'&&f.data?.period_start){
+          const d=f.data;
+          await sbUpsert('monthly_revenue',{property:prop,period_start:d.period_start,period_end:d.period_end,occ_pct:d.occ_pct,adr:d.adr,revpar:d.revpar,room_revenue:d.room_revenue,misc_revenue:d.misc_revenue,total_revenue:d.total_revenue,rooms_sold:d.rooms_sold,rooms_available:d.rooms_available,source:'opera_flash'},'property,period_start'); saved++;
+        }
+        if(f.type==='ADJUSTMENTS'&&f.data?.date){
+          await sbPost('adjustments',{property:prop,date:f.data.date,transaction_type:'ADJUSTMENT',reason_code:'UPLOADED',remarks:'Uploaded: '+f.name}); saved++;
+        }
+      } catch(e){ console.error(f.name,e); errors++; }
+    }
+    await loadAllData();
+    toast(errors===0?`Saved ${saved} record${saved>1?'s':''} for ${prop}`:`Saved ${saved}, ${errors} failed`,(errors===0?'success':'error'));
+    commit.disabled=false; commit.textContent='Save to Database'; S.pending=[];
+  });
+}
+
+function buildOwnerDrill(){
+  const code = S.drillProp;
+  const p = PROPS[code];
+  const propDaily = Object.values(S.daily).filter(r=>r.property===code).sort((a,b)=>a.date.localeCompare(b.date));
+  const latest = propDaily[propDaily.length-1];
+  const month = latest?.date.slice(0,7);
+  const mtd = propDaily.filter(r=>r.date.startsWith(month||''));
+  const mtdRev = mtd.reduce((s,r)=>s+(r.room_revenue||0),0);
+  const mtdOcc = mtd.length ? mtd.reduce((s,r)=>s+(r.occ_pct||0),0)/mtd.length : null;
+  const mtdADR = mtd.length ? mtd.reduce((s,r)=>s+(r.adr||0),0)/mtd.length : null;
+  const propAR = S.ar.filter(r=>r.property===code);
+  const latestAR = propAR[0]?.date;
+  const arRows = latestAR ? propAR.filter(r=>r.date===latestAR) : [];
+  const arTotal = arRows.reduce((s,r)=>s+(r.total||0),0);
+
+  return `
+    <div class="page-header" style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+      <div>
+        <div class="page-title">${p?.name}</div>
+        <div class="page-sub">${code} · Owner drill-in view</div>
+      </div>
+      <button class="btn-sec" id="drill-back" style="margin-left:auto">← Back to Overview</button>
+    </div>
+    <div class="content">
+      <div class="kpi-grid">
+        <div class="kpi-card gold"><div class="kpi-label">Latest Occ%</div><div class="kpi-value">${latest?fmtPct(latest.occ_pct):'—'}</div><div class="kpi-meta">${latest?fmtDate(latest.date):'No data'}</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Latest ADR</div><div class="kpi-value">${latest?fmt$(latest.adr):'—'}</div><div class="kpi-meta">LY: ${fmt$(latest?.ly_adr)}</div></div>
+        <div class="kpi-card blue"><div class="kpi-label">MTD Room Revenue</div><div class="kpi-value">${fmt$(mtdRev||null)}</div><div class="kpi-meta">${mtd.length} days</div></div>
+        <div class="kpi-card gold"><div class="kpi-label">MTD Avg Occ%</div><div class="kpi-value">${fmtPct(mtdOcc)}</div><div class="kpi-meta">MTD Avg ADR: ${fmt$(mtdADR)}</div></div>
+        <div class="kpi-card ${arTotal>150000?'red':'amber'}"><div class="kpi-label">Total AR</div><div class="kpi-value">${fmt$(arTotal||null)}</div><div class="kpi-meta">As of ${fmtDate(latestAR)}</div></div>
+      </div>
+      ${arRows.length?`<div class="section-card"><div class="section-head"><div class="section-title">AR Aging</div></div><div class="aging-grid">${arRows.map(r=>agingCellHtml(r)).join('')}</div></div>`:''}
+      <div class="section-card">
+        <div class="section-head"><div class="section-title">Recent Daily Revenue</div></div>
+        <div class="tbl-wrap"><table class="data-table">
+          <thead><tr><th>Date</th><th class="r">Occ%</th><th class="r">ADR</th><th class="r">RevPAR</th><th class="r">Room Revenue</th><th class="r">LY Room Rev</th></tr></thead>
+          <tbody>${propDaily.slice(-14).reverse().map(r=>`<tr>
+            <td class="mono">${fmtDate(r.date)}</td>
+            <td class="r">${fmtPct(r.occ_pct)}</td>
+            <td class="r">${fmt$(r.adr)}</td>
+            <td class="r">${fmt$(r.revpar)}</td>
+            <td class="r" style="font-weight:500">${fmt$(r.room_revenue)}</td>
+            <td class="r" style="color:var(--fog)">${fmt$(r.ly_room_revenue)}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+      </div>
+    </div>`;}
+
+function wireOwnerDrill(){
+  document.getElementById('drill-back')?.addEventListener('click',()=>{
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelector('.nav-btn[data-view="owner-summary"]')?.classList.add('active');
+    renderView('owner-summary');
+  });
+}
+
 function wireOwnerSummary(){
   document.querySelectorAll('.prop-summary-card[data-prop]').forEach(card=>{
     const code = card.dataset.prop;
     if(PROPS[code]?.active){
       card.addEventListener('click', ()=>{
-        // Switch to that property view (owner stays logged in, just scopes view)
-        toast(`Viewing ${code} data`, 'info');
+        // Drill into property — owner keeps auth, mode scopes to property
+        S.drillProp = code;
+        renderView('owner-drill');
       });
     }
   });
