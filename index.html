@@ -1342,6 +1342,7 @@ function buildUpload(){
               <tr><td><span class="pill pill-red">Rate Override</span></td><td class="mono">XLSX with "Sold Rate" + "New Rate"</td><td class="mono">rate_overrides</td></tr>
               <tr><td><span class="pill pill-red">Adjustments & Refunds</span></td><td class="mono">"Adjustments and Refunds Activity"</td><td class="mono">adjustments</td></tr>
               <tr><td><span class="pill pill-green">In-House Balances</span></td><td class="mono">"In House Guest Balances"</td><td class="mono">inhouse_balances</td></tr>
+              <tr><td><span class="pill pill-gold">Opera Flash</span></td><td class="mono">"Manager Flash" in content</td><td class="mono">monthly_revenue</td></tr>
             </tbody>
           </table>
         </div>
@@ -1375,10 +1376,10 @@ function wireUpload(){
         }
       } catch(e){ type='ERROR'; }
 
-      const saveable=['HOTEL_STATISTICS','AR_AGING','ADJUSTMENTS','INHOUSE_BALANCES'].includes(type);
+      const saveable=['HOTEL_STATISTICS','AR_AGING','ADJUSTMENTS','INHOUSE_BALANCES','OPERA_FLASH'].includes(type);
       if(saveable && data) S.pending.push({type,data,name:file.name});
 
-      const labels={'HOTEL_STATISTICS':'Hotel Statistics','AR_AGING':'Direct Bill Aging','RATE_OVERRIDE':'Rate Override','ADJUSTMENTS':'Adjustments & Refunds','INHOUSE_BALANCES':'In-House Balances','TAX_REPORT':'Tax Report','USER_ACTIVITY':'User Activity','CLERK_ACTIVITY':'Clerk Activity','CLOSED_FOLIO':'Closed Folio','UNKNOWN':'Unrecognized','ERROR':'Read Error'};
+      const labels={'HOTEL_STATISTICS':'Hotel Statistics','AR_AGING':'Direct Bill Aging','RATE_OVERRIDE':'Rate Override','ADJUSTMENTS':'Adjustments & Refunds','INHOUSE_BALANCES':'In-House Balances','OPERA_FLASH':'Opera Flash (Monthly)','TAX_REPORT':'Tax Report','USER_ACTIVITY':'User Activity','CLERK_ACTIVITY':'Clerk Activity','CLOSED_FOLIO':'Closed Folio','UNKNOWN':'Unrecognized','ERROR':'Read Error'};
       results.innerHTML += `<div class="upload-item">
         <div style="font-size:1rem">${ext==='xlsx'?'📊':'📄'}</div>
         <div class="upload-item-name">${file.name}</div>
@@ -1407,6 +1408,24 @@ function wireUpload(){
         }
         if(f.type==='ADJUSTMENTS' && f.data?.date){
           await sbPost('adjustments',{property:S.mode,date:f.data.date,transaction_type:'ADJUSTMENT',reason_code:'UPLOADED',remarks:'Uploaded: '+f.name});
+          saved++;
+        }
+        if(f.type==='OPERA_FLASH' && f.data?.period_start){
+          const d=f.data;
+          await sbUpsert('monthly_revenue',{
+            property:S.mode,
+            period_start:d.period_start,
+            period_end:d.period_end,
+            occ_pct:d.occ_pct,
+            adr:d.adr,
+            revpar:d.revpar,
+            room_revenue:d.room_revenue,
+            misc_revenue:d.misc_revenue,
+            total_revenue:d.total_revenue,
+            rooms_sold:d.rooms_sold,
+            rooms_available:d.rooms_available,
+            source:'opera_flash'
+          },'property,period_start');
           saved++;
         }
       } catch(e){ console.error(f.name,e); errors++; }
@@ -1504,6 +1523,7 @@ function detectReport(text){
   if(t.includes('CLERK ACTIVITY')) return {type:'CLERK_ACTIVITY',data:null};
   if(t.includes('CLOSED FOLIO BALANCES')) return {type:'CLOSED_FOLIO',data:null};
   if(t.includes('RATE OVERRIDE')) return {type:'RATE_OVERRIDE',data:null};
+  if(t.includes('MANAGER FLASH')||t.includes('MANAGER FLASH - NA')) return {type:'OPERA_FLASH',data:parseOperaFlash(text)};
   return {type:'UNKNOWN',data:null};
 }
 
@@ -1564,6 +1584,75 @@ function parseARPDF(text){
 
 function parseAdjPDF(text){ return {date:extractDate(text),raw:text}; }
 function parseIHPDF(text){ return {date:extractDate(text),raw:text}; }
+
+function parseOperaFlash(text){
+  // Extract month/year from header date like "01-31-23"
+  const dateMatch = text.match(/(\d{2}-\d{2}-\d{2})/);
+  let period_start = null, period_end = null;
+  if(dateMatch){
+    const parts = dateMatch[1].split('-');
+    const fullYear = '20' + parts[2];
+    const month = parts[0];
+    // period_end is the date on the report (last day of month)
+    period_end = `${fullYear}-${month}-${parts[1]}`;
+    // period_start is first day of that month
+    period_start = `${fullYear}-${month}-01`;
+  }
+
+  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+
+  // For Opera Flash we want the MONTH column (index 1 of the data columns)
+  // Columns are: DAY, MONTH, YEAR, LY-DAY, LY-MONTH, LY-YEAR
+  function getMonthVal(keyword){
+    for(let i=0;i<lines.length;i++){
+      if(lines[i].toUpperCase().includes(keyword.toUpperCase())){
+        // Extract all numbers from this line
+        const nums = lines[i].match(/[-\d,]+\.?\d*/g);
+        if(nums && nums.length >= 2){
+          // Second number is the MONTH column
+          const v = parseFloat(nums[1].replace(/,/g,''));
+          return isNaN(v) ? null : v;
+        }
+      }
+    }
+    return null;
+  }
+
+  const occ_pct    = getMonthVal('% Rooms Occupied ');
+  const adr        = getMonthVal('ADR ');
+  const revpar     = getMonthVal('Revenue per Available Room');
+  const total_rev  = getMonthVal('Total Revenue');
+  const room_rev   = getMonthVal('Room Revenue');
+  const other_rev  = getMonthVal('Other Revenue');
+  const rooms_avail_raw = getMonthVal('Total Rooms in Hotel');
+  const ooo        = getMonthVal('Available Rooms minus OOO');
+  // Find 'Rooms Occupied' without the % sign to avoid matching % Rooms Occupied
+  let rooms_sold = null;
+  for(let i=0;i<lines.length;i++){
+    if(lines[i].toLowerCase().startsWith('rooms occupied')){
+      const nums = lines[i].match(/[-\d,]+\.?\d*/g);
+      if(nums && nums.length >= 2){ rooms_sold = parseFloat(nums[1].replace(/,/g,'')); break; }
+    }
+  }
+
+  // Rooms available = Total Rooms * days in month minus OOO days
+  // Opera Flash shows total room-nights in MONTH column for Total Rooms
+  const rooms_available = rooms_avail_raw || null;
+
+  return {
+    period_start,
+    period_end,
+    occ_pct,
+    adr,
+    revpar,
+    room_revenue: room_rev,
+    misc_revenue: other_rev,
+    total_revenue: total_rev,
+    rooms_sold,
+    rooms_available,
+    source: 'opera_flash'
+  };
+}
 </script>
 </body>
 </html>
