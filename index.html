@@ -765,7 +765,7 @@ function buildHistory(){
     return `<div class="page-header"><div class="page-title">Historical Data</div><div class="page-sub">${PROPS[prop]?.name} · Read only</div></div>
     <div class="content"><div class="section-card">
       <div class="section-head"><div class="section-title">Loaded Records</div><div style="display:flex;gap:.5rem"><div class="section-badge badge-info">${propMonthly.length} months</div><div class="section-badge badge-gold">Owner PIN required to edit</div></div></div>
-      <div style="max-height:520px;overflow-y:auto">${propMonthly.length?`<table class="data-table"><thead><tr><th>Month</th><th class="r">Occ%</th><th class="r">ADR</th><th class="r">RevPAR</th><th class="r">Room Revenue</th><th class="r">Misc Revenue</th><th class="r">Total Revenue</th><th>Source</th></tr></thead><tbody>${propMonthly.map(r=>`<tr><td class="mono">${fmtMonth(r.period_start)}</td><td class="r" style="font-weight:500">${fmtPct(r.occ_pct)}</td><td class="r">${fmt$(r.adr)}</td><td class="r">${fmt$(r.revpar)}</td><td class="r" style="font-weight:500">${fmt$(r.room_revenue)}</td><td class="r">${fmt$(r.misc_revenue)}</td><td class="r">${fmt$(r.total_revenue)</td><td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source}</span></td></tr>`).join('')}</tbody></table>`:empty('No historical data yet','')}</div>
+      <div style="max-height:520px;overflow-y:auto">${propMonthly.length?`<table class="data-table"><thead><tr><th>Month</th><th class="r">Occ%</th><th class="r">ADR</th><th class="r">RevPAR</th><th class="r">Room Revenue</th><th class="r">Misc Revenue</th><th class="r">Total Revenue</th><th>Source</th></tr></thead><tbody>${propMonthly.map(r=>`<tr><td class="mono">${fmtMonth(r.period_start)}</td><td class="r" style="font-weight:500">${fmtPct(r.occ_pct)}</td><td class="r">${fmt$(r.adr)}</td><td class="r">${fmt$(r.revpar)}</td><td class="r" style="font-weight:500">${fmt$(r.room_revenue)}</td><td class="r">${fmt$(r.misc_revenue)}</td><td class="r">${fmt$(r.total_revenue)}</td><td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source}</span></td></tr>`).join('')}</tbody></table>`:empty('No historical data yet','')}</div>
     </div></div>`;
   }
   return `<div class="page-header"><div class="page-title">Historical Data</div><div class="page-sub">Owner · Add · Edit · Delete monthly records</div></div>
@@ -793,7 +793,6 @@ function buildHistory(){
       <div id="h-list" style="max-height:520px;overflow-y:auto">${buildHistoryList(S.monthly,'WKFCW')}</div>
     </div>
   </div></div>`;
-}
 }
 function buildHistoryList(data, prop){
   const filtered=[...data].filter(r=>r.property===prop).reverse();
