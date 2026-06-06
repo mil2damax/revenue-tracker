@@ -765,7 +765,7 @@ function buildHistory(){
     return `<div class="page-header"><div class="page-title">Historical Data</div><div class="page-sub">${PROPS[prop]?.name} · Read only</div></div>
     <div class="content"><div class="section-card">
       <div class="section-head"><div class="section-title">Loaded Records</div><div style="display:flex;gap:.5rem"><div class="section-badge badge-info">${propMonthly.length} months</div><div class="section-badge badge-gold">Owner PIN required to edit</div></div></div>
-      <div style="max-height:520px;overflow-y:auto">${propMonthly.length?`<table class="data-table"><thead><tr><th>Month</th><th class="r">Room Revenue</th><th class="r">Occ%</th><th class="r">ADR</th><th class="r">RevPAR</th><th>Source</th></tr></thead><tbody>${propMonthly.map(r=>`<tr><td class="mono">${fmtMonth(r.period_start)}</td><td class="r" style="font-weight:500">${fmt$(r.room_revenue)}</td><td class="r">${fmtPct(r.occ_pct)}</td><td class="r">${fmt$(r.adr)}</td><td class="r">${fmt$(r.revpar)}</td><td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source}</span></td></tr>`).join('')}</tbody></table>`:empty('No historical data yet','')}</div>
+      <div style="max-height:520px;overflow-y:auto">${propMonthly.length?`<table class="data-table"><thead><tr><th>Month</th><th class="r">Occ%</th><th class="r">ADR</th><th class="r">RevPAR</th><th class="r">Room Revenue</th><th class="r">Misc Revenue</th><th class="r">Total Revenue</th><th>Source</th></tr></thead><tbody>${propMonthly.map(r=>`<tr><td class="mono">${fmtMonth(r.period_start)}</td><td class="r" style="font-weight:500">${fmtPct(r.occ_pct)}</td><td class="r">${fmt$(r.adr)}</td><td class="r">${fmt$(r.revpar)}</td><td class="r" style="font-weight:500">${fmt$(r.room_revenue)}</td><td class="r">${fmt$(r.misc_revenue)}</td><td class="r">${fmt$(r.total_revenue)</td><td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source}</span></td></tr>`).join('')}</tbody></table>`:empty('No historical data yet','')}</div>
     </div></div>`;
   }
   return `<div class="page-header"><div class="page-title">Historical Data</div><div class="page-sub">Owner · Add · Edit · Delete monthly records</div></div>
@@ -794,10 +794,11 @@ function buildHistory(){
     </div>
   </div></div>`;
 }
+}
 function buildHistoryList(data, prop){
   const filtered=[...data].filter(r=>r.property===prop).reverse();
   if(!filtered.length) return empty('No records for '+prop,'Upload Opera Flash PDFs or use the form');
-  return `<table class="data-table"><thead><tr><th>Month</th><th class="r">Revenue</th><th class="r">Occ%</th><th>Source</th><th></th></tr></thead><tbody>${filtered.map(r=>`<tr><td class="mono">${fmtMonth(r.period_start)}</td><td class="r">${fmt$(r.room_revenue)}</td><td class="r">${fmtPct(r.occ_pct)}</td><td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source}</span></td><td><button class="btn-delete" data-id="${r.id}" data-month="${r.period_start}">✕</button></td></tr>`).join('')}</tbody></table>`;
+  return `<table class="data-table"><thead><tr><th>Month</th><th class="r">Occ%</th><th class="r">ADR</th><th class="r">Total Revenue</th><th>Source</th><th></th></tr></thead><tbody>${filtered.map(r=>`<tr><td class="mono">${fmtMonth(r.period_start)}</td><td class="r">${fmtPct(r.occ_pct)}</td><td class="r">${fmt$(r.adr)}</td><td class="r" style="font-weight:500">${fmt$(r.total_revenue)}</td><td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source}</span></td><td><button class="btn-delete" data-id="${r.id}" data-month="${r.period_start}">✕</button></td></tr>`).join('')}</tbody></table>`;
 }
 function wireHistory(){
   document.getElementById('h-save')?.addEventListener('click', async()=>{
@@ -974,110 +975,6 @@ function agingCellHtml(co){
 // ═══════════════════════════════════
 // PDF PARSING
 // ═══════════════════════════════════
-async function readPDF(file){
-  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
-  const arrayBuffer=await file.arrayBuffer();
-  const pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
-  let text='';
-  for(let i=1;i<=pdf.numPages;i++){
-    const page=await pdf.getPage(i);
-    const content=await page.getTextContent();
-    let lastY=null, line='';
-    for(const item of content.items){
-      if(lastY!==null&&Math.abs(item.transform[5]-lastY)>2){ text+=line.trim()+'\n'; line=''; }
-      line+=item.str+' ';
-      lastY=item.transform[5];
-    }
-    if(line.trim()) text+=line.trim()+'\n';
-  }
-  return text;
-}
-
-function detectReport(text){
-  const t=text.toUpperCase();
-  if(t.includes('MANAGER FLASH')) return {type:'OPERA_FLASH',data:parseOperaFlash(text)};
-  if(t.includes('HOTEL STATISTICS')&&t.includes('ACTUAL TODAY')) return {type:'HOTEL_STATISTICS',data:parseHotelStats(text)};
-  if(t.includes('DIRECT BILL AGING')&&t.includes('OVER 150')) return {type:'AR_AGING',data:parseARPDF(text)};
-  if(t.includes('ADJUSTMENTS AND REFUNDS')) return {type:'ADJUSTMENTS',data:{date:extractDate(text)}};
-  if(t.includes('IN HOUSE GUEST BALANCES')||t.includes('IN-HOUSE GUEST BALANCES')) return {type:'INHOUSE_BALANCES',data:{date:extractDate(text)}};
-  if(t.includes('TAX REPORT')&&t.includes('PAYABLE TAX')) return {type:'TAX_REPORT',data:null};
-  if(t.includes('USER ACTIVITY REPORT')) return {type:'USER_ACTIVITY',data:null};
-  if(t.includes('CLERK ACTIVITY')) return {type:'CLERK_ACTIVITY',data:null};
-  if(t.includes('CLOSED FOLIO BALANCES')) return {type:'CLOSED_FOLIO',data:null};
-  return {type:'UNKNOWN',data:null};
-}
-
-function extractDate(text){
-  const m1=text.match(/Date:\s*(\w+\s+\d+,?\s*\d{4})/i); if(m1){ const d=new Date(m1[1]); if(!isNaN(d)) return d.toISOString().slice(0,10); }
-  const m2=text.match(/Date Range:\s*(\w+\s+\d+,?\s*\d{4})/i); if(m2){ const d=new Date(m2[1]); if(!isNaN(d)) return d.toISOString().slice(0,10); }
-  return null;
-}
-
-function pn(s){ const n=parseFloat(String(s).replace(/,/g,'').replace(/\$/g,'')); return isNaN(n)?null:n; }
-
-function parseOperaFlash(text){
-  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
-  let period_start=null, period_end=null;
-  for(const line of lines){
-    const m=line.match(/(\d{2})-(\d{2})-(\d{2})$/);
-    if(m){ const y='20'+m[3]; period_end=y+'-'+m[1]+'-'+m[2]; period_start=y+'-'+m[1]+'-01'; break; }
-  }
-  function getMonthVal(kw){
-    for(const line of lines){
-      if(line.toUpperCase().includes(kw.toUpperCase())){
-        const nums=line.match(/[\d,]+\.?\d*/g);
-        if(nums&&nums.length>=2) return pn(nums[1]);
-      }
-    }
-    return null;
-  }
-  const occ_pct=getMonthVal('% Rooms Occupied ');
-  const adr=getMonthVal('ADR ');
-  const revpar=getMonthVal('Revenue per Available Room');
-  const total_revenue=getMonthVal('Total Revenue');
-  const room_revenue=getMonthVal('Room Revenue');
-  const misc_revenue=getMonthVal('Other Revenue');
-  const rooms_available=getMonthVal('Total Rooms in Hotel');
-  let rooms_sold=null;
-  for(const line of lines){
-    if(/^Rooms Occupied\b/i.test(line)){
-      const nums=line.match(/[\d,]+\.?\d*/g);
-      if(nums&&nums.length>=2){ rooms_sold=pn(nums[1]); break; }
-    }
-  }
-  return {period_start,period_end,occ_pct,adr,revpar,room_revenue,misc_revenue,total_revenue,rooms_sold,rooms_available,source:'opera_flash'};
-}
-
-function parseHotelStats(text){
-  const date=extractDate(text)||text.match(/Date:\s*(\w+\s+\d+,?\s*\d{4})/i)?.[1];
-  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
-  function findVal(kw){
-    for(let i=0;i<lines.length;i++){
-      if(lines[i].toUpperCase().includes(kw.toUpperCase())){
-        const nums=lines.slice(i,i+3).join(' ').match(/[\d,]+\.?\d*/g);
-        if(nums&&nums.length>0) return pn(nums[0]);
-      }
-    }
-    return null;
-  }
-  return {date,occ_pct:findVal('Occupancy Including Out'),adr:findVal('ADR Including'),revpar:findVal('RevPAR'),rooms_sold:findVal('Room Sold'),rooms_available:findVal('Rooms Available'),room_revenue:null,misc_revenue:null,total_revenue:null,ly_occ_pct:null,ly_adr:null,ly_room_revenue:null};
-}
-
-function parseARPDF(text){
-  const date=extractDate(text);
-  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
-  const result=[];
-  [['CLC','CLC'],['IHG REWARD','IHG_REWARDS']].forEach(([kw,company])=>{
-    for(let i=0;i<lines.length;i++){
-      if(lines[i].toUpperCase().includes(kw)){
-        const combined=lines.slice(i,i+5).join(' ');
-        const nums=combined.match(/[\d,]+\.?\d*/g)?.map(pn).filter(n=>n!==null)||[];
-        if(nums.length>=7){ result.push({date,company,current_bal:nums[0],over_30:nums[2],over_60:nums[3],over_90:nums[4],over_120:nums[5],over_150:nums[6],total:nums[7]||null}); break; }
-      }
-    }
-  });
-  return result;
-}
 </script>
 </body>
 </html>
