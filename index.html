@@ -389,10 +389,10 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 // ⚠️ CHANGE THESE PINS BEFORE GOING LIVE
 const PINS = {
-  OWNER: '1234',
-  WKFCW: '2345',
-  RDURM: '3456',
-  RDUTT: '4567'
+  OWNER: '0616',
+  WKFCW: '2011',
+  RDURM: '2023',
+  RDUTT: '2021'
 };
 
 const PROPS = {
@@ -467,7 +467,17 @@ document.getElementById('pin-back-btn').addEventListener('click', ()=>{
 document.querySelector('.pin-pad').addEventListener('click', e=>{
   const btn = e.target.closest('.pin-key');
   if(!btn) return;
-  const k = btn.dataset.k;
+  handlePinKey(btn.dataset.k);
+});
+
+document.addEventListener('keydown', e=>{
+  if(!document.getElementById('pin-screen').classList.contains('show')) return;
+  if(e.key>='0'&&e.key<='9') handlePinKey(e.key);
+  else if(e.key==='Backspace') handlePinKey('del');
+  else if(e.key==='Escape') handlePinKey('clr');
+});
+
+function handlePinKey(k){
   if(k==='clr'){pinEntry='';updateDots();return}
   if(k==='del'){pinEntry=pinEntry.slice(0,-1);updateDots();return}
   if(pinEntry.length>=4) return;
@@ -476,7 +486,7 @@ document.querySelector('.pin-pad').addEventListener('click', e=>{
     if(pinEntry===PINS[pinTarget]) enterApp(pinTarget);
     else pinError();
   }
-});
+}
 
 function updateDots(){
   for(let i=0;i<4;i++){
