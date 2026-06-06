@@ -383,6 +383,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 </div>
 
 <div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 // ═══════════════════════════════════════════
@@ -547,7 +548,8 @@ function buildAppShell(){
       <button class="nav-btn active" data-view="owner-summary">Overview</button>
       <button class="nav-btn" data-view="owner-ar">AR / Aging</button>
       <button class="nav-btn" data-view="owner-performance">Performance</button>
-      <button class="nav-btn" data-view="owner-upload">Upload</button>`;
+      <button class="nav-btn" data-view="owner-upload">Upload</button>
+      <button class="nav-btn" data-view="history">History</button>`;
   } else if(propActive){
     navHtml = `
       <button class="nav-btn active" data-view="daily">Daily</button>
@@ -607,6 +609,7 @@ function renderView(view){
   else if(view==='owner-performance') { body.innerHTML = buildOwnerPerf(); setTimeout(renderOwnerPerfChart,100); }
   else if(view==='owner-upload')      { body.innerHTML = buildOwnerUpload(); wireOwnerUpload(); }
   else if(view==='owner-drill')       { body.innerHTML = buildOwnerDrill(); wireOwnerDrill(); }
+  else if(view==='history' && S.mode==='OWNER') { body.innerHTML = buildHistory(); wireHistory(); }
   else if(view==='daily')       { body.innerHTML = buildDaily(); wireDaily(); renderDailyContent(); }
   else if(view==='performance') { body.innerHTML = buildPerformance(); setTimeout(renderPerfCharts,100); }
   else if(view==='ar')          { body.innerHTML = buildAR(); }
@@ -1789,7 +1792,32 @@ function agingCellHtml(co){
 // ═══════════════════════════════════════════
 // FILE PARSING
 // ═══════════════════════════════════════════
-function readText(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsText(file); }); }
+async function readText(file){
+  const ext = file.name.split('.').pop().toLowerCase();
+  if(ext !== 'pdf') {
+    return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsText(file); });
+  }
+  // Use PDF.js for proper PDF text extraction
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+  let text = '';
+  for(let i = 1; i <= pdf.numPages; i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    // Extract text items, preserving line breaks based on y-position
+    let lastY = null;
+    for(const item of content.items){
+      if(lastY !== null && Math.abs(item.transform[5] - lastY) > 2){
+        text += '\n';
+      }
+      text += item.str;
+      lastY = item.transform[5];
+    }
+    text += '\n';
+  }
+  return text;
+}
 
 function detectReport(text){
   const t=text.toUpperCase();
@@ -1865,73 +1893,434 @@ function parseAdjPDF(text){ return {date:extractDate(text),raw:text}; }
 function parseIHPDF(text){ return {date:extractDate(text),raw:text}; }
 
 function parseOperaFlash(text){
-  // Extract month/year from header date like "01-31-23"
-  const dateMatch = text.match(/(\d{2}-\d{2}-\d{2})/);
-  let period_start = null, period_end = null;
-  if(dateMatch){
-    const parts = dateMatch[1].split('-');
-    const fullYear = '20' + parts[2];
-    const month = parts[0];
-    // period_end is the date on the report (last day of month)
-    period_end = `${fullYear}-${month}-${parts[1]}`;
-    // period_start is first day of that month
-    period_start = `${fullYear}-${month}-01`;
-  }
-
+  // PDF.js produces layout-aware lines: "Label  DAY  MONTH  YEAR  LY-DAY  LY-MONTH  LY-YEAR"
+  // We want the MONTH column which is always the 2nd numeric value on each row
   const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
 
-  // For Opera Flash we want the MONTH column (index 1 of the data columns)
-  // Columns are: DAY, MONTH, YEAR, LY-DAY, LY-MONTH, LY-YEAR
+  // Extract date from header e.g. "Candlewood Suites ... 01-31-23"
+  let period_start = null, period_end = null;
+  for(const line of lines){
+    const m = line.match(/(\d{2})-(\d{2})-(\d{2})$/);
+    if(m){
+      const fullYear = '20' + m[3];
+      period_end   = fullYear + '-' + m[1] + '-' + m[2];
+      period_start = fullYear + '-' + m[1] + '-01';
+      break;
+    }
+  }
+
+  const pn = s => { const n=parseFloat(String(s).replace(/,/g,'')); return isNaN(n)?null:n; };
+
+  // Get the 2nd numeric token (MONTH column) from a matching line
   function getMonthVal(keyword){
-    for(let i=0;i<lines.length;i++){
-      if(lines[i].toUpperCase().includes(keyword.toUpperCase())){
-        // Extract all numbers from this line
-        const nums = lines[i].match(/[-\d,]+\.?\d*/g);
-        if(nums && nums.length >= 2){
-          // Second number is the MONTH column
-          const v = parseFloat(nums[1].replace(/,/g,''));
-          return isNaN(v) ? null : v;
-        }
+    for(const line of lines){
+      if(line.toUpperCase().includes(keyword.toUpperCase())){
+        const nums = line.match(/[\d,]+\.?\d*/g);
+        if(nums && nums.length >= 2) return pn(nums[1]);
       }
     }
     return null;
   }
 
-  const occ_pct    = getMonthVal('% Rooms Occupied ');
-  const adr        = getMonthVal('ADR ');
-  const revpar     = getMonthVal('Revenue per Available Room');
-  const total_rev  = getMonthVal('Total Revenue');
-  const room_rev   = getMonthVal('Room Revenue');
-  const other_rev  = getMonthVal('Other Revenue');
-  const rooms_avail_raw = getMonthVal('Total Rooms in Hotel');
-  const ooo        = getMonthVal('Available Rooms minus OOO');
-  // Find 'Rooms Occupied' without the % sign to avoid matching % Rooms Occupied
+  const occ_pct       = getMonthVal('% Rooms Occupied ');
+  const adr           = getMonthVal('ADR ');
+  const revpar        = getMonthVal('Revenue per Available Room');
+  const total_revenue = getMonthVal('Total Revenue');
+  const room_revenue  = getMonthVal('Room Revenue');
+  const misc_revenue  = getMonthVal('Other Revenue');
+  const rooms_available = getMonthVal('Total Rooms in Hotel');
+
+  // Match 'Rooms Occupied' line exactly — avoid matching '% Rooms Occupied'
   let rooms_sold = null;
-  for(let i=0;i<lines.length;i++){
-    if(lines[i].toLowerCase().startsWith('rooms occupied')){
-      const nums = lines[i].match(/[-\d,]+\.?\d*/g);
-      if(nums && nums.length >= 2){ rooms_sold = parseFloat(nums[1].replace(/,/g,'')); break; }
+  for(const line of lines){
+    if(/^Rooms Occupied\b/i.test(line)){
+      const nums = line.match(/[\d,]+\.?\d*/g);
+      if(nums && nums.length >= 2){ rooms_sold = pn(nums[1]); break; }
     }
   }
 
-  // Rooms available = Total Rooms * days in month minus OOO days
-  // Opera Flash shows total room-nights in MONTH column for Total Rooms
-  const rooms_available = rooms_avail_raw || null;
-
-  return {
-    period_start,
-    period_end,
-    occ_pct,
-    adr,
-    revpar,
-    room_revenue: room_rev,
-    misc_revenue: other_rev,
-    total_revenue: total_rev,
-    rooms_sold,
-    rooms_available,
-    source: 'opera_flash'
-  };
+  return { period_start, period_end, occ_pct, adr, revpar, room_revenue, misc_revenue, total_revenue, rooms_sold, rooms_available, source:'opera_flash' };
 }
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#0d1117;--ink2:#1c2333;--ink3:#2d3748;
+  --fog:#8892a4;--mist:#c8d0dc;--border:#e2e0db;
+  --paper:#f5f2ec;--cream:#faf8f4;--white:#ffffff;
+  --gold:#c9973a;--gold-lt:#f5e9cc;--gold-dim:#3d2e10;
+  --red:#b91c1c;--red-lt:#fef2f2;
+  --green:#15803d;--green-lt:#f0fdf4;
+  --amber:#b45309;--amber-lt:#fffbeb;
+  --blue:#1d4ed8;--blue-lt:#eff6ff;
+  --shadow:0 1px 3px rgba(13,17,23,.07),0 4px 16px rgba(13,17,23,.04);
+  --shadow-lg:0 8px 32px rgba(13,17,23,.12);
+  --radius:10px;
+  --mono:'DM Mono',monospace;
+  --serif:'Cormorant Garamond',serif;
+  --sans:'DM Sans',sans-serif;
+}
+html{font-size:15px}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:hidden}
+
+/* ── LOCK / SELECTOR SCREEN ── */
+#entry-screen{
+  position:fixed;inset:0;
+  background:var(--ink);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  z-index:1000;
+  transition:opacity .45s ease;
+}
+#entry-screen.hidden{opacity:0;pointer-events:none}
+
+.entry-logo{font-family:var(--serif);font-size:2.6rem;color:var(--gold);letter-spacing:.02em;margin-bottom:.2rem}
+.entry-tagline{font-family:var(--mono);font-size:.62rem;color:var(--fog);letter-spacing:.2em;text-transform:uppercase;margin-bottom:3rem}
+
+/* Property Selector */
+#prop-selector{display:flex;flex-direction:column;gap:.75rem;width:320px}
+.prop-btn{
+  display:flex;align-items:center;gap:1rem;
+  padding:1rem 1.25rem;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);
+  color:#fff;cursor:pointer;
+  transition:all .15s ease;
+  text-align:left;
+}
+.prop-btn:hover{background:rgba(255,255,255,.09);border-color:rgba(201,151,58,.4)}
+.prop-btn.owner-btn{border-color:rgba(201,151,58,.3);background:rgba(201,151,58,.06)}
+.prop-btn.owner-btn:hover{background:rgba(201,151,58,.12)}
+.prop-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.prop-icon.owner{background:rgba(201,151,58,.15)}
+.prop-icon.wkfcw{background:rgba(29,78,216,.15)}
+.prop-icon.rdurm{background:rgba(21,128,61,.15)}
+.prop-icon.rdutt{background:rgba(180,83,9,.15)}
+.prop-name{font-family:var(--sans);font-size:.9rem;font-weight:500;color:#fff;line-height:1.2}
+.prop-code{font-family:var(--mono);font-size:.58rem;color:var(--fog);letter-spacing:.1em;margin-top:.15rem}
+.prop-coming{font-family:var(--mono);font-size:.55rem;color:rgba(201,151,58,.6);letter-spacing:.08em;margin-left:auto;flex-shrink:0}
+
+/* PIN Screen */
+#pin-screen{display:none;flex-direction:column;align-items:center}
+#pin-screen.show{display:flex}
+.pin-back{
+  font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--fog);background:none;border:none;
+  cursor:pointer;margin-bottom:2rem;padding:.5rem 1rem;
+  border:1px solid rgba(255,255,255,.08);border-radius:6px;
+  transition:all .15s;
+}
+.pin-back:hover{color:var(--mist);border-color:rgba(255,255,255,.2)}
+.pin-for{font-family:var(--serif);font-size:1.4rem;color:var(--gold);margin-bottom:.25rem}
+.pin-label{font-family:var(--mono);font-size:.6rem;color:var(--fog);letter-spacing:.15em;text-transform:uppercase;margin-bottom:1.5rem}
+.pin-dots{display:flex;gap:10px;margin-bottom:2rem}
+.pin-dot{width:11px;height:11px;border-radius:50%;border:1.5px solid var(--fog);transition:all .15s}
+.pin-dot.filled{background:var(--gold);border-color:var(--gold);box-shadow:0 0 8px rgba(201,151,58,.4)}
+.pin-dot.error{background:var(--red);border-color:var(--red);animation:shake .3s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.pin-pad{display:grid;grid-template-columns:repeat(3,58px);gap:9px}
+.pin-key{width:58px;height:58px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-family:var(--sans);font-size:1.2rem;font-weight:300;cursor:pointer;transition:all .1s;display:flex;align-items:center;justify-content:center}
+.pin-key:hover{background:rgba(255,255,255,.12)}
+.pin-key:active{transform:scale(.92)}
+.pin-key.wide{border-radius:29px;font-size:.7rem;letter-spacing:.1em}
+.pin-err{font-family:var(--mono);font-size:.62rem;color:var(--red);letter-spacing:.1em;margin-top:1.25rem;opacity:0;transition:opacity .2s}
+.pin-err.show{opacity:1}
+
+/* ── APP SHELL ── */
+#app{display:none}
+#app.visible{display:block}
+
+/* ── TOP BAR ── */
+.topbar{
+  position:sticky;top:0;z-index:100;
+  background:var(--ink);
+  display:flex;align-items:center;
+  padding:0 1.5rem;height:52px;gap:1.5rem;
+}
+.topbar-brand{font-family:var(--serif);font-size:1.1rem;color:var(--gold);flex-shrink:0;letter-spacing:.02em}
+.topbar-prop-tag{
+  font-family:var(--mono);font-size:.58rem;
+  letter-spacing:.14em;text-transform:uppercase;
+  padding:.25rem .65rem;border-radius:20px;
+  flex-shrink:0;
+}
+.tag-owner{background:rgba(201,151,58,.15);color:var(--gold)}
+.tag-wkfcw{background:rgba(29,78,216,.15);color:#93c5fd}
+.tag-rdurm{background:rgba(21,128,61,.15);color:#86efac}
+.tag-rdutt{background:rgba(180,83,9,.15);color:#fcd34d}
+
+.topbar-nav{display:flex;gap:0;margin-left:auto}
+.nav-btn{padding:0 .9rem;height:52px;border:none;background:none;color:var(--fog);font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s;border-bottom:2px solid transparent;white-space:nowrap}
+.nav-btn:hover{color:var(--mist)}
+.nav-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+.topbar-actions{display:flex;gap:.5rem;margin-left:.75rem}
+.topbar-action-btn{padding:0 .75rem;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:transparent;color:var(--fog);font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+.topbar-action-btn:hover{border-color:var(--gold);color:var(--gold)}
+
+/* ── VIEWS ── */
+.view{display:none}
+.view.active{display:block}
+
+/* ── PAGE HEADER ── */
+.page-header{padding:2rem 2rem 1.25rem;border-bottom:1px solid var(--border);background:var(--cream)}
+.page-title{font-family:var(--serif);font-size:1.65rem;color:var(--ink);margin-bottom:.2rem}
+.page-sub{font-family:var(--mono);font-size:.6rem;color:var(--fog);letter-spacing:.12em;text-transform:uppercase}
+
+/* ── CONTENT ── */
+.content{padding:1.75rem 2rem;max-width:1440px;margin:0 auto}
+@media(max-width:900px){.content{padding:1rem}}
+
+/* ── KPI GRID ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem;margin-bottom:1.75rem}
+.kpi-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1.4rem;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.kpi-card.gold::before{background:var(--gold)}
+.kpi-card.green::before{background:var(--green)}
+.kpi-card.blue::before{background:var(--blue)}
+.kpi-card.red::before{background:var(--red)}
+.kpi-card.amber::before{background:var(--amber)}
+.kpi-label{font-family:var(--mono);font-size:.58rem;letter-spacing:.13em;text-transform:uppercase;color:var(--fog);margin-bottom:.4rem}
+.kpi-value{font-family:var(--serif);font-size:1.8rem;color:var(--ink);line-height:1;margin-bottom:.35rem}
+.kpi-delta{font-family:var(--mono);font-size:.6rem}
+.kpi-delta.up{color:var(--green)}
+.kpi-delta.down{color:var(--red)}
+.kpi-delta.flat{color:var(--fog)}
+.kpi-meta{font-family:var(--mono);font-size:.57rem;color:var(--mist);margin-top:.15rem}
+
+/* ── SECTION CARDS ── */
+.section-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:1.5rem;overflow:hidden}
+.section-head{padding:.875rem 1.4rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--cream);gap:1rem}
+.section-title{font-family:var(--mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);font-weight:500}
+.section-badge{font-family:var(--mono);font-size:.58rem;padding:.18rem .55rem;border-radius:20px;letter-spacing:.07em;white-space:nowrap}
+.badge-ok{background:var(--green-lt);color:var(--green)}
+.badge-warn{background:var(--amber-lt);color:var(--amber)}
+.badge-alert{background:var(--red-lt);color:var(--red)}
+.badge-info{background:var(--blue-lt);color:var(--blue)}
+.badge-gold{background:var(--gold-lt);color:var(--gold-dim)}
+
+/* ── ALERT STRIP ── */
+.alert-strip{display:flex;gap:.6rem;flex-wrap:wrap;padding:.65rem 1.4rem;border-bottom:1px solid var(--border);min-height:42px;align-items:center}
+.alert-chip{display:flex;align-items:center;gap:.35rem;padding:.25rem .7rem;border-radius:20px;font-family:var(--mono);font-size:.6rem;letter-spacing:.05em;font-weight:500}
+.alert-chip.warn{background:var(--amber-lt);color:var(--amber);border:1px solid rgba(180,83,9,.2)}
+.alert-chip.alert{background:var(--red-lt);color:var(--red);border:1px solid rgba(185,28,28,.2)}
+.alert-chip.ok{background:var(--green-lt);color:var(--green);border:1px solid rgba(21,128,61,.2)}
+.alert-chip.info{background:var(--blue-lt);color:var(--blue);border:1px solid rgba(29,78,216,.2)}
+
+/* ── DATE NAV ── */
+.date-nav{display:flex;align-items:center;gap:.65rem;padding:.875rem 1.4rem;border-bottom:1px solid var(--border);background:var(--cream)}
+.date-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:var(--white);color:var(--ink3);font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.date-btn:hover{border-color:var(--gold);color:var(--gold)}
+.date-display{font-family:var(--mono);font-size:.72rem;color:var(--ink);letter-spacing:.05em;min-width:130px}
+.date-today-btn{padding:0 .7rem;height:26px;border-radius:6px;border:1px solid var(--border);background:var(--white);color:var(--fog);font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+.date-today-btn:hover{border-color:var(--gold);color:var(--gold)}
+.spacer{flex:1}
+
+/* ── TABLES ── */
+.data-table{width:100%;border-collapse:collapse}
+.data-table th{font-family:var(--mono);font-size:.57rem;letter-spacing:.11em;text-transform:uppercase;color:var(--fog);padding:.7rem 1rem;text-align:left;border-bottom:1px solid var(--border);background:var(--cream);white-space:nowrap}
+.data-table th.r{text-align:right}
+.data-table td{padding:.65rem 1rem;font-size:.85rem;border-bottom:1px solid var(--border);vertical-align:middle}
+.data-table td.r{text-align:right;font-family:var(--mono);font-size:.78rem}
+.data-table td.mono{font-family:var(--mono);font-size:.75rem}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:var(--cream)}
+.data-table tr.tot td{font-weight:600;background:var(--cream);border-top:2px solid var(--border)}
+.tbl-wrap{overflow-x:auto}
+
+/* ── AGING BARS ── */
+.aging-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;background:var(--border)}
+.aging-cell{background:var(--white);padding:1.25rem 1.4rem}
+.aging-co{font-family:var(--mono);font-size:.58rem;letter-spacing:.13em;text-transform:uppercase;color:var(--fog);margin-bottom:.65rem}
+.aging-tot{font-family:var(--serif);font-size:1.45rem;color:var(--ink);margin-bottom:.75rem}
+.aging-row{display:flex;align-items:center;gap:.65rem;margin-bottom:.35rem}
+.aging-lbl{font-family:var(--mono);font-size:.56rem;color:var(--fog);width:48px;flex-shrink:0;letter-spacing:.05em}
+.aging-track{flex:1;height:5px;background:var(--paper);border-radius:3px;overflow:hidden}
+.aging-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.fill-cur{background:var(--green)}
+.fill-30{background:var(--amber)}
+.fill-60{background:#f97316}
+.fill-90{background:var(--red)}
+.fill-120{background:#991b1b}
+.fill-150{background:#4c0519}
+.aging-val{font-family:var(--mono);font-size:.58rem;color:var(--ink3);width:70px;text-align:right;flex-shrink:0}
+
+/* ── UPLOAD ── */
+.upload-area{border:2px dashed var(--border);border-radius:var(--radius);padding:2.25rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--cream);position:relative}
+.upload-area:hover,.upload-area.dragover{border-color:var(--gold);background:rgba(201,151,58,.03)}
+.upload-area input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.upload-icon{font-size:1.8rem;margin-bottom:.6rem;opacity:.4}
+.upload-title{font-family:var(--mono);font-size:.67rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:.3rem}
+.upload-sub{font-size:.8rem;color:var(--fog)}
+.upload-results{margin-top:1.25rem;display:flex;flex-direction:column;gap:.45rem}
+.upload-item{display:flex;align-items:center;gap:.65rem;padding:.65rem .9rem;background:var(--white);border:1px solid var(--border);border-radius:8px}
+.upload-item-name{flex:1;font-family:var(--mono);font-size:.68rem;color:var(--ink3)}
+.upload-item-type{font-family:var(--mono);font-size:.57rem;padding:.13rem .5rem;border-radius:20px;letter-spacing:.05em}
+.type-ok{background:var(--green-lt);color:var(--green)}
+.type-unk{background:var(--amber-lt);color:var(--amber)}
+.type-err{background:var(--red-lt);color:var(--red)}
+.upload-item-note{font-family:var(--mono);font-size:.6rem;color:var(--fog)}
+.upload-commit{margin-top:1.1rem;padding:.8rem 1.75rem;background:var(--ink);color:var(--gold);border:none;border-radius:8px;font-family:var(--mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+.upload-commit:hover{background:var(--ink2)}
+.upload-commit:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── FORM ── */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.9rem;padding:1.4rem}
+.form-group{display:flex;flex-direction:column;gap:.35rem}
+.form-label{font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fog)}
+.form-input{padding:.55rem .7rem;border:1px solid var(--border);border-radius:6px;font-family:var(--mono);font-size:.78rem;background:var(--white);color:var(--ink);transition:border-color .15s}
+.form-input:focus{outline:none;border-color:var(--gold)}
+.form-actions{padding:0 1.4rem 1.4rem;display:flex;gap:.65rem}
+.btn-primary{padding:.6rem 1.4rem;background:var(--ink);color:var(--gold);border:none;border-radius:7px;font-family:var(--mono);font-size:.63rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+.btn-primary:hover{background:var(--ink2)}
+.btn-sec{padding:.6rem 1.4rem;background:transparent;color:var(--fog);border:1px solid var(--border);border-radius:7px;font-family:var(--mono);font-size:.63rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+.btn-sec:hover{border-color:var(--ink3);color:var(--ink3)}
+
+/* ── TABS ── */
+.tab-bar{display:flex;border-bottom:1px solid var(--border);padding:0 1.4rem;background:var(--cream)}
+.tab-btn{padding:.7rem 1.1rem;border:none;background:none;font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fog);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.tab-btn:hover{color:var(--ink3)}
+.tab-btn.active{color:var(--ink);border-bottom-color:var(--gold)}
+.tab-content{display:none;padding:1.4rem}
+.tab-content.active{display:block}
+
+/* ── GRID LAYOUTS ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem}
+@media(max-width:960px){.two-col,.three-col{grid-template-columns:1fr}}
+
+/* ── OWNER SUMMARY CARDS ── */
+.prop-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-bottom:1.75rem}
+.prop-summary-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;cursor:pointer;transition:all .2s}
+.prop-summary-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-1px)}
+.psc-header{padding:.875rem 1.25rem;display:flex;align-items:center;gap:.75rem}
+.psc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.dot-wkfcw{background:#3b82f6}
+.dot-rdurm{background:#22c55e}
+.dot-rdutt{background:#f59e0b}
+.psc-name{font-weight:600;font-size:.9rem}
+.psc-code{font-family:var(--mono);font-size:.58rem;color:var(--fog);letter-spacing:.1em}
+.psc-body{padding:1rem 1.25rem;border-top:1px solid var(--border)}
+.psc-kpi-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:.75rem}
+.psc-kpi{text-align:center}
+.psc-kpi-val{font-family:var(--serif);font-size:1.2rem;color:var(--ink)}
+.psc-kpi-lbl{font-family:var(--mono);font-size:.52rem;color:var(--fog);letter-spacing:.08em;text-transform:uppercase}
+.psc-footer{padding:.65rem 1.25rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.psc-foot-lbl{font-family:var(--mono);font-size:.58rem;color:var(--fog);letter-spacing:.08em}
+.psc-foot-val{font-family:var(--mono);font-size:.7rem;font-weight:500;color:var(--ink3)}
+.psc-coming{display:flex;align-items:center;justify-content:center;padding:2rem;color:var(--fog);font-family:var(--mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase}
+
+/* ── PILL ── */
+.pill{display:inline-block;padding:.12rem .5rem;border-radius:20px;font-family:var(--mono);font-size:.56rem;letter-spacing:.05em;font-weight:500}
+.pill-red{background:var(--red-lt);color:var(--red)}
+.pill-green{background:var(--green-lt);color:var(--green)}
+.pill-amber{background:var(--amber-lt);color:var(--amber)}
+.pill-blue{background:var(--blue-lt);color:var(--blue)}
+.pill-gray{background:var(--paper);color:var(--fog);border:1px solid var(--border)}
+.pill-gold{background:var(--gold-lt);color:var(--gold-dim)}
+
+/* ── MONTH BAR ── */
+.month-bar{display:inline-block;height:7px;background:var(--gold);border-radius:2px;opacity:.65;vertical-align:middle}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:2.5rem 2rem;color:var(--fog)}
+.empty-icon{font-size:2rem;margin-bottom:.75rem;opacity:.3}
+.empty-title{font-family:var(--mono);font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.4rem;color:var(--ink3)}
+.empty-sub{font-size:.82rem;color:var(--fog)}
+
+/* ── LOADING ── */
+.loading{display:flex;align-items:center;gap:.5rem;padding:1.75rem;font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;color:var(--fog)}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+.pdot{width:5px;height:5px;border-radius:50%;background:var(--gold);animation:pulse 1.2s ease infinite}
+.pdot:nth-child(2){animation-delay:.2s}
+.pdot:nth-child(3){animation-delay:.4s}
+
+/* ── COMING SOON ── */
+.coming-soon{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4rem 2rem;text-align:center}
+.coming-soon-badge{font-family:var(--mono);font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;padding:.3rem .9rem;border-radius:20px;background:var(--amber-lt);color:var(--amber);margin-bottom:1.25rem}
+.coming-soon-title{font-family:var(--serif);font-size:1.5rem;color:var(--ink);margin-bottom:.5rem}
+.coming-soon-sub{font-size:.85rem;color:var(--fog);max-width:360px}
+
+/* ── DELETE BUTTON ── */
+.btn-delete{background:none;border:1px solid var(--border);border-radius:5px;color:var(--fog);font-size:.65rem;padding:.2rem .5rem;cursor:pointer;transition:all .15s}
+.btn-delete:hover{border-color:var(--red);color:var(--red);background:var(--red-lt)}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:1.75rem;right:1.75rem;padding:.8rem 1.1rem;border-radius:8px;font-family:var(--mono);font-size:.67rem;letter-spacing:.05em;box-shadow:var(--shadow-lg);z-index:999;transform:translateY(80px);opacity:0;transition:all .3s ease;max-width:300px}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.success{background:var(--ink);color:var(--gold)}
+#toast.error{background:#2d0b0b;color:#f87171}
+#toast.info{background:#0f172a;color:#93c5fd}
+</style>
+</head>
+<body>
+
+<!-- ══ ENTRY SCREEN ══ -->
+<div id="entry-screen">
+  <!-- Property Selector -->
+  <div id="prop-selector-wrap">
+    <div class="entry-logo">Catbird Seat</div>
+    <div class="entry-tagline">Milkam Hospitality · Operations Intelligence</div>
+    <div id="prop-selector">
+      <button class="prop-btn owner-btn" data-prop="OWNER">
+        <div class="prop-icon owner">🏢</div>
+        <div><div class="prop-name">Owner View</div><div class="prop-code">All Properties</div></div>
+      </button>
+      <button class="prop-btn" data-prop="WKFCW">
+        <div class="prop-icon wkfcw">🏨</div>
+        <div><div class="prop-name">Candlewood Suites Wake Forest</div><div class="prop-code">WKFCW</div></div>
+      </button>
+      <button class="prop-btn" data-prop="RDURM">
+        <div class="prop-icon rdurm">🏨</div>
+        <div><div class="prop-name">Tru by Hilton Wake Forest</div><div class="prop-code">RDURM</div></div>
+        <div class="prop-coming">PEP</div>
+      </button>
+      <button class="prop-btn" data-prop="RDUTT">
+        <div class="prop-icon rdutt">🏨</div>
+        <div><div class="prop-name">Home2 Suites Raleigh North</div><div class="prop-code">RDUTT</div></div>
+        <div class="prop-coming">PEP</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- PIN Screen -->
+  <div id="pin-screen">
+    <button class="pin-back" id="pin-back-btn">← Back</button>
+    <div class="pin-for" id="pin-for-label">Owner View</div>
+    <div class="pin-label">Enter PIN</div>
+    <div class="pin-dots">
+      <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
+    </div>
+    <div class="pin-pad">
+      <button class="pin-key" data-k="1">1</button><button class="pin-key" data-k="2">2</button><button class="pin-key" data-k="3">3</button>
+      <button class="pin-key" data-k="4">4</button><button class="pin-key" data-k="5">5</button><button class="pin-key" data-k="6">6</button>
+      <button class="pin-key" data-k="7">7</button><button class="pin-key" data-k="8">8</button><button class="pin-key" data-k="9">9</button>
+      <button class="pin-key wide" data-k="clr">CLR</button><button class="pin-key" data-k="0">0</button><button class="pin-key wide" data-k="del">⌫</button>
+    </div>
+    <div class="pin-err" id="pin-err">Incorrect PIN</div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-brand">Catbird Seat</div>
+    <div class="topbar-prop-tag" id="topbar-prop-tag">OWNER</div>
+    <nav class="topbar-nav" id="topbar-nav">
+      <!-- injected based on context -->
+    </nav>
+    <div class="topbar-actions">
+      <button class="topbar-action-btn" id="switch-prop-btn">Switch</button>
+      <button class="topbar-action-btn" id="lock-btn">Lock</button>
+    </div>
+  </div>
+  <div id="app-body"></div>
+</div>
+
+<div id="toast"></div>
+
 </script>
 </body>
 </html>
