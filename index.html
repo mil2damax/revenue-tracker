@@ -305,6 +305,10 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .coming-soon-title{font-family:var(--serif);font-size:1.5rem;color:var(--ink);margin-bottom:.5rem}
 .coming-soon-sub{font-size:.85rem;color:var(--fog);max-width:360px}
 
+/* ── DELETE BUTTON ── */
+.btn-delete{background:none;border:1px solid var(--border);border-radius:5px;color:var(--fog);font-size:.65rem;padding:.2rem .5rem;cursor:pointer;transition:all .15s}
+.btn-delete:hover{border-color:var(--red);color:var(--red);background:var(--red-lt)}
+
 /* ── TOAST ── */
 #toast{position:fixed;bottom:1.75rem;right:1.75rem;padding:.8rem 1.1rem;border-radius:8px;font-family:var(--mono);font-size:.67rem;letter-spacing:.05em;box-shadow:var(--shadow-lg);z-index:999;transform:translateY(80px);opacity:0;transition:all .3s ease;max-width:300px}
 #toast.show{transform:translateY(0);opacity:1}
@@ -433,6 +437,14 @@ async function sbUpsert(table, data, conflict){
   });
   if(!r.ok) throw new Error(await r.text());
 }
+async function sbDelete(table, filter){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`,{
+    method:'DELETE',
+    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Prefer':'return=minimal'}
+  });
+  if(!r.ok) throw new Error(await r.text());
+}
+
 async function sbPost(table, data){
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`,{
     method:'POST',
@@ -542,6 +554,7 @@ function buildAppShell(){
       <button class="nav-btn" data-view="ar">AR / Aging</button>
       <button class="nav-btn" data-view="accountability">Accountability</button>
       <button class="nav-btn" data-view="history">History</button>
+      <!-- History is owner-only; enforced in renderView -->
       <button class="nav-btn" data-view="upload">Upload</button>`;
   } else {
     navHtml = `<button class="nav-btn active" data-view="coming-soon">Overview</button>`;
@@ -1278,12 +1291,14 @@ function buildHistory(){
 }
 
 function wireHistory(){
+  // Save
   document.getElementById('h-save').addEventListener('click', async()=>{
     const start = document.getElementById('h-start').value;
     const end   = document.getElementById('h-end').value;
+    const prop  = document.getElementById('h-prop')?.value || S.mode;
     if(!start||!end){ toast('Period start and end required','error'); return; }
     const rec = {
-      property: S.mode,
+      property: prop,
       period_start: start, period_end: end,
       occ_pct:    parseFloat(document.getElementById('h-occ').value)||null,
       adr:        parseFloat(document.getElementById('h-adr').value)||null,
@@ -1299,13 +1314,49 @@ function wireHistory(){
     try {
       await sbUpsert('monthly_revenue', rec, 'property,period_start');
       await loadAllData();
-      renderView('history');
-      toast(`Saved ${fmtMonth(start)}`);
+      const listEl = document.getElementById('h-list');
+      const filterProp = document.getElementById('h-prop-filter')?.value || prop;
+      if(listEl) listEl.innerHTML = buildHistoryList(S.monthly, filterProp);
+      document.getElementById('h-count').textContent = S.monthly.length + ' months';
+      toast(`Saved ${fmtMonth(start)} — ${prop}`);
     } catch(e){ toast('Save failed: '+e.message,'error'); }
   });
+
+  // Clear
   document.getElementById('h-clear').addEventListener('click',()=>{
-    ['h-start','h-end','h-occ','h-adr','h-revpar','h-rsold','h-ravail','h-rrev','h-misc','h-trev','h-notes'].forEach(id=>document.getElementById(id).value='');
+    ['h-start','h-end','h-occ','h-adr','h-revpar','h-rsold','h-ravail','h-rrev','h-misc','h-trev','h-notes'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value='';
+    });
   });
+
+  // Property filter for list
+  const filterEl = document.getElementById('h-prop-filter');
+  if(filterEl){
+    filterEl.addEventListener('change', ()=>{
+      const listEl = document.getElementById('h-list');
+      if(listEl) listEl.innerHTML = buildHistoryList(S.monthly, filterEl.value);
+    });
+  }
+
+  // Delete buttons (event delegation)
+  const listEl = document.getElementById('h-list');
+  if(listEl){
+    listEl.addEventListener('click', async e=>{
+      const btn = e.target.closest('.btn-delete');
+      if(!btn) return;
+      const id = btn.dataset.id;
+      const month = btn.dataset.month;
+      if(!confirm(`Delete ${fmtMonth(month)}? This cannot be undone.`)) return;
+      try {
+        await sbDelete('monthly_revenue', `id=eq.${id}`);
+        await loadAllData();
+        const filterProp = document.getElementById('h-prop-filter')?.value || 'WKFCW';
+        listEl.innerHTML = buildHistoryList(S.monthly, filterProp);
+        document.getElementById('h-count').textContent = S.monthly.length + ' months';
+        toast(`Deleted ${fmtMonth(month)}`);
+      } catch(e){ toast('Delete failed: '+e.message,'error'); }
+    });
+  }
 }
 
 // ═══════════════════════════════════════════
