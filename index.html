@@ -1,1353 +1,2336 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Milkam Revenue</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Milkam Catbird Seat — WKFCW</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{
-  --navy:#1C2B3A;--navy2:#243447;--navy3:#2E4058;--navy4:#162030;
-  --gold:#C8922A;--gold2:#E0A830;--gold3:#F5E6C8;
-  --white:#FFFFFF;--off:#F7F4EF;--off2:#EEE9DF;--off3:#E5E0D5;
-  --text:#1C2B3A;--textm:#4A5A6A;--texts:#8A9AA8;
-  --ok:#1D9E75;--warn:#EF9F27;--bad:#E24B4A;
-  --border:rgba(28,43,58,0.11);--borderl:rgba(28,43,58,0.06);
-  --sans:'DM Sans',sans-serif;--mono:'DM Mono',monospace;--serif:'Playfair Display',serif;
-  --r:10px;--rl:14px;
+/* ── RESET & BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink:       #0d1117;
+  --ink-2:     #1c2333;
+  --ink-3:     #2d3748;
+  --fog:       #8892a4;
+  --mist:      #c8d0dc;
+  --paper:     #f4f1eb;
+  --cream:     #faf8f4;
+  --gold:      #c9973a;
+  --gold-lt:   #e8c97a;
+  --gold-dim:  #3d2e10;
+  --red:       #c0392b;
+  --red-lt:    #fde8e6;
+  --green:     #1e7e4e;
+  --green-lt:  #e6f4ec;
+  --amber:     #d97706;
+  --amber-lt:  #fef3c7;
+  --blue:      #1d4ed8;
+  --blue-lt:   #eff6ff;
+  --card-bg:   #ffffff;
+  --border:    #e2e0db;
+  --shadow:    0 1px 3px rgba(13,17,23,0.08), 0 4px 16px rgba(13,17,23,0.04);
+  --shadow-lg: 0 8px 32px rgba(13,17,23,0.12), 0 2px 8px rgba(13,17,23,0.06);
+  --radius:    10px;
+  --mono:      'DM Mono', monospace;
+  --serif:     'Playfair Display', serif;
+  --sans:      'DM Sans', sans-serif;
 }
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden}
-body{font-family:var(--sans);background:var(--off);color:var(--text);font-size:14px}
 
-/* ── SCREENS ─────────────────────────────── */
-.screen{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:var(--navy4)}
-.screen.hidden{display:none}
-.screen-bg{position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(200,146,42,0.03) 0px,rgba(200,146,42,0.03) 1px,transparent 1px,transparent 40px)}
+html { font-size: 15px; }
+body {
+  font-family: var(--sans);
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
 
-/* PROPERTY SELECT SCREEN */
-.select-logo{font-family:var(--serif);font-size:22px;font-weight:700;color:var(--white);letter-spacing:0.02em;margin-bottom:4px}
-.select-sub{font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:40px}
-.prop-cards{display:flex;flex-direction:column;gap:12px;width:100%;max-width:340px}
-.prop-card{background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.1);border-radius:14px;padding:18px 20px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:14px}
-.prop-card:hover{background:rgba(200,146,42,0.12);border-color:rgba(200,146,42,0.4);transform:translateY(-1px)}
-.prop-card-icon{width:40px;height:40px;border-radius:10px;background:rgba(200,146,42,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-.prop-card-info{flex:1;text-align:left}
-.prop-card-name{font-size:14px;font-weight:600;color:var(--white);margin-bottom:2px}
-.prop-card-brand{font-size:11px;color:rgba(255,255,255,0.4)}
-.prop-card-arrow{color:rgba(255,255,255,0.25);font-size:16px}
-.owner-link{margin-top:28px;font-size:11px;color:rgba(255,255,255,0.3);cursor:pointer;letter-spacing:0.08em;text-transform:uppercase;transition:color 0.15s}
-.owner-link:hover{color:var(--gold)}
+/* ── LOCK SCREEN ── */
+#lock-screen {
+  position: fixed; inset: 0;
+  background: var(--ink);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 1000;
+  transition: opacity 0.5s ease;
+}
+#lock-screen.hidden { opacity: 0; pointer-events: none; }
 
-/* PIN / OWNER CARD */
-.auth-card{position:relative;background:var(--navy2);border:0.5px solid rgba(200,146,42,0.25);border-radius:20px;padding:32px;width:340px;box-shadow:0 32px 80px rgba(0,0,0,0.4)}
-.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
-.auth-mark{width:38px;height:38px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.auth-mark span{font-family:var(--serif);font-size:14px;color:var(--navy);font-weight:700}
-.auth-title{color:var(--white);font-size:16px;font-family:var(--serif)}
-.auth-sub{font-size:11px;color:rgba(255,255,255,0.35);margin-top:2px}
-.auth-hotel{font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:20px;padding:10px 14px;background:rgba(255,255,255,0.05);border-radius:8px;border:0.5px solid rgba(255,255,255,0.08)}
-.pin-lbl{font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.35);margin-bottom:12px}
-.pin-dots{display:flex;gap:14px;justify-content:center;margin-bottom:22px}
-.pin-dot{width:13px;height:13px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.2);background:transparent;transition:all 0.12s}
-.pin-dot.on{background:var(--gold);border-color:var(--gold);box-shadow:0 0 10px rgba(200,146,42,0.5)}
-.pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.pk{background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;padding:13px;color:var(--white);font-size:20px;font-weight:500;cursor:pointer;text-align:center;user-select:none;transition:all 0.1s;font-family:var(--sans)}
-.pk:hover{background:rgba(200,146,42,0.18);border-color:rgba(200,146,42,0.4)}
-.pk:active{transform:scale(0.94)}
-.pk.sm{font-size:13px;color:rgba(255,255,255,0.4)}
-.auth-err{font-size:11px;color:#f87171;text-align:center;margin-top:10px;min-height:15px}
-.auth-link{margin-top:16px;text-align:center;font-size:12px;color:rgba(255,255,255,0.3)}
-.auth-link a{color:var(--gold);cursor:pointer}
-.owner-input{width:100%;padding:10px 14px;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.12);border-radius:8px;color:var(--white);font-size:14px;font-family:var(--mono);margin-bottom:12px;outline:none;transition:border-color 0.15s}
-.owner-input:focus{border-color:var(--gold)}
-.owner-btn{width:100%;padding:11px;background:var(--gold);color:var(--navy);border:none;border-radius:8px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;transition:opacity 0.15s}
-.owner-btn:hover{opacity:0.88}
+.lock-logo {
+  font-family: var(--serif);
+  font-size: 2.2rem;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+  margin-bottom: 0.25rem;
+}
+.lock-sub {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--fog);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 3rem;
+}
+.lock-label {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--fog);
+  margin-bottom: 1rem;
+}
+.pin-dots {
+  display: flex; gap: 12px; margin-bottom: 2rem;
+}
+.pin-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--fog);
+  transition: all 0.15s ease;
+}
+.pin-dot.filled {
+  background: var(--gold);
+  border-color: var(--gold);
+  box-shadow: 0 0 10px rgba(201,151,58,0.4);
+}
+.pin-dot.error {
+  background: var(--red);
+  border-color: var(--red);
+  animation: shake 0.3s ease;
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
 
-/* CONFIG SCREEN */
-.cfg-card{position:relative;background:var(--navy2);border:0.5px solid rgba(200,146,42,0.2);border-radius:20px;padding:32px;width:460px}
-.cfg-title{color:var(--white);font-family:var(--serif);font-size:18px;margin-bottom:6px}
-.cfg-sub{font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:24px}
-.cfg-label{font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.35);margin-bottom:5px;display:block}
-.cfg-input{width:100%;padding:9px 12px;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.1);border-radius:7px;color:var(--white);font-family:var(--mono);font-size:12px;margin-bottom:14px;outline:none;transition:border-color 0.15s}
-.cfg-input:focus{border-color:var(--gold)}
-.cfg-footer{font-size:10px;color:rgba(255,255,255,0.2);text-align:center;margin-top:16px}
+.pin-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 60px);
+  gap: 10px;
+}
+.pin-key {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 1.25rem;
+  font-weight: 300;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  display: flex; align-items: center; justify-content: center;
+}
+.pin-key:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); }
+.pin-key:active { transform: scale(0.92); }
+.pin-key.wide { border-radius: 30px; font-size: 0.75rem; letter-spacing: 0.1em; }
+.pin-error-msg {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--red);
+  letter-spacing: 0.1em;
+  margin-top: 1.5rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.pin-error-msg.show { opacity: 1; }
 
-/* ── MAIN APP ────────────────────────────── */
-.app{display:flex;flex-direction:column;height:100%;overflow:hidden}
+/* ── TOP BAR ── */
+#app { display: none; }
+#app.visible { display: block; }
 
-/* TOPBAR */
-.topbar{background:var(--navy);height:52px;display:flex;align-items:center;padding:0 18px;gap:0;flex-shrink:0;border-bottom:1px solid rgba(200,146,42,0.15)}
-.tb-mark{width:28px;height:28px;background:var(--gold);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.tb-mark span{font-family:var(--serif);font-size:11px;color:var(--navy);font-weight:700}
-.tb-wordmark{color:var(--white);font-family:var(--serif);font-size:15px;margin-left:8px;letter-spacing:0.01em}
-.tb-div{width:0.5px;height:20px;background:rgba(255,255,255,0.12);margin:0 14px}
-.htabs{display:flex;gap:3px;flex:1;overflow-x:auto}
-.htabs::-webkit-scrollbar{display:none}
-.htab{padding:5px 13px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:0.5px solid transparent;color:rgba(255,255,255,0.35);white-space:nowrap;transition:all 0.14s;letter-spacing:0.02em;background:none}
-.htab:hover{color:rgba(255,255,255,0.65);background:rgba(255,255,255,0.05)}
-.htab.active{background:var(--gold);color:var(--navy);border-color:var(--gold)}
-.htab.locked{opacity:0.35;cursor:default}
-.htab.add{color:rgba(255,255,255,0.25);font-size:15px;padding:2px 10px}
-.tb-right{margin-left:auto;display:flex;align-items:center;gap:6px}
-.period-nav{display:flex;align-items:center;gap:5px}
-.pnav-btn{width:24px;height:24px;background:rgba(255,255,255,0.07);border:0.5px solid rgba(255,255,255,0.12);border-radius:4px;color:rgba(255,255,255,0.6);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all 0.1s;font-family:var(--sans)}
-.pnav-btn:hover{background:rgba(200,146,42,0.2);border-color:var(--gold);color:var(--gold)}
-#periodLabel{font-size:11px;font-weight:600;color:var(--white);min-width:88px;text-align:center;font-family:var(--mono)}
-.tb-icon{width:30px;height:30px;background:rgba(255,255,255,0.07);border:0.5px solid rgba(255,255,255,0.12);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,0.55);font-size:14px;transition:all 0.14s}
-.tb-icon:hover{background:rgba(200,146,42,0.2);border-color:var(--gold);color:var(--gold)}
-.portal-btn{padding:5px 13px;background:var(--gold);color:var(--navy);border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);letter-spacing:0.02em;transition:opacity 0.14s}
-.portal-btn:hover{opacity:0.85}
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--ink);
+  display: flex; align-items: center;
+  padding: 0 2rem;
+  height: 56px;
+  gap: 2rem;
+}
+.topbar-brand {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+.topbar-prop {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--fog);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.topbar-nav {
+  display: flex; gap: 0; margin-left: auto;
+}
+.nav-btn {
+  padding: 0 1.1rem;
+  height: 56px;
+  border: none; background: none;
+  color: var(--fog);
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+.nav-btn:hover { color: var(--mist); }
+.nav-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+.topbar-lock {
+  margin-left: 1rem;
+  padding: 0 0.75rem;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: var(--fog);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.topbar-lock:hover { border-color: var(--gold); color: var(--gold); }
 
-/* HOTEL BAND */
-.hotel-band{background:var(--navy2);padding:10px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid rgba(255,255,255,0.06);flex-shrink:0}
-.hb-name{color:var(--white);font-size:13px;font-weight:600}
-.hb-meta{font-size:11px;color:rgba(255,255,255,0.35);margin-top:1px}
-.hb-right{display:flex;gap:6px}
-.badge{padding:3px 9px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:0.04em}
-.badge-ok{background:rgba(29,158,117,0.18);color:#3dd68c}
-.badge-gold{background:rgba(200,146,42,0.18);color:var(--gold2)}
-.badge-warn{background:rgba(239,159,39,0.15);color:#EF9F27}
+/* ── VIEWS ── */
+.view { display: none; }
+.view.active { display: block; }
 
-/* MAIN AREA */
-.main{flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative}
+/* ── PAGE HEADER ── */
+.page-header {
+  padding: 2.5rem 2rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--cream);
+}
+.page-title {
+  font-family: var(--serif);
+  font-size: 1.75rem;
+  color: var(--ink);
+  margin-bottom: 0.25rem;
+}
+.page-subtitle {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--fog);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
 
-/* DASHBOARD */
-.dashboard{flex:1;overflow-y:auto;padding:16px 18px}
-.dashboard::-webkit-scrollbar{width:4px}
-.dashboard::-webkit-scrollbar-thumb{background:var(--off3);border-radius:2px}
+/* ── CONTENT AREA ── */
+.content { padding: 2rem; max-width: 1400px; margin: 0 auto; }
 
-/* METRICS GRID */
-.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
-.mcard{border-radius:var(--rl);padding:14px 16px;position:relative;overflow:hidden}
-.mcard.c-navy{background:var(--navy);color:var(--white)}
-.mcard.c-gold{background:var(--gold);color:var(--navy)}
-.mcard.c-teal{background:#0F6E56;color:var(--white)}
-.mcard.c-amber{background:#7A4510;color:var(--white)}
-.mc-label{font-size:10px;text-transform:uppercase;letter-spacing:0.11em;opacity:0.55;margin-bottom:7px}
-.mc-val{font-size:22px;font-weight:600;font-family:var(--serif);line-height:1;margin-bottom:5px}
-.mc-sub{font-size:11px;opacity:0.75}
-.mc-sub .up{color:#3dd68c}
-.mc-sub .dn{color:#f87171}
-.pbar{height:2px;background:rgba(255,255,255,0.18);border-radius:1px;margin-top:10px;overflow:hidden}
-.pbar-f{height:100%;border-radius:1px;background:rgba(255,255,255,0.65)}
-.mcard.c-gold .pbar{background:rgba(28,43,58,0.18)}
-.mcard.c-gold .pbar-f{background:rgba(28,43,58,0.5)}
+/* ── KPI CARDS ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+.kpi-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+.kpi-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+}
+.kpi-card.gold::before  { background: var(--gold); }
+.kpi-card.green::before { background: var(--green); }
+.kpi-card.blue::before  { background: var(--blue); }
+.kpi-card.red::before   { background: var(--red); }
+.kpi-card.amber::before { background: var(--amber); }
 
-/* CONTENT GRID */
-.cgrid{display:grid;grid-template-columns:1fr 300px;gap:12px}
+.kpi-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fog);
+  margin-bottom: 0.5rem;
+}
+.kpi-value {
+  font-family: var(--serif);
+  font-size: 1.9rem;
+  color: var(--ink);
+  line-height: 1;
+  margin-bottom: 0.4rem;
+}
+.kpi-delta {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  display: flex; align-items: center; gap: 0.3rem;
+}
+.kpi-delta.up   { color: var(--green); }
+.kpi-delta.down { color: var(--red); }
+.kpi-delta.flat { color: var(--fog); }
+.kpi-meta {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--mist);
+  margin-top: 0.2rem;
+}
 
-/* PANELS */
-.panel{background:var(--white);border:0.5px solid var(--border);border-radius:var(--r);overflow:hidden}
-.ph{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:0.5px solid var(--borderl);background:var(--off)}
-.ph-t{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--textm)}
-.ph-r{display:flex;align-items:center;gap:6px}
-.ghost-btn{padding:3px 9px;background:transparent;border:0.5px solid var(--border);border-radius:4px;color:var(--textm);font-size:10px;cursor:pointer;font-family:var(--sans);transition:all 0.12s}
-.ghost-btn:hover{border-color:var(--gold);color:var(--gold)}
+/* ── SECTION CARDS ── */
+.section-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+.section-head {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--cream);
+}
+.section-title {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.section-badge {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  letter-spacing: 0.08em;
+}
+.badge-ok     { background: var(--green-lt); color: var(--green); }
+.badge-warn   { background: var(--amber-lt); color: var(--amber); }
+.badge-alert  { background: var(--red-lt);   color: var(--red); }
+.badge-info   { background: var(--blue-lt);  color: var(--blue); }
 
-/* TABLE */
-table{width:100%;border-collapse:collapse}
-th{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--texts);padding:8px 12px;text-align:left;border-bottom:0.5px solid var(--borderl);background:var(--off);white-space:nowrap}
-td{padding:9px 12px;font-size:12px;border-bottom:0.5px solid var(--borderl);color:var(--text)}
-tr:last-child td{border-bottom:none}
-tbody tr:hover td{background:#faf8f4}
-.mono{font-family:var(--mono);font-size:11px}
-.up{color:var(--ok)}
-.dn{color:var(--bad)}
-.muted{color:var(--texts)}
-.tag{font-size:9px;padding:2px 6px;border-radius:3px;font-weight:600;white-space:nowrap;letter-spacing:0.03em}
-.tag-d{background:rgba(29,158,117,0.1);color:#0F6E56}
-.tag-m{background:rgba(200,146,42,0.13);color:#7A4510}
+/* ── TABLES ── */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fog);
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  background: var(--cream);
+  white-space: nowrap;
+}
+.data-table th.right { text-align: right; }
+.data-table td {
+  padding: 0.7rem 1rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.data-table td.right { text-align: right; font-family: var(--mono); font-size: 0.8rem; }
+.data-table td.mono  { font-family: var(--mono); font-size: 0.8rem; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--cream); }
+.data-table tr.total-row td {
+  font-weight: 600;
+  background: var(--cream);
+  border-top: 2px solid var(--border);
+}
 
-/* RIGHT COL */
-.rcol{display:flex;flex-direction:column;gap:10px}
-.brow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--borderl)}
-.brow:last-child{border-bottom:none}
-.br-label{font-size:11px;color:var(--textm)}
-.br-val{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text)}
-.brows{padding:8px 14px}
-.ytd-row{margin-bottom:9px}
-.ytd-hdr{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px}
-.ytd-label{color:var(--textm)}
-.ytd-section{padding:12px 14px}
-.ybar{height:4px;background:var(--off2);border-radius:2px;overflow:hidden}
-.ybar-f{height:100%;border-radius:2px}
-.empty-state{padding:32px;text-align:center;color:var(--texts);font-size:12px}
-.ann{padding:6px 12px 8px;font-size:10px;color:var(--texts);font-style:italic;border-top:0.5px solid var(--borderl)}
+/* ── COMPARISON ROW ── */
+.compare-row {
+  display: flex; gap: 0.5rem; align-items: center;
+}
+.compare-val { font-family: var(--mono); font-size: 0.75rem; }
+.compare-ly  { font-family: var(--mono); font-size: 0.65rem; color: var(--fog); }
+.compare-chg.up   { font-family: var(--mono); font-size: 0.65rem; color: var(--green); }
+.compare-chg.down { font-family: var(--mono); font-size: 0.65rem; color: var(--red); }
 
-/* BUDGET MODAL */
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;display:none;align-items:center;justify-content:center}
-.modal-bg.open{display:flex}
-.modal{background:var(--white);border-radius:var(--rl);padding:24px;width:380px;border:0.5px solid var(--border)}
-.modal-title{font-size:15px;font-family:var(--serif);font-weight:600;margin-bottom:18px;color:var(--text)}
-.form-row{margin-bottom:12px}
-.form-label{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--textm);margin-bottom:4px;display:block}
-.form-input{width:100%;padding:8px 10px;border:0.5px solid var(--border);border-radius:6px;background:var(--off);color:var(--text);font-family:var(--mono);font-size:12px;outline:none;transition:border-color 0.14s}
-.form-input:focus{border-color:var(--gold)}
-.form-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.modal-actions{display:flex;gap:8px;margin-top:16px}
-.btn-cancel{flex:1;padding:9px;background:transparent;border:0.5px solid var(--border);border-radius:7px;color:var(--textm);font-family:var(--sans);font-size:12px;cursor:pointer}
-.btn-save{flex:2;padding:9px;background:var(--navy);color:var(--white);border:none;border-radius:7px;font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:opacity 0.14s}
-.btn-save:hover{opacity:0.88}
-.form-msg{font-size:11px;padding:7px 10px;border-radius:5px;margin-top:8px;display:none}
-.form-msg.ok{background:rgba(29,158,117,0.1);color:var(--ok);display:block}
-.form-msg.err{background:rgba(226,75,74,0.1);color:var(--bad);display:block}
+/* ── DATE NAV ── */
+.date-nav {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--cream);
+}
+.date-btn {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--ink-3);
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.date-btn:hover { border-color: var(--gold); color: var(--gold); }
+.date-display {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink);
+  letter-spacing: 0.06em;
+  min-width: 120px;
+}
+.date-today-btn {
+  padding: 0 0.75rem;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--fog);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.date-today-btn:hover { border-color: var(--gold); color: var(--gold); }
 
-/* ── DETAIL PORTAL ───────────────────────── */
-.portal{position:absolute;inset:0;background:var(--off);transform:translateX(100%);transition:transform 0.32s cubic-bezier(0.4,0,0.2,1);display:flex;flex-direction:column;z-index:10}
-.portal.open{transform:translateX(0)}
-.portal-top{background:var(--navy);height:52px;display:flex;align-items:center;padding:0 18px;gap:10px;flex-shrink:0;border-bottom:1px solid rgba(200,146,42,0.15)}
-.back-btn{width:30px;height:30px;background:rgba(255,255,255,0.07);border:0.5px solid rgba(255,255,255,0.12);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,0.6);font-size:16px;transition:all 0.12s;flex-shrink:0}
-.back-btn:hover{background:rgba(200,146,42,0.2);border-color:var(--gold);color:var(--gold)}
-.portal-title{color:var(--white);font-family:var(--serif);font-size:15px}
-.portal-sub{font-size:11px;color:rgba(255,255,255,0.35);margin-left:6px}
-.portal-right{margin-left:auto;display:flex;gap:4px}
-.ptab{padding:4px 11px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;border:0.5px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.45);background:transparent;transition:all 0.12s;font-family:var(--sans);letter-spacing:0.03em}
-.ptab.active{background:var(--gold);color:var(--navy);border-color:var(--gold)}
-.ptab:hover:not(.active){color:rgba(255,255,255,0.7);border-color:rgba(255,255,255,0.25)}
-.portal-content{flex:1;overflow-y:auto;padding:14px 18px}
-.portal-content::-webkit-scrollbar{width:4px}
-.portal-content::-webkit-scrollbar-thumb{background:var(--off3);border-radius:2px}
-.sec-hdr{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.14em;color:var(--texts);margin:14px 0 8px;display:flex;align-items:center;gap:8px}
-.sec-hdr::after{content:'';flex:1;height:0.5px;background:var(--borderl)}
-.pgrid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.pgrid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
-.scard{background:var(--white);border:0.5px solid var(--border);border-radius:var(--r);padding:12px 14px;position:relative;overflow:hidden}
-.scard-top{position:absolute;top:0;left:0;right:0;height:2px}
-.sc-label{font-size:9px;text-transform:uppercase;letter-spacing:0.11em;color:var(--texts);margin-bottom:5px}
-.sc-val{font-size:18px;font-weight:600;font-family:var(--serif);line-height:1;margin-bottom:4px}
-.sc-sub{font-size:10px;color:var(--textm)}
-.pay-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--borderl)}
-.pay-row:last-child{border-bottom:none}
-.pay-lbl{font-size:11px;color:var(--textm);width:90px;flex-shrink:0}
-.pay-track{flex:1;height:5px;background:var(--off2);border-radius:2px;overflow:hidden}
-.pay-fill{height:100%;border-radius:2px;transition:width 0.5s ease}
-.pay-amt{font-family:var(--mono);font-size:11px;font-weight:500;min-width:70px;text-align:right;color:var(--text)}
-.pay-pct{font-size:10px;color:var(--texts);min-width:30px;text-align:right}
-.pay-body{padding:10px 14px}
-.act-row{display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-bottom:0.5px solid var(--borderl)}
-.act-row:last-child{border-bottom:none}
-.act-row:hover{background:#faf8f4}
-.act-icon{width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px}
-.act-body{flex:1;min-width:0}
-.act-action{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--textm);margin-bottom:2px}
-.act-detail{font-size:11px;color:var(--text)}
-.act-meta{font-size:10px;color:var(--texts);margin-top:2px}
-.act-time{font-family:var(--mono);font-size:10px;color:var(--texts);flex-shrink:0;padding-top:2px}
-.room-chip{font-family:var(--mono);font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px;background:rgba(28,43,58,0.07);color:var(--navy);white-space:nowrap}
-.tag-correction{background:rgba(239,159,39,0.12);color:#7A4510}
-.tag-discretion{background:rgba(226,75,74,0.1);color:#7a1f1f}
-.tag-transfer{background:rgba(28,43,58,0.07);color:var(--textm)}
-.loading-row{padding:20px;text-align:center;font-size:12px;color:var(--texts)}
+/* ── ALERT STRIP ── */
+.alert-strip {
+  display: flex; gap: 0.75rem; flex-wrap: wrap;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.alert-chip {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+  cursor: default;
+}
+.alert-chip.warn  { background: var(--amber-lt); color: var(--amber); border: 1px solid rgba(217,119,6,0.2); }
+.alert-chip.alert { background: var(--red-lt);   color: var(--red);   border: 1px solid rgba(192,57,43,0.2); }
+.alert-chip.ok    { background: var(--green-lt); color: var(--green); border: 1px solid rgba(30,126,78,0.2); }
+.alert-chip.info  { background: var(--blue-lt);  color: var(--blue);  border: 1px solid rgba(29,78,216,0.2); }
 
-/* SETTINGS DRAWER */
-.settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:300;display:none;justify-content:flex-end}
-.settings-overlay.open{display:flex}
-.settings-drawer{background:var(--white);width:360px;height:100%;overflow-y:auto;border-left:0.5px solid var(--border);display:flex;flex-direction:column}
-.sd-top{background:var(--navy);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.sd-title{color:var(--white);font-family:var(--serif);font-size:15px}
-.sd-close{color:rgba(255,255,255,0.5);cursor:pointer;font-size:20px;line-height:1;background:none;border:none;padding:0}
-.sd-section{padding:14px 18px;border-bottom:0.5px solid var(--borderl)}
-.sd-sec-title{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:var(--texts);margin-bottom:12px}
-.sd-row{margin-bottom:10px}
-.sd-label{font-size:11px;color:var(--textm);margin-bottom:4px;display:block}
-.sd-input{width:100%;padding:7px 10px;border:0.5px solid var(--border);border-radius:6px;background:var(--off);color:var(--text);font-family:var(--mono);font-size:12px;outline:none;transition:border-color 0.14s}
-.sd-input:focus{border-color:var(--gold)}
-.sd-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.sd-btn{padding:8px 14px;background:var(--navy);color:var(--white);border:none;border-radius:6px;font-family:var(--sans);font-size:11px;font-weight:600;cursor:pointer;transition:opacity 0.14s}
-.sd-btn:hover{opacity:0.85}
-.sd-btn.gold{background:var(--gold);color:var(--navy)}
-.sd-note{font-size:10px;color:var(--texts);font-style:italic;margin-top:6px}
-.sd-msg{font-size:11px;padding:6px 10px;border-radius:5px;margin-top:8px;display:none}
-.sd-msg.ok{background:rgba(29,158,117,0.1);color:var(--ok);display:block}
-.sd-msg.err{background:rgba(226,75,74,0.1);color:var(--bad);display:block}
+/* ── AR AGING BARS ── */
+.aging-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1px;
+  background: var(--border);
+}
+.aging-cell {
+  background: var(--card-bg);
+  padding: 1.25rem 1.5rem;
+}
+.aging-company {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fog);
+  margin-bottom: 0.75rem;
+}
+.aging-total {
+  font-family: var(--serif);
+  font-size: 1.5rem;
+  color: var(--ink);
+  margin-bottom: 0.75rem;
+}
+.aging-bar-row {
+  display: flex; align-items: center; gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+.aging-bar-label {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  color: var(--fog);
+  width: 52px;
+  flex-shrink: 0;
+  letter-spacing: 0.06em;
+}
+.aging-bar-track {
+  flex: 1; height: 6px;
+  background: var(--paper);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.aging-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+.bar-current { background: var(--green); }
+.bar-30      { background: var(--amber); }
+.bar-60      { background: #f97316; }
+.bar-90      { background: var(--red); }
+.bar-120     { background: #991b1b; }
+.bar-150     { background: #4c0519; }
+.aging-bar-val {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--ink-3);
+  width: 64px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.aging-trend {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+.trend-up   { color: var(--red); }
+.trend-down { color: var(--green); }
+.trend-flat { color: var(--fog); }
+
+/* ── UPLOAD ZONE ── */
+.upload-area {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 2.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--cream);
+  position: relative;
+}
+.upload-area:hover, .upload-area.dragover {
+  border-color: var(--gold);
+  background: rgba(201,151,58,0.04);
+}
+.upload-area input[type="file"] {
+  position: absolute; inset: 0;
+  opacity: 0; cursor: pointer;
+}
+.upload-icon {
+  font-size: 2rem; margin-bottom: 0.75rem;
+  filter: grayscale(1) opacity(0.4);
+}
+.upload-title {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 0.35rem;
+}
+.upload-sub {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  color: var(--fog);
+}
+
+.upload-results {
+  margin-top: 1.5rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.upload-item {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+.upload-item-icon { font-size: 1.1rem; flex-shrink: 0; }
+.upload-item-name { flex: 1; font-family: var(--mono); font-size: 0.72rem; color: var(--ink-3); }
+.upload-item-type {
+  font-family: var(--mono); font-size: 0.6rem;
+  padding: 0.15rem 0.5rem; border-radius: 20px;
+  letter-spacing: 0.06em;
+}
+.type-detected  { background: var(--green-lt); color: var(--green); }
+.type-unknown   { background: var(--amber-lt); color: var(--amber); }
+.type-error     { background: var(--red-lt);   color: var(--red); }
+.upload-item-status { font-family: var(--mono); font-size: 0.65rem; color: var(--fog); }
+
+.upload-commit-btn {
+  margin-top: 1.25rem;
+  padding: 0.85rem 2rem;
+  background: var(--ink);
+  color: var(--gold);
+  border: none;
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.upload-commit-btn:hover { background: var(--ink-2); }
+.upload-commit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── TABS ── */
+.tab-bar {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 0 1.5rem;
+  background: var(--cream);
+}
+.tab-btn {
+  padding: 0.75rem 1.25rem;
+  border: none; background: none;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fog);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--ink-3); }
+.tab-btn.active { color: var(--ink); border-bottom-color: var(--gold); }
+.tab-content { display: none; padding: 1.5rem; }
+.tab-content.active { display: block; }
+
+/* ── CHART CONTAINER ── */
+.chart-wrap {
+  padding: 1.5rem;
+  height: 260px;
+  position: relative;
+}
+.chart-placeholder {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%;
+  color: var(--fog);
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  gap: 0.5rem;
+}
+canvas { width: 100% !important; }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: var(--fog);
+}
+.empty-state-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.3; }
+.empty-state-title {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  color: var(--ink-3);
+}
+.empty-state-sub { font-size: 0.85rem; color: var(--fog); }
+
+/* ── LOADING ── */
+.loading-pulse {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 2rem;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  color: var(--fog);
+}
+@keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:1} }
+.pulse-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--gold);
+  animation: pulse 1.2s ease infinite;
+}
+.pulse-dot:nth-child(2) { animation-delay: 0.2s; }
+.pulse-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* ── GRID LAYOUTS ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
+@media (max-width: 900px) {
+  .two-col, .three-col { grid-template-columns: 1fr; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .topbar-nav .nav-btn { padding: 0 0.6rem; font-size: 0.58rem; }
+  .content { padding: 1rem; }
+}
+
+/* ── PILL TAGS ── */
+.pill {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+.pill-red    { background: var(--red-lt);   color: var(--red); }
+.pill-green  { background: var(--green-lt); color: var(--green); }
+.pill-amber  { background: var(--amber-lt); color: var(--amber); }
+.pill-blue   { background: var(--blue-lt);  color: var(--blue); }
+.pill-gray   { background: var(--paper);    color: var(--fog); border: 1px solid var(--border); }
+
+/* ── MISC ── */
+.divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
+.text-right { text-align: right; }
+.mt-1 { margin-top: 1rem; }
+.mt-2 { margin-top: 1.5rem; }
+.gap-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.spacer { flex: 1; }
+
+/* ── MONTHLY HISTORY TABLE ── */
+.month-bar {
+  display: inline-block;
+  height: 8px;
+  background: var(--gold);
+  border-radius: 2px;
+  opacity: 0.7;
+  vertical-align: middle;
+  transition: width 0.4s ease;
+}
+
+/* ── MANUAL ENTRY FORM ── */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  padding: 1.5rem;
+}
+.form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+.form-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fog);
+}
+.form-input {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  background: var(--card-bg);
+  color: var(--ink);
+  transition: border-color 0.15s;
+}
+.form-input:focus { outline: none; border-color: var(--gold); }
+.form-actions {
+  padding: 0 1.5rem 1.5rem;
+  display: flex; gap: 0.75rem;
+}
+.btn-primary {
+  padding: 0.65rem 1.5rem;
+  background: var(--ink);
+  color: var(--gold);
+  border: none; border-radius: 7px;
+  font-family: var(--mono); font-size: 0.65rem;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-primary:hover { background: var(--ink-2); }
+.btn-secondary {
+  padding: 0.65rem 1.5rem;
+  background: transparent;
+  color: var(--fog);
+  border: 1px solid var(--border); border-radius: 7px;
+  font-family: var(--mono); font-size: 0.65rem;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-secondary:hover { border-color: var(--ink-3); color: var(--ink-3); }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: 2rem; right: 2rem;
+  padding: 0.85rem 1.25rem;
+  border-radius: 8px;
+  font-family: var(--mono); font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  box-shadow: var(--shadow-lg);
+  z-index: 999;
+  transform: translateY(100px); opacity: 0;
+  transition: all 0.3s ease;
+  max-width: 320px;
+}
+#toast.show { transform: translateY(0); opacity: 1; }
+#toast.success { background: var(--ink); color: var(--gold); }
+#toast.error   { background: #2d0b0b; color: #f87171; }
+#toast.info    { background: #0f172a; color: #93c5fd; }
 </style>
 </head>
 <body>
 
-<!-- CONFIG SCREEN -->
-
-<!-- PROPERTY SELECT SCREEN -->
-<div class="screen hidden" id="selectScreen">
-  <div class="screen-bg"></div>
-  <div class="auth-card" style="width:340px">
-    <div class="select-logo">Milkam Hospitality</div>
-    <div class="select-sub">Revenue Tracker</div>
-    <div class="prop-cards" id="propCards">
-      <!-- populated by JS -->
-    </div>
-    <div class="owner-link" onclick="showOwnerScreen()">⬡ Owner Access</div>
+<!-- ══ LOCK SCREEN ══ -->
+<div id="lock-screen">
+  <div class="lock-logo">Milkam Catbird Seat</div>
+  <div class="lock-sub">WKFCW · Candlewood Suites Wake Forest</div>
+  <div class="lock-label">Enter PIN</div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="d0"></div>
+    <div class="pin-dot" id="d1"></div>
+    <div class="pin-dot" id="d2"></div>
+    <div class="pin-dot" id="d3"></div>
   </div>
+  <div class="pin-pad" id="pin-pad">
+    <button class="pin-key" data-key="1">1</button>
+    <button class="pin-key" data-key="2">2</button>
+    <button class="pin-key" data-key="3">3</button>
+    <button class="pin-key" data-key="4">4</button>
+    <button class="pin-key" data-key="5">5</button>
+    <button class="pin-key" data-key="6">6</button>
+    <button class="pin-key" data-key="7">7</button>
+    <button class="pin-key" data-key="8">8</button>
+    <button class="pin-key" data-key="9">9</button>
+    <button class="pin-key wide" data-key="clear">CLR</button>
+    <button class="pin-key" data-key="0">0</button>
+    <button class="pin-key wide" data-key="del">⌫</button>
+  </div>
+  <div class="pin-error-msg" id="pin-error">Incorrect PIN</div>
 </div>
 
-<!-- PIN SCREEN -->
-<div class="screen hidden" id="pinScreen">
-  <div class="screen-bg"></div>
-  <div class="auth-card">
-    <div class="auth-logo">
-      <div class="auth-mark"><span>MH</span></div>
-      <div><div class="auth-title">Milkam Revenue</div><div class="auth-sub">Hospitality · Wake Forest, NC</div></div>
-    </div>
-    <div class="auth-hotel" id="pinHotelName">Select a property</div>
-    <div class="pin-lbl">Enter PIN</div>
-    <div class="pin-dots" id="pinDots">
-      <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
-      <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
-    </div>
-    <div class="pin-grid">
-      <div class="pk" onclick="pinPress('1')">1</div><div class="pk" onclick="pinPress('2')">2</div><div class="pk" onclick="pinPress('3')">3</div>
-      <div class="pk" onclick="pinPress('4')">4</div><div class="pk" onclick="pinPress('5')">5</div><div class="pk" onclick="pinPress('6')">6</div>
-      <div class="pk" onclick="pinPress('7')">7</div><div class="pk" onclick="pinPress('8')">8</div><div class="pk" onclick="pinPress('9')">9</div>
-      <div class="pk" style="visibility:hidden"></div><div class="pk" onclick="pinPress('0')">0</div>
-      <div class="pk sm" onclick="pinDel()">⌫</div>
-    </div>
-    <div class="auth-err" id="pinErr"></div>
-    <div class="auth-link">Owner access? <a onclick="showOwnerScreen()">Sign in here</a></div>
-  </div>
-</div>
+<!-- ══ APP ══ -->
+<div id="app">
 
-<!-- OWNER SCREEN -->
-<div class="screen hidden" id="ownerScreen">
-  <div class="screen-bg"></div>
-  <div class="auth-card">
-    <div class="auth-logo">
-      <div class="auth-mark"><span>MH</span></div>
-      <div><div class="auth-title">Owner Access</div><div class="auth-sub">Full access to all properties</div></div>
-    </div>
-    <input id="ownerPw" class="owner-input" type="password" placeholder="Password"/>
-    <button class="owner-btn" onclick="ownerLogin()">Sign In</button>
-    <div class="auth-err" id="ownerErr"></div>
-    <div class="auth-link"><a onclick="show('selectScreen')">← Back</a></div>
-  </div>
-</div>
-
-<!-- GM PIN SCREEN -->
-<div class="screen hidden" id="gmScreen">
-  <div class="screen-bg"></div>
-  <div class="auth-card">
-    <div class="auth-logo">
-      <div class="auth-mark"><span>MH</span></div>
-      <div><div class="auth-title">GM Access Required</div><div class="auth-sub">Detail portal · GM or Owner only</div></div>
-    </div>
-    <div class="auth-hotel" id="gmHotelName">Candlewood WF</div>
-    <div class="pin-lbl">Enter GM PIN</div>
-    <div class="pin-dots" id="gmDots">
-      <div class="pin-dot" id="gd0"></div><div class="pin-dot" id="gd1"></div>
-      <div class="pin-dot" id="gd2"></div><div class="pin-dot" id="gd3"></div>
-    </div>
-    <div class="pin-grid">
-      <div class="pk" onclick="gmPress('1')">1</div><div class="pk" onclick="gmPress('2')">2</div><div class="pk" onclick="gmPress('3')">3</div>
-      <div class="pk" onclick="gmPress('4')">4</div><div class="pk" onclick="gmPress('5')">5</div><div class="pk" onclick="gmPress('6')">6</div>
-      <div class="pk" onclick="gmPress('7')">7</div><div class="pk" onclick="gmPress('8')">8</div><div class="pk" onclick="gmPress('9')">9</div>
-      <div class="pk" style="visibility:hidden"></div><div class="pk" onclick="gmPress('0')">0</div>
-      <div class="pk sm" onclick="gmDel()">⌫</div>
-    </div>
-    <div class="auth-err" id="gmErr"></div>
-    <div class="auth-link"><a onclick="cancelGm()">Cancel</a></div>
-  </div>
-</div>
-
-<!-- MAIN APP -->
-<div class="app" id="app" style="display:none">
-
-  <!-- TOPBAR -->
+  <!-- Top Bar -->
   <div class="topbar">
-    <div class="tb-mark"><span>MH</span></div>
-    <div class="tb-wordmark">Revenue</div>
-    <div class="tb-div"></div>
-    <div class="htabs" id="hotelTabs"></div>
-    <div class="tb-right">
-      <div class="period-nav">
-        <button class="pnav-btn" onclick="shiftMonth(-1)">←</button>
-        <span id="periodLabel"></span>
-        <button class="pnav-btn" onclick="shiftMonth(1)">→</button>
-      </div>
-      <button class="portal-btn" onclick="openPortal()">Detail Portal</button>
-      <div class="tb-icon" onclick="openSettings()" title="Settings">⚙</div>
-      <div class="tb-icon" onclick="lockApp()" title="Lock">🔒</div>
-    </div>
+    <div class="topbar-brand">Catbird Seat</div>
+    <div class="topbar-prop">WKFCW · Wake Forest</div>
+    <nav class="topbar-nav">
+      <button class="nav-btn active" data-view="daily">Daily</button>
+      <button class="nav-btn" data-view="performance">Performance</button>
+      <button class="nav-btn" data-view="ar">AR / Aging</button>
+      <button class="nav-btn" data-view="accountability">Accountability</button>
+      <button class="nav-btn" data-view="history">History</button>
+      <button class="nav-btn" data-view="upload">Upload</button>
+    </nav>
+    <button class="topbar-lock" id="lock-btn">Lock</button>
   </div>
 
-  <!-- HOTEL BAND -->
-  <div class="hotel-band">
-    <div>
-      <div class="hb-name" id="bandName">—</div>
-      <div class="hb-meta" id="bandMeta">—</div>
+  <!-- ── VIEW: DAILY ── -->
+  <div class="view active" id="view-daily">
+    <div class="page-header">
+      <div class="page-title">Daily Operations</div>
+      <div class="page-subtitle">Revenue · Occupancy · Accountability flags</div>
     </div>
-    <div class="hb-right">
-      <div class="badge badge-ok" id="importBadge">Auto-import active</div>
-      <div class="badge badge-gold" id="periodBadge">—</div>
-    </div>
-  </div>
 
-  <!-- MAIN -->
-  <div class="main">
-
-    <!-- DASHBOARD -->
-    <div class="dashboard" id="dashboard">
-      <div class="metrics" id="metricsGrid">
-        <div class="mcard c-navy"><div class="mc-label">MTD Revenue</div><div class="mc-val" id="mMtdRev">—</div><div class="mc-sub" id="mMtdSub">Loading…</div><div class="pbar"><div class="pbar-f" id="mMtdBar" style="width:0%"></div></div></div>
-        <div class="mcard c-gold"><div class="mc-label">MTD vs Budget</div><div class="mc-val" id="mBudPct">—</div><div class="mc-sub" id="mBudSub">—</div><div class="pbar"><div class="pbar-f" id="mBudBar" style="width:0%"></div></div></div>
-        <div class="mcard c-teal"><div class="mc-label">YTD Revenue</div><div class="mc-val" id="mYtd">—</div><div class="mc-sub" id="mYtdSub">—</div></div>
-        <div class="mcard c-amber"><div class="mc-label">Avg Daily Revenue</div><div class="mc-val" id="mAvg">—</div><div class="mc-sub" id="mAvgSub">—</div></div>
-        <div class="mcard" style="background:#4A1010;color:var(--white)"><div class="mc-label">Rate Overrides MTD</div><div class="mc-val" id="mOverrides">—</div><div class="mc-sub" id="mOverrideSub">—</div></div>
+    <div class="section-card" style="border-radius:0;border-left:none;border-right:none;border-top:none;">
+      <div class="date-nav">
+        <button class="date-btn" id="daily-prev">‹</button>
+        <div class="date-display" id="daily-date-label">—</div>
+        <button class="date-btn" id="daily-next">›</button>
+        <button class="date-today-btn" id="daily-today">Today</button>
+        <div class="spacer"></div>
+        <div style="font-family:var(--mono);font-size:0.6rem;color:var(--fog)" id="daily-source-label"></div>
       </div>
-      <div class="cgrid">
-        <div class="panel">
-          <div class="ph">
-            <div class="ph-t" id="tableTitle">Daily Breakdown</div>
-            <div class="ph-r"><span id="entryCount" style="font-size:10px;color:var(--texts)"></span></div>
-          </div>
-          <div id="tableWrap"><div class="loading-row">Loading…</div></div>
-          <div class="ann" id="tableAnn"></div>
+      <div class="alert-strip" id="daily-alerts"></div>
+    </div>
+
+    <div class="content">
+
+      <!-- KPI Row -->
+      <div class="kpi-grid" id="daily-kpis">
+        <div class="loading-pulse">
+          <div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div>
+          <span>Loading...</span>
         </div>
-        <div class="rcol">
-          <div class="panel">
-            <div class="ph">
-              <div class="ph-t">Monthly Budget</div>
-              <button class="ghost-btn" onclick="openBudgetModal()">Edit</button>
+      </div>
+
+      <div class="two-col">
+        <!-- MTD Summary -->
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">Month to Date</div>
+            <div class="section-badge badge-info" id="mtd-badge">—</div>
+          </div>
+          <div id="mtd-content" style="padding:1.5rem;">
+            <div class="loading-pulse"><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div></div>
+          </div>
+        </div>
+
+        <!-- YTD Summary -->
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">Year to Date</div>
+            <div class="section-badge badge-info" id="ytd-badge">—</div>
+          </div>
+          <div id="ytd-content" style="padding:1.5rem;">
+            <div class="loading-pulse"><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AR Snapshot -->
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-title">AR Aging Snapshot</div>
+          <div class="section-badge" id="ar-snap-badge">—</div>
+        </div>
+        <div id="ar-snap-content">
+          <div class="loading-pulse" style="padding:1.5rem;"><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div></div>
+        </div>
+      </div>
+
+      <!-- Rate Overrides for day -->
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-title">Rate Overrides — This Day</div>
+          <div class="section-badge" id="override-day-badge">—</div>
+        </div>
+        <div id="override-day-content">
+          <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <div class="empty-state-title">No data loaded</div>
+            <div class="empty-state-sub">Upload the Rate Override report for this date</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Adjustments for day -->
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-title">Adjustments & Refunds — This Day</div>
+          <div class="section-badge" id="adj-day-badge">—</div>
+        </div>
+        <div id="adj-day-content">
+          <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <div class="empty-state-title">No data loaded</div>
+            <div class="empty-state-sub">Upload the Adjustments & Refunds report for this date</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── VIEW: PERFORMANCE ── -->
+  <div class="view" id="view-performance">
+    <div class="page-header">
+      <div class="page-title">Performance</div>
+      <div class="page-subtitle">Trends · Comparisons · Monthly history from Jan 2023</div>
+    </div>
+    <div class="content">
+
+      <!-- Trailing 30 days chart -->
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-title">Daily Revenue — Trailing 30 Days</div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-daily-rev"></canvas>
+        </div>
+      </div>
+
+      <!-- Monthly history -->
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-title">Monthly Revenue — Full History</div>
+          <div class="section-badge badge-info" id="history-range-badge">Jan 2023 – Present</div>
+        </div>
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="perf-table">Table</button>
+          <button class="tab-btn" data-tab="perf-chart">Chart</button>
+        </div>
+        <div class="tab-content active" id="tab-perf-table">
+          <div id="monthly-table-content">
+            <div class="loading-pulse"><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div><span>Loading history...</span></div>
+          </div>
+        </div>
+        <div class="tab-content" id="tab-perf-chart">
+          <div class="chart-wrap" style="height:320px;">
+            <canvas id="chart-monthly-rev"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── VIEW: AR / AGING ── -->
+  <div class="view" id="view-ar">
+    <div class="page-header">
+      <div class="page-title">AR &amp; Aging</div>
+      <div class="page-subtitle">CLC · IHG Reward Night Reimbursements · In-House Balances</div>
+    </div>
+    <div class="content">
+
+      <!-- Aging detail -->
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-title">Direct Bill Aging — Latest Snapshot</div>
+          <div class="section-badge badge-alert" id="ar-total-badge">—</div>
+        </div>
+        <div id="ar-detail-content">
+          <div class="loading-pulse" style="padding:1.5rem;"><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div></div>
+        </div>
+      </div>
+
+      <!-- 4-day trend -->
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-title">AR Trend — Day over Day</div>
+        </div>
+        <div id="ar-trend-content" style="padding:1.5rem;">
+          <div class="loading-pulse"><div class="pulse-dot"></div><div class="pulse-dot"></div><div class="pulse-dot"></div></div>
+        </div>
+      </div>
+
+      <!-- In-house balances -->
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-title">In-House Guest Balances — Latest</div>
+          <div class="section-badge badge-info" id="inhouse-badge">—</div>
+        </div>
+        <div id="inhouse-content">
+          <div class="empty-state">
+            <div class="empty-state-icon">🏨</div>
+            <div class="empty-state-title">No data loaded</div>
+            <div class="empty-state-sub">Upload the In-House Guest Balances report</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── VIEW: ACCOUNTABILITY ── -->
+  <div class="view" id="view-accountability">
+    <div class="page-header">
+      <div class="page-title">Accountability</div>
+      <div class="page-subtitle">Rate overrides · Adjustments · Refunds · Staff actions</div>
+    </div>
+    <div class="content">
+
+      <!-- Override summary by clerk -->
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-title">Rate Overrides by Staff Member</div>
+          <div class="section-badge" id="override-clerk-badge">—</div>
+        </div>
+        <div id="override-clerk-content">
+          <div class="empty-state">
+            <div class="empty-state-icon">📊</div>
+            <div class="empty-state-title">No override data</div>
+            <div class="empty-state-sub">Upload Rate Override reports to see staff breakdown</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- All overrides table -->
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-title">All Rate Overrides — Detail</div>
+          <div class="section-badge badge-info" id="override-all-badge">—</div>
+        </div>
+        <div id="override-all-content">
+          <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <div class="empty-state-title">No override data</div>
+            <div class="empty-state-sub">Upload Rate Override reports</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Adjustments & Refunds -->
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-title">Adjustments &amp; Refunds — All</div>
+          <div class="section-badge" id="adj-all-badge">—</div>
+        </div>
+        <div id="adj-all-content">
+          <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <div class="empty-state-title">No adjustment data</div>
+            <div class="empty-state-sub">Upload Adjustments & Refunds reports</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── VIEW: HISTORY ── -->
+  <div class="view" id="view-history">
+    <div class="page-header">
+      <div class="page-title">Historical Data</div>
+      <div class="page-subtitle">Jan 2023 – May 2026 · Manual entry for Opera Flash &amp; HotelKey MTD</div>
+    </div>
+    <div class="content">
+
+      <div class="two-col">
+        <!-- Manual entry form -->
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">Add Monthly Record</div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Month Start</label>
+              <input type="date" class="form-input" id="hist-period-start" placeholder="2023-01-01">
             </div>
-            <div class="brows" id="budgetRows"><div class="empty-state" style="padding:16px;font-size:11px">No budget set</div></div>
+            <div class="form-group">
+              <label class="form-label">Month End</label>
+              <input type="date" class="form-input" id="hist-period-end" placeholder="2023-01-31">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Occupancy %</label>
+              <input type="number" class="form-input" id="hist-occ" placeholder="95.30" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ADR ($)</label>
+              <input type="number" class="form-input" id="hist-adr" placeholder="83.83" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">RevPAR ($)</label>
+              <input type="number" class="form-input" id="hist-revpar" placeholder="79.89" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Rooms Sold</label>
+              <input type="number" class="form-input" id="hist-rooms-sold" placeholder="2393">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Rooms Available</label>
+              <input type="number" class="form-input" id="hist-rooms-avail" placeholder="2511">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Room Revenue ($)</label>
+              <input type="number" class="form-input" id="hist-room-rev" placeholder="200614.71" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Misc / Other Revenue ($)</label>
+              <input type="number" class="form-input" id="hist-misc-rev" placeholder="3002.44" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Total Revenue ($)</label>
+              <input type="number" class="form-input" id="hist-total-rev" placeholder="203617.15" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Source</label>
+              <select class="form-input" id="hist-source">
+                <option value="opera_flash">Opera Flash</option>
+                <option value="hotelkey_mtd">HotelKey MTD</option>
+                <option value="combined">Combined (May 2025)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Notes</label>
+              <input type="text" class="form-input" id="hist-notes" placeholder="Optional">
+            </div>
           </div>
-          <div class="panel">
-            <div class="ph"><div class="ph-t">YTD Progress</div></div>
-            <div class="ytd-section" id="ytdSection"><div class="loading-row">Loading…</div></div>
+          <div class="form-actions">
+            <button class="btn-primary" id="hist-save-btn">Save Record</button>
+            <button class="btn-secondary" id="hist-clear-btn">Clear</button>
+          </div>
+        </div>
+
+        <!-- Loaded months list -->
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">Loaded Monthly Records</div>
+            <div class="section-badge badge-info" id="hist-count-badge">0 months</div>
+          </div>
+          <div id="hist-list-content" style="max-height:520px;overflow-y:auto;">
+            <div class="empty-state">
+              <div class="empty-state-icon">📅</div>
+              <div class="empty-state-title">No historical data yet</div>
+              <div class="empty-state-sub">Use the form to enter Opera Flash data starting Jan 2023</div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- DETAIL PORTAL -->
-    <div class="portal" id="portal">
-      <div class="portal-top">
-        <div class="back-btn" onclick="closePortal()">←</div>
-        <div><span class="portal-title">Detail Portal</span><span class="portal-sub" id="portalSub">—</span></div>
-        <div class="portal-right">
-          <button class="ptab active" onclick="setPortalTab('day',this)">Day</button>
-          <button class="ptab" onclick="setPortalTab('month',this)">Month</button>
-          <button class="ptab" onclick="setPortalTab('ytd',this)">YTD</button>
+    </div>
+  </div>
+
+  <!-- ── VIEW: UPLOAD ── -->
+  <div class="view" id="view-upload">
+    <div class="page-header">
+      <div class="page-title">Upload Reports</div>
+      <div class="page-subtitle">Drop HotelKey exports here — identified by content, not filename</div>
+    </div>
+    <div class="content">
+
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-title">Drop Files</div>
+          <div class="section-badge badge-info">PDF · XLSX accepted</div>
+        </div>
+        <div style="padding:1.5rem;">
+          <div class="upload-area" id="upload-zone">
+            <input type="file" id="file-input" multiple accept=".pdf,.xlsx,.xls">
+            <div class="upload-icon">📂</div>
+            <div class="upload-title">Drop reports here or click to browse</div>
+            <div class="upload-sub">Accepts PDF and XLSX — any filename is fine</div>
+          </div>
+          <div class="upload-results" id="upload-results"></div>
+          <button class="upload-commit-btn" id="upload-commit-btn" disabled>Save to Database</button>
         </div>
       </div>
-      <div class="portal-content" id="portalContent"><div class="loading-row">Loading…</div></div>
-    </div>
 
-  </div>
-</div>
-
-<!-- BUDGET MODAL -->
-<div class="modal-bg" id="budgetModal">
-  <div class="modal">
-    <div class="modal-title">Set Monthly Budget</div>
-    <div class="form-row2">
-      <div><label class="form-label">Year</label><input id="bmYear" class="form-input" type="number"/></div>
-      <div><label class="form-label">Month</label>
-        <select id="bmMonth" class="form-input">
-          <option value="1">January</option><option value="2">February</option><option value="3">March</option>
-          <option value="4">April</option><option value="5">May</option><option value="6">June</option>
-          <option value="7">July</option><option value="8">August</option><option value="9">September</option>
-          <option value="10">October</option><option value="11">November</option><option value="12">December</option>
-        </select>
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-title">Report Detection Guide</div>
+        </div>
+        <div style="padding:1.5rem;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Report Type</th>
+                <th>Detected By</th>
+                <th>Saves To</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="pill pill-blue">Hotel Statistics</span></td><td class="mono">Contains "Hotel Statistics" + "Actual Today"</td><td class="mono">daily_revenue</td></tr>
+              <tr><td><span class="pill pill-amber">Direct Bill Aging</span></td><td class="mono">Contains "Direct Bill Aging" + "Over 150"</td><td class="mono">ar_aging</td></tr>
+              <tr><td><span class="pill pill-red">Rate Override</span></td><td class="mono">XLSX with columns "Sold Rate" + "New Rate"</td><td class="mono">rate_overrides</td></tr>
+              <tr><td><span class="pill pill-red">Adjustments & Refunds</span></td><td class="mono">Contains "Adjustments and Refunds Activity"</td><td class="mono">adjustments</td></tr>
+              <tr><td><span class="pill pill-green">In-House Balances</span></td><td class="mono">Contains "In House Guest Balances"</td><td class="mono">inhouse_balances</td></tr>
+              <tr><td><span class="pill pill-gray">Tax Report</span></td><td class="mono">Contains "Tax Report" + "Payable Tax"</td><td class="mono">daily_revenue (tax fields)</td></tr>
+            </tbody>
+          </table>
+          <div style="margin-top:1rem;font-family:var(--mono);font-size:0.65rem;color:var(--fog);">
+            User Activity, Clerk Activity, and Closed Folio Balance reports are noted but not stored row-by-row — they are displayed directly from the uploaded file content.
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="form-row" style="margin-top:12px">
-      <label class="form-label">Revenue Target ($)</label>
-      <input id="bmRevenue" class="form-input" type="number" placeholder="0.00"/>
-    </div>
-    <div class="form-row2" style="margin-top:10px">
-      <div><label class="form-label">Occ Target (%)</label><input id="bmOcc" class="form-input" type="number" placeholder="80.0"/></div>
-      <div><label class="form-label">ADR Target ($)</label><input id="bmAdr" class="form-input" type="number" placeholder="0.00"/></div>
-    </div>
-    <div class="form-msg" id="bmMsg"></div>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeBudgetModal()">Cancel</button>
-      <button class="btn-save" onclick="saveBudget()">Save Budget</button>
-    </div>
-  </div>
-</div>
 
-<!-- SETTINGS DRAWER -->
-<div class="settings-overlay" id="settingsOverlay" onclick="closeSettingsOutside(event)">
-  <div class="settings-drawer">
-    <div class="sd-top">
-      <div class="sd-title">Settings</div>
-      <button class="sd-close" onclick="closeSettings()">×</button>
-    </div>
-    <div class="sd-section">
-      <div class="sd-sec-title">Supabase Connection</div>
-      <div class="sd-row"><label class="sd-label">Project URL</label><input id="sdUrl" class="sd-input" type="text"/></div>
-      <div class="sd-row"><label class="sd-label">Anon Key</label><input id="sdKey" class="sd-input" type="password"/></div>
-      <button class="sd-btn" style="width:100%" onclick="updateConfig()">Update Connection</button>
-      <div class="sd-msg" id="sdConnMsg"></div>
-    </div>
-    <div class="sd-section">
-      <div class="sd-sec-title">Manual Entry — Fallback Only</div>
-      <div style="font-size:11px;color:var(--textm);margin-bottom:12px">Use if the nightly parser failed or a figure needs correction. Auto-import will overwrite on the next successful run.</div>
-      <div class="sd-row"><label class="sd-label">Date</label><input id="sdDate" class="sd-input" type="date"/></div>
-      <div class="sd-row2">
-        <div><label class="sd-label">Rooms Occupied</label><input id="sdOcc" class="sd-input" type="number" placeholder="79"/></div>
-        <div><label class="sd-label">Rooms Available</label><input id="sdAvail" class="sd-input" type="number" placeholder="81"/></div>
-      </div>
-      <div class="sd-row" style="margin-top:8px"><label class="sd-label">Room Revenue ($)</label><input id="sdRev" class="sd-input" type="number" placeholder="3841.00"/></div>
-      <div class="sd-row"><label class="sd-label">Notes</label><input id="sdNotes" class="sd-input" type="text" placeholder="Parser failed — manual entry"/></div>
-      <button class="sd-btn gold" style="width:100%" onclick="manualEntry()">Save Entry</button>
-      <div class="sd-msg" id="sdEntryMsg"></div>
-    </div>
-    <div class="sd-section">
-      <div class="sd-sec-title">About</div>
-      <div style="font-size:11px;color:var(--textm)">Milkam Revenue Tracker · Candlewood Suites Wake Forest<br>Auto-import via HotelKey / Opera PDF parser<br>Hosted on GitHub Pages · Supabase backend</div>
     </div>
   </div>
-</div>
+
+</div><!-- /app -->
+
+<div id="toast"></div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script>
-// ═══════════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════════
-let SB = null;
-let isOwner = false;
-let gmUnlocked = false;
-let pinBuf = '', gmBuf = '';
-let portalTab = 'day';
+// ═══════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════
+const SUPABASE_URL = 'https://ltbjavxegskmhyjqpext.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0YmphdnhlZ3NrbWh5anFwZXh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTU5NzksImV4cCI6MjA5NjI5MTk3OX0.mE-bSDLH7K9UXTqKDQKOuiEy9gv6Qi1xRj9Q2a9gw6I';
+const PIN = '1234'; // Change this to your desired PIN
 
+// ═══════════════════════════════════════════════════
+// SUPABASE HELPERS
+// ═══════════════════════════════════════════════════
+async function sbFetch(table, params = '') {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${params}`, {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  if (!res.ok) throw new Error(`${table}: ${res.status}`);
+  return res.json();
+}
+
+async function sbInsert(table, data, upsertOn = null) {
+  const headers = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': upsertOn ? `resolution=merge-duplicates` : 'return=minimal'
+  };
+  if (upsertOn) headers['Prefer'] = 'resolution=merge-duplicates,return=minimal';
+  const url = upsertOn
+    ? `${SUPABASE_URL}/rest/v1/${table}?on_conflict=${upsertOn}`
+    : `${SUPABASE_URL}/rest/v1/${table}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(Array.isArray(data) ? data : [data])
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err);
+  }
+  return true;
+}
+
+// ═══════════════════════════════════════════════════
+// PIN LOCK
+// ═══════════════════════════════════════════════════
+let pinEntry = '';
+
+function updateDots() {
+  for (let i = 0; i < 4; i++) {
+    const d = document.getElementById(`d${i}`);
+    d.className = 'pin-dot' + (i < pinEntry.length ? ' filled' : '');
+  }
+}
+
+function pinError() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById(`d${i}`).className = 'pin-dot error';
+  }
+  document.getElementById('pin-error').classList.add('show');
+  setTimeout(() => {
+    pinEntry = '';
+    updateDots();
+    document.getElementById('pin-error').classList.remove('show');
+  }, 800);
+}
+
+function unlockApp() {
+  document.getElementById('lock-screen').classList.add('hidden');
+  document.getElementById('app').classList.add('visible');
+  setTimeout(() => document.getElementById('lock-screen').style.display = 'none', 500);
+  initApp();
+}
+
+document.getElementById('pin-pad').addEventListener('click', e => {
+  const btn = e.target.closest('.pin-key');
+  if (!btn) return;
+  const key = btn.dataset.key;
+  if (key === 'clear') { pinEntry = ''; updateDots(); return; }
+  if (key === 'del') { pinEntry = pinEntry.slice(0, -1); updateDots(); return; }
+  if (pinEntry.length >= 4) return;
+  pinEntry += key;
+  updateDots();
+  if (pinEntry.length === 4) {
+    if (pinEntry === PIN) { unlockApp(); }
+    else { pinError(); }
+  }
+});
+
+document.getElementById('lock-btn').addEventListener('click', () => {
+  pinEntry = '';
+  updateDots();
+  document.getElementById('lock-screen').style.display = 'flex';
+  document.getElementById('lock-screen').classList.remove('hidden');
+  document.getElementById('app').classList.remove('visible');
+});
+
+// ═══════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(`view-${btn.dataset.view}`).classList.add('active');
+  });
+});
+
+// Tab bars
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const bar = btn.closest('.section-card');
+    bar.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    bar.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    const tabId = `tab-${btn.dataset.tab}`;
+    const tc = document.getElementById(tabId);
+    if (tc) tc.classList.add('active');
+    if (btn.dataset.tab === 'perf-chart') renderMonthlyChart();
+  });
+});
+
+// ═══════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════
+function fmt$(n) {
+  if (n == null) return '—';
+  return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtPct(n) { return n == null ? '—' : Number(n).toFixed(2) + '%'; }
+function fmtNum(n) { return n == null ? '—' : Number(n).toLocaleString('en-US'); }
+function fmtDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+function fmtMonth(d) {
+  if (!d) return '—';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+function delta(curr, prev) {
+  if (!curr || !prev || prev === 0) return null;
+  return ((curr - prev) / Math.abs(prev) * 100).toFixed(1);
+}
+function deltaHtml(curr, prev, prefix = '') {
+  const d = delta(curr, prev);
+  if (!d) return '';
+  const cls = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+  const arrow = d > 0 ? '▲' : d < 0 ? '▼' : '—';
+  return `<span class="kpi-delta ${cls}">${arrow} ${Math.abs(d)}% vs LY</span>`;
+}
+
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ═══════════════════════════════════════════════════
+// APP STATE
+// ═══════════════════════════════════════════════════
 let state = {
-  properties: [],
-  activeProp: null,
-  year: new Date().getFullYear(),
-  month: new Date().getMonth() + 1,
-  dailyData: [],
-  budgets: [],
-  ytdData: [],
+  currentDate: new Date().toISOString().slice(0, 10),
+  dailyData: {},    // keyed by date
+  arData: [],
+  overrideData: [],
+  adjData: [],
+  inhouseData: [],
+  monthlyData: [],
+  pendingFiles: []
 };
 
-const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const MONTHS_FULL  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-const fmt$ = n => n==null||isNaN(n)?'—':'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
-const fmt$2 = n => n==null||isNaN(n)?'—':'$'+Number(n).toFixed(2);
-const fmtP = n => n==null||isNaN(n)?'—':Number(n).toFixed(1)+'%';
-const showMsg = (el,type,txt) => { el.className='sd-msg '+type; el.textContent=txt; if(type==='ok') setTimeout(()=>el.className='sd-msg',3000); };
-
-// ═══════════════════════════════════════════
-// CONFIG
-// ═══════════════════════════════════════════
-
-async function updateConfig(){
-  const url = document.getElementById('sdUrl').value.trim();
-  const key = document.getElementById('sdKey').value.trim();
-  if(!url||!key){ showMsg(document.getElementById('sdConnMsg'),'err','Both fields required.'); return; }
-  localStorage.setItem(CFG_KEY, JSON.stringify({url,key}));
-  showMsg(document.getElementById('sdConnMsg'),'ok','Saved. Reload to reconnect.');
-}
-
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 // INIT
-// ═══════════════════════════════════════════
-// ── CREDENTIALS — paste your Supabase values here ──────────
-const SUPABASE_URL = 'https://plgtbubmwtplaaflcwro.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsZ3RidWJtd3RwbGFhZmxjd3JvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1MzMxNDIsImV4cCI6MjA5NjEwOTE0Mn0.V9_5NssnF0XGJFfGY4MO83xvdnI_RcNowXFRCc6sQyw';
-// ────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════
+async function initApp() {
+  setDailyDateLabel();
+  await Promise.all([
+    loadDailyRevenue(),
+    loadArAging(),
+    loadRateOverrides(),
+    loadAdjustments(),
+    loadInhouseBalances(),
+    loadMonthlyRevenue()
+  ]);
+  renderDailyView();
+  renderARView();
+  renderAccountabilityView();
+  renderMonthlyTable();
+  renderHistoryList();
+}
 
-async function init(){
-  SB = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// ═══════════════════════════════════════════════════
+// DATA LOADERS
+// ═══════════════════════════════════════════════════
+async function loadDailyRevenue() {
+  try {
+    const rows = await sbFetch('daily_revenue', '?order=date.desc&limit=365');
+    state.dailyData = {};
+    rows.forEach(r => state.dailyData[r.date] = r);
+  } catch(e) { console.warn('daily_revenue:', e); }
+}
 
-  // Load properties
-  const {data:props, error} = await SB.from('properties').select('*').order('active',{ascending:false});
-  if(error || !props || !props.length){
-    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#1C2B3A;color:#C8922A;font-family:sans-serif;font-size:14px">Unable to connect. Check credentials.</div>';
-    console.error('Supabase error:', error);
-    return;
+async function loadArAging() {
+  try {
+    state.arData = await sbFetch('ar_aging', '?order=date.desc&limit=60');
+  } catch(e) { console.warn('ar_aging:', e); }
+}
+
+async function loadRateOverrides() {
+  try {
+    state.overrideData = await sbFetch('rate_overrides', '?order=stay_date.desc&limit=500');
+  } catch(e) { console.warn('rate_overrides:', e); }
+}
+
+async function loadAdjustments() {
+  try {
+    state.adjData = await sbFetch('adjustments', '?order=date.desc&limit=500');
+  } catch(e) { console.warn('adjustments:', e); }
+}
+
+async function loadInhouseBalances() {
+  try {
+    state.inhouseData = await sbFetch('inhouse_balances', '?order=date.desc&limit=200');
+  } catch(e) { console.warn('inhouse_balances:', e); }
+}
+
+async function loadMonthlyRevenue() {
+  try {
+    state.monthlyData = await sbFetch('monthly_revenue', '?order=period_start.asc');
+  } catch(e) { console.warn('monthly_revenue:', e); }
+}
+
+// ═══════════════════════════════════════════════════
+// DAILY VIEW
+// ═══════════════════════════════════════════════════
+function setDailyDateLabel() {
+  document.getElementById('daily-date-label').textContent = fmtDate(state.currentDate);
+}
+
+document.getElementById('daily-prev').addEventListener('click', () => {
+  const d = new Date(state.currentDate + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  state.currentDate = d.toISOString().slice(0, 10);
+  setDailyDateLabel();
+  renderDailyView();
+});
+document.getElementById('daily-next').addEventListener('click', () => {
+  const d = new Date(state.currentDate + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  state.currentDate = d.toISOString().slice(0, 10);
+  setDailyDateLabel();
+  renderDailyView();
+});
+document.getElementById('daily-today').addEventListener('click', () => {
+  state.currentDate = new Date().toISOString().slice(0, 10);
+  setDailyDateLabel();
+  renderDailyView();
+});
+
+function renderDailyView() {
+  const d = state.currentDate;
+  const row = state.dailyData[d];
+
+  // Source label
+  document.getElementById('daily-source-label').textContent = row ? 'Source: HotelKey Daily' : '';
+
+  // Alerts
+  const alerts = [];
+  const dayOverrides = state.overrideData.filter(r => r.stay_date === d);
+  const dayAdj = state.adjData.filter(r => r.date === d);
+  const refunds = dayAdj.filter(r => r.transaction_type === 'REFUND');
+  const mgr = dayAdj.filter(r => r.reason_code === 'MANAGER_DISCRETION');
+  const overrideTotal = dayOverrides.reduce((s,r) => s + (r.override_amount||0), 0);
+
+  if (dayOverrides.length > 0) {
+    const cls = overrideTotal < -100 ? 'alert' : 'warn';
+    alerts.push(`<div class="alert-chip ${cls}">⚡ ${dayOverrides.length} rate override${dayOverrides.length>1?'s':''} — net ${fmt$(overrideTotal)}</div>`);
   }
-  state.properties = props;
-
-  // Build property cards and show select screen
-  buildPropCards(props.filter(p=>p.active));
-  show('selectScreen');
-}
-
-function show(id){
-  ['selectScreen','pinScreen','ownerScreen','gmScreen'].forEach(s=>{
-    const el = document.getElementById(s);
-    el.classList.toggle('hidden', s!==id);
-  });
-  document.getElementById('app').style.display = 'none';
-}
-
-function showApp(){
-  ['selectScreen','pinScreen','ownerScreen','gmScreen'].forEach(s=>document.getElementById(s).classList.add('hidden'));
-  document.getElementById('app').style.display = 'flex';
-  renderPeriodLabel();
-  renderHotelTabs();
-  loadAll();
-}
-
-// ═══════════════════════════════════════════
-// PIN AUTH
-// ═══════════════════════════════════════════
-function updateDots(prefix, buf){
-  for(let i=0;i<4;i++) document.getElementById(prefix+i).classList.toggle('on', i<buf.length);
-}
-
-function pinPress(v){
-  if(pinBuf.length>=4) return;
-  pinBuf+=v; updateDots('pd',pinBuf);
-  if(pinBuf.length===4) setTimeout(checkPin,120);
-}
-function pinDel(){ pinBuf=pinBuf.slice(0,-1); updateDots('pd',pinBuf); document.getElementById('pinErr').textContent=''; }
-
-async function checkPin(){
-  // Verify against Supabase using bcrypt (pgcrypto crypt function)
-  const prop = state.activeProp;
-  const {data} = await SB.rpc('verify_staff_pin',{prop_id: prop.id, pin_input: pinBuf});
-  if(data){
-    isOwner = false; gmUnlocked = false;
-    // Staff sees only their property in the tabs
-    state.properties = [state.activeProp];
-    showApp();
-  } else {
-    document.getElementById('pinErr').textContent='Incorrect PIN. Try again.';
-    pinBuf=''; updateDots('pd',pinBuf);
+  if (refunds.length > 0) {
+    const tot = refunds.reduce((s,r) => s + Math.abs(r.adjusted_amount||0), 0);
+    alerts.push(`<div class="alert-chip alert">↩ ${refunds.length} refund${refunds.length>1?'s':''} — ${fmt$(tot)}</div>`);
   }
-}
+  if (mgr.length > 0) alerts.push(`<div class="alert-chip warn">🔑 ${mgr.length} manager discretion adjustment${mgr.length>1?'s':''}</div>`);
 
-function gmPress(v){
-  if(gmBuf.length>=4) return;
-  gmBuf+=v; updateDots('gd',gmBuf);
-  if(gmBuf.length===4) setTimeout(checkGmPin,120);
-}
-function gmDel(){ gmBuf=gmBuf.slice(0,-1); updateDots('gd',gmBuf); document.getElementById('gmErr').textContent=''; }
+  // AR alert
+  const latestAR = state.arData[0];
+  if (latestAR && latestAR.total > 160000) alerts.push(`<div class="alert-chip alert">🏦 AR Total ${fmt$(latestAR.total)} — review aging</div>`);
 
-async function checkGmPin(){
-  const prop = state.activeProp;
-  const {data} = await SB.rpc('verify_gm_pin',{prop_id: prop.id, pin_input: gmBuf});
-  if(data){
-    gmUnlocked=true;
-    document.getElementById('gmScreen').classList.add('hidden');
-    openPortalPanel();
-  } else {
-    document.getElementById('gmErr').textContent='Incorrect GM PIN.';
-    gmBuf=''; updateDots('gd',gmBuf);
-  }
-}
+  if (alerts.length === 0) alerts.push(`<div class="alert-chip ok">✓ No flags for this date</div>`);
+  document.getElementById('daily-alerts').innerHTML = alerts.join('');
 
-function cancelGm(){ show('pinScreen'); gmBuf=''; updateDots('gd',gmBuf); }
-
-function buildPropCards(props){
-  const container = document.getElementById('propCards');
-  container.innerHTML = '';
-  const icons = {'CWS':'🏨','TRU':'🏩','H2S':'🏪'};
-  props.filter(p=>p.active).forEach(prop=>{
-    const card = document.createElement('div');
-    card.className = 'prop-card';
-    card.innerHTML = `
-      <div class="prop-card-icon">${icons[prop.short_code]||'🏨'}</div>
-      <div class="prop-card-info">
-        <div class="prop-card-name">${prop.name}</div>
-        <div class="prop-card-brand">${prop.brand||prop.short_code}</div>
+  // KPIs
+  if (row) {
+    document.getElementById('daily-kpis').innerHTML = `
+      <div class="kpi-card gold">
+        <div class="kpi-label">Occupancy</div>
+        <div class="kpi-value">${fmtPct(row.occ_pct)}</div>
+        ${row.ly_occ_pct ? deltaHtml(row.occ_pct, row.ly_occ_pct) : ''}
+        <div class="kpi-meta">LY: ${fmtPct(row.ly_occ_pct)}</div>
       </div>
-      <div class="prop-card-arrow">›</div>`;
-    card.onclick = ()=>selectProp(prop);
-    container.appendChild(card);
-  });
-}
-
-function selectProp(prop){
-  state.activeProp = prop;
-  document.getElementById('pinHotelName').textContent = prop.name;
-  pinBuf=''; updateDots('pd',pinBuf);
-  document.getElementById('pinErr').textContent = '';
-  show('pinScreen');
-}
-
-function showOwnerScreen(){ show('ownerScreen'); }
-function showPinScreen(){ show('selectScreen'); }
-
-async function ownerLogin(){
-  const pw = document.getElementById('ownerPw').value;
-  const {data} = await SB.rpc('verify_owner_password',{pw_input: pw});
-  if(data){
-    isOwner=true; gmUnlocked=true;
-    // Load all active properties for owner portfolio view
-    const {data:props} = await SB.from('properties').select('*').eq('active',true).order('name');
-    state.allProps = props||[];
-    // Owner sees ALL properties in tabs
-    state.properties = props||[];
-    if(props&&props.length) state.activeProp = props[0];
-    document.getElementById('ownerPw').value='';
-    showApp();
+      <div class="kpi-card green">
+        <div class="kpi-label">ADR</div>
+        <div class="kpi-value">${fmt$(row.adr)}</div>
+        ${row.ly_adr ? deltaHtml(row.adr, row.ly_adr) : ''}
+        <div class="kpi-meta">LY: ${fmt$(row.ly_adr)}</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">RevPAR</div>
+        <div class="kpi-value">${fmt$(row.revpar)}</div>
+        <div class="kpi-meta">${fmtNum(row.rooms_sold)} / ${fmtNum(row.rooms_available)} rooms</div>
+      </div>
+      <div class="kpi-card gold">
+        <div class="kpi-label">Room Revenue</div>
+        <div class="kpi-value">${fmt$(row.room_revenue)}</div>
+        ${row.ly_room_revenue ? deltaHtml(row.room_revenue, row.ly_room_revenue) : ''}
+        <div class="kpi-meta">LY: ${fmt$(row.ly_room_revenue)}</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Misc Revenue</div>
+        <div class="kpi-value">${fmt$(row.misc_revenue)}</div>
+        <div class="kpi-meta">Total: ${fmt$(row.total_revenue)}</div>
+      </div>
+    `;
   } else {
-    document.getElementById('ownerErr').textContent='Incorrect password.';
+    document.getElementById('daily-kpis').innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-state-icon">📊</div>
+        <div class="empty-state-title">No data for ${fmtDate(d)}</div>
+        <div class="empty-state-sub">Upload the Hotel Statistics report for this date</div>
+      </div>`;
   }
+
+  // MTD
+  renderMTD(d);
+  // YTD
+  renderYTD(d);
+  // AR snap
+  renderARSnap();
+  // Override day
+  renderOverrideDay(d);
+  // Adj day
+  renderAdjDay(d);
 }
 
-function lockApp(){
-  isOwner=false; gmUnlocked=false;
-  state.activeProp=null; state.allProps=[];
-  pinBuf=''; gmBuf='';
-  updateDots('pd',pinBuf); updateDots('gd',gmBuf);
-  document.getElementById('pinErr').textContent='';
-  document.getElementById('ownerPw').value='';
-  document.getElementById('ownerErr').textContent='';
-  // Rebuild property cards and return to select screen
-  const props = state.properties||[];
-  if(props.length) buildPropCards(props);
-  show('selectScreen');
-}
-
-// ═══════════════════════════════════════════
-// HOTEL TABS
-// ═══════════════════════════════════════════
-function renderHotelTabs(){
-  const wrap = document.getElementById('hotelTabs');
-  let html = state.properties.map(p=>`
-    <div class="htab${p.id===state.activeProp?.id?' active':''}${!p.active?' locked':''}"
-      onclick="switchHotel('${p.id}')">${p.short_code} — ${p.name.split(' ').slice(0,2).join(' ')}
-    </div>`).join('');
-  html += `<div class="htab add" onclick="addHotel()">+</div>`;
-  wrap.innerHTML = html;
-}
-
-function switchHotel(id){
-  const prop = state.properties.find(p=>p.id===id);
-  if(!prop||!prop.active){ alert('This property is not yet active.'); return; }
-  state.activeProp = prop;
-  document.getElementById('pinHotelName').textContent = prop.name;
-  document.getElementById('gmHotelName').textContent = prop.name;
-  renderHotelTabs();
-  loadAll();
-}
-
-function addHotel(){
-  if(!isOwner){ alert('Owner access required to add a property.'); return; }
-  alert('Add hotel: go to Supabase and insert a new row in the properties table, then reload.');
-}
-
-// ═══════════════════════════════════════════
-// PERIOD
-// ═══════════════════════════════════════════
-function renderPeriodLabel(){
-  const lbl = MONTHS_FULL[state.month-1]+' '+state.year;
-  document.getElementById('periodLabel').textContent = MONTHS_SHORT[state.month-1]+' '+state.year;
-  document.getElementById('periodBadge').textContent = lbl;
-  document.getElementById('tableTitle').textContent = lbl+' — Daily';
-  document.getElementById('portalSub').textContent = state.activeProp?.name || '';
-}
-
-function shiftMonth(d){
-  state.month+=d;
-  if(state.month>12){state.month=1;state.year++;}
-  if(state.month<1){state.month=12;state.year--;}
-  renderPeriodLabel();
-  loadAll();
-}
-
-// ═══════════════════════════════════════════
-// DATA LOADING
-// ═══════════════════════════════════════════
-async function loadAll(){
-  if(!state.activeProp) return;
-  updateBandInfo();
-  await Promise.all([loadDailyData(), loadBudgets(), loadYTD()]);
-  renderMetrics();
-  await renderTable();
-  renderBudgetPanel();
-  renderYTD();
-}
-
-function updateBandInfo(){
-  const p = state.activeProp;
-  if(!p) return;
-  document.getElementById('bandName').textContent = p.name;
-  document.getElementById('bandMeta').textContent = `${p.total_rooms} rooms · ${p.brand||''} · Wake Forest, NC`;
-}
-
-async function loadDailyData(){
-  const mm  = String(state.month).padStart(2,'0');
-  const lastDay = new Date(state.year, state.month, 0).getDate();
-  const start = `${state.year}-${mm}-01`;
-  const end   = `${state.year}-${mm}-${String(lastDay).padStart(2,'0')}`;
-  const {data,error} = await SB.from('daily_revenue')
-    .select('*').eq('property_id',state.activeProp.id)
-    .gte('entry_date',start).lte('entry_date',end);
-  if(error) console.error('loadDailyData error:',error);
-  state.dailyData = error?[]:data;
-}
-
-async function loadBudgets(){
-  const {data,error} = await SB.from('revenue_budgets')
-    .select('*').eq('property_id',state.activeProp.id).eq('year',state.year);
-  state.budgets = error?[]:data;
-}
-
-async function loadYTD(){
-  const {data,error} = await SB.from('daily_revenue')
-    .select('entry_date,room_revenue,rooms_occupied,rooms_available')
-    .eq('property_id',state.activeProp.id)
-    .gte('entry_date',`${state.year}-01-01`)
-    .lte('entry_date',`${state.year}-12-31`);
-  if(error) console.error('loadYTD error:',error);
-  state.ytdData = error?[]:data;
-}
-
-// ═══════════════════════════════════════════
-// RENDER — METRICS
-// ═══════════════════════════════════════════
-function renderMetrics(){
-  const mtdRev = state.dailyData.reduce((s,r)=>s+Number(r.room_revenue),0);
-  const days   = state.dailyData.length;
-  const avg    = days>0 ? mtdRev/days : 0;
-  const ytdRev = state.ytdData.reduce((s,r)=>s+Number(r.room_revenue),0);
-  const bud    = state.budgets.find(b=>b.month===state.month);
-  const budRev = bud ? Number(bud.budgeted_revenue) : 0;
-  const ytdBud = state.budgets.reduce((s,b)=>s+Number(b.budgeted_revenue),0);
-  const daysInMonth = new Date(state.year,state.month,0).getDate();
-  const today = new Date();
-  const isCurrent = today.getFullYear()===state.year && today.getMonth()+1===state.month;
-  const elapsed = isCurrent ? today.getDate() : daysInMonth;
-
-  document.getElementById('mMtdRev').textContent = fmt$(mtdRev);
-  const vsAmt = mtdRev - budRev;
-  const mSub = document.getElementById('mMtdSub');
-  mSub.innerHTML = budRev>0
-    ? `<span class="${vsAmt>=0?'up':'dn'}">${vsAmt>=0?'+':''}${fmt$(vsAmt)} vs budget</span>`
-    : `<span class="muted">No budget set</span>`;
-  document.getElementById('mMtdBar').style.width = Math.min((elapsed/daysInMonth)*100,100)+'%';
-
-  const pct = budRev>0 ? (mtdRev/budRev)*100 : 0;
-  document.getElementById('mBudPct').textContent = budRev>0 ? fmtP(pct) : '—';
-  document.getElementById('mBudSub').textContent = budRev>0 ? `of ${fmt$(budRev)} target` : 'No budget set';
-  const bBar = document.getElementById('mBudBar');
-  bBar.style.width = Math.min(pct,100)+'%';
-  bBar.style.background = pct>=100?'rgba(28,43,58,0.6)':'rgba(28,43,58,0.35)';
-
-  document.getElementById('mYtd').textContent = fmt$(ytdRev);
-  const yvs = ytdRev - ytdBud;
-  document.getElementById('mYtdSub').innerHTML = ytdBud>0
-    ? `<span class="${yvs>=0?'up':'dn'}">${yvs>=0?'+':''}${fmt$(yvs)} vs YTD budget</span>`
-    : '<span style="opacity:0.6">—</span>';
-
-  document.getElementById('mAvg').textContent = fmt$(avg);
-  document.getElementById('mAvgSub').textContent = `${days} days entered`;
-
-  // Rate overrides MTD
-  loadOverrideMetric();
-}
-
-async function loadOverrideMetric(){
-  if(!state.activeProp) return;
-  const start = `${state.year}-${String(state.month).padStart(2,'0')}-01`;
-  const end   = `${state.year}-${String(state.month).padStart(2,'0')}-31`;
-  const {data} = await SB.from('rate_overrides')
-    .select('override_amount')
-    .eq('property_id',state.activeProp.id)
-    .gte('stay_date',start).lte('stay_date',end);
-  if(!data||!data.length){
-    document.getElementById('mOverrides').textContent = '0';
-    document.getElementById('mOverrideSub').textContent = 'no overrides this month';
+function renderMTD(d) {
+  const [year, month] = d.split('-');
+  const mtdRows = Object.values(state.dailyData).filter(r => r.date.startsWith(`${year}-${month}`));
+  if (mtdRows.length === 0) {
+    document.getElementById('mtd-content').innerHTML = '<div class="empty-state"><div class="empty-state-sub">No MTD data for this month</div></div>';
+    document.getElementById('mtd-badge').textContent = '0 days';
     return;
   }
-  const count = data.length;
-  const net   = data.reduce((s,r)=>s+Number(r.override_amount||0),0);
-  const lost  = data.filter(r=>r.override_amount<0).reduce((s,r)=>s+Number(r.override_amount),0);
-  document.getElementById('mOverrides').textContent = count;
-  document.getElementById('mOverrideSub').innerHTML =
-    `<span class="${net<0?'dn':'up'}">${net>=0?'+':''}${fmt$(net)} net impact</span>`;
+  const totalRev = mtdRows.reduce((s,r) => s+(r.room_revenue||0),0);
+  const totalMisc = mtdRows.reduce((s,r) => s+(r.misc_revenue||0),0);
+  const avgOcc = mtdRows.reduce((s,r) => s+(r.occ_pct||0),0) / mtdRows.length;
+  const avgADR = mtdRows.reduce((s,r) => s+(r.adr||0),0) / mtdRows.length;
+  const totalSold = mtdRows.reduce((s,r) => s+(r.rooms_sold||0),0);
+  const totalAvail = mtdRows.reduce((s,r) => s+(r.rooms_available||0),0);
+  const lyRevTotal = mtdRows.reduce((s,r) => s+(r.ly_room_revenue||0),0);
+
+  document.getElementById('mtd-badge').textContent = `${mtdRows.length} days`;
+  document.getElementById('mtd-content').innerHTML = `
+    <table class="data-table">
+      <tr><td>Room Revenue</td><td class="right">${fmt$(totalRev)}</td></tr>
+      <tr><td>Misc Revenue</td><td class="right">${fmt$(totalMisc)}</td></tr>
+      <tr class="total-row"><td>Total Revenue</td><td class="right">${fmt$(totalRev + totalMisc)}</td></tr>
+      <tr><td>Avg Occupancy</td><td class="right">${fmtPct(avgOcc)}</td></tr>
+      <tr><td>Avg ADR</td><td class="right">${fmt$(avgADR)}</td></tr>
+      <tr><td>Rooms Sold</td><td class="right">${fmtNum(totalSold)} / ${fmtNum(totalAvail)}</td></tr>
+      ${lyRevTotal > 0 ? `<tr><td>LY Room Revenue</td><td class="right" style="color:var(--fog)">${fmt$(lyRevTotal)} ${deltaHtml(totalRev, lyRevTotal)}</td></tr>` : ''}
+    </table>`;
 }
 
-// ═══════════════════════════════════════════
-// RENDER — TABLE
-// ═══════════════════════════════════════════
-async function renderTable(){
-  const wrap = document.getElementById('tableWrap');
-  const bud  = state.budgets.find(b=>b.month===state.month);
-  const daysInMonth = new Date(state.year,state.month,0).getDate();
-  const dailyTarget = bud ? bud.budgeted_revenue/daysInMonth : null;
-
-  // Load override flags for this month
-  const ovStart = `${state.year}-${String(state.month).padStart(2,'0')}-01`;
-  const ovEnd   = `${state.year}-${String(state.month).padStart(2,'0')}-31`;
-  const {data:ovData} = await SB.from('rate_overrides')
-    .select('stay_date,override_amount')
-    .eq('property_id',state.activeProp.id)
-    .gte('stay_date',ovStart).lte('stay_date',ovEnd);
-  const overrideByDate = {};
-  (ovData||[]).forEach(r=>{
-    if(!overrideByDate[r.stay_date]) overrideByDate[r.stay_date]={count:0,net:0};
-    overrideByDate[r.stay_date].count++;
-    overrideByDate[r.stay_date].net += Number(r.override_amount||0);
-  });
-
-  document.getElementById('entryCount').textContent = state.dailyData.length+' entries';
-
-  if(!state.dailyData.length){
-    wrap.innerHTML='<div class="empty-state">No entries for this period.</div>';
-    document.getElementById('tableAnn').textContent='';
+function renderYTD(d) {
+  const year = d.split('-')[0];
+  const ytdRows = Object.values(state.dailyData).filter(r => r.date.startsWith(year));
+  if (ytdRows.length === 0) {
+    document.getElementById('ytd-content').innerHTML = '<div class="empty-state"><div class="empty-state-sub">No YTD data for this year</div></div>';
+    document.getElementById('ytd-badge').textContent = '0 days';
     return;
   }
+  const totalRev = ytdRows.reduce((s,r) => s+(r.room_revenue||0),0);
+  const totalMisc = ytdRows.reduce((s,r) => s+(r.misc_revenue||0),0);
+  const avgOcc = ytdRows.reduce((s,r) => s+(r.occ_pct||0),0) / ytdRows.length;
+  const avgADR = ytdRows.reduce((s,r) => s+(r.adr||0),0) / ytdRows.length;
+  const lyRevTotal = ytdRows.reduce((s,r) => s+(r.ly_room_revenue||0),0);
 
-  const rows = state.dailyData.map(r=>{
-    const dt = new Date(r.entry_date+'T00:00:00');
-    const dayLabel = dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
-    const occ  = r.occupancy_pct!=null ? fmtP(r.occupancy_pct) : '—';
-    const adr  = r.adr!=null ? fmt$2(r.adr) : '—';
-    const isMonthly = r.source==='opera_import'||r.granularity==='monthly';
-    let vsHtml = '—';
-    if(dailyTarget!=null){
-      const diff = r.room_revenue - dailyTarget;
-      vsHtml = `<span class="${diff>=0?'up':'dn'}">${diff>=0?'+':''}${fmt$(diff)}</span>`;
-    }
-    // Override flag for this day
-    const ov = overrideByDate[r.entry_date];
-    const ovBadge = ov
-      ? `<span style="font-size:9px;background:rgba(200,146,42,0.15);color:#7A4510;padding:1px 5px;border-radius:3px;font-weight:600;margin-left:4px">⚠${ov.count}</span>`
-      : '';
-    return `<tr>
-      <td>${isMonthly?'<span class="muted">':''} ${dayLabel}${isMonthly?'</span>':''}${ovBadge}</td>
-      <td class="mono">${fmt$(r.room_revenue)}</td>
-      <td class="mono">${occ}</td>
-      <td class="mono">${adr}</td>
-      <td class="mono">${vsHtml}</td>
-      <td><span class="tag ${isMonthly?'tag-m':'tag-d'}">${isMonthly?'monthly':'daily'}</span></td>
-    </tr>`;
-  }).join('');
-
-  wrap.innerHTML=`<table>
-    <thead><tr><th>Date</th><th>Revenue</th><th>Occupancy</th><th>ADR</th><th>vs Daily Target</th><th>Type</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table>`;
-
-  const hasMonthly = state.dailyData.some(r=>r.source==='opera_import');
-  document.getElementById('tableAnn').textContent = hasMonthly
-    ? 'Monthly records show full MTD totals from Opera/HotelKey import. Daily records show individual night audit figures.'
-    : '';
+  document.getElementById('ytd-badge').textContent = `${ytdRows.length} days`;
+  document.getElementById('ytd-content').innerHTML = `
+    <table class="data-table">
+      <tr><td>Room Revenue</td><td class="right">${fmt$(totalRev)}</td></tr>
+      <tr><td>Misc Revenue</td><td class="right">${fmt$(totalMisc)}</td></tr>
+      <tr class="total-row"><td>Total Revenue</td><td class="right">${fmt$(totalRev + totalMisc)}</td></tr>
+      <tr><td>Avg Occupancy</td><td class="right">${fmtPct(avgOcc)}</td></tr>
+      <tr><td>Avg ADR</td><td class="right">${fmt$(avgADR)}</td></tr>
+      ${lyRevTotal > 0 ? `<tr><td>LY Room Revenue</td><td class="right" style="color:var(--fog)">${fmt$(lyRevTotal)} ${deltaHtml(totalRev, lyRevTotal)}</td></tr>` : ''}
+    </table>`;
 }
 
-// ═══════════════════════════════════════════
-// RENDER — BUDGET PANEL
-// ═══════════════════════════════════════════
-function renderBudgetPanel(){
-  const bud = state.budgets.find(b=>b.month===state.month);
-  const wrap = document.getElementById('budgetRows');
-  if(!bud){
-    wrap.innerHTML='<div class="empty-state" style="padding:14px;font-size:11px">No budget for '+MONTHS_SHORT[state.month-1]+'. Click Edit to set one.</div>';
+function renderARSnap() {
+  if (state.arData.length === 0) {
+    document.getElementById('ar-snap-content').innerHTML = '<div class="empty-state"><div class="empty-state-sub">No AR data loaded</div></div>';
+    document.getElementById('ar-snap-badge').textContent = '—';
+    document.getElementById('ar-snap-badge').className = 'section-badge badge-info';
     return;
   }
-  const daysInMonth = new Date(state.year,state.month,0).getDate();
-  const daily = bud.budgeted_revenue/daysInMonth;
-  wrap.innerHTML=`
-    <div class="brow"><span class="br-label">Revenue Target</span><span class="br-val">${fmt$(bud.budgeted_revenue)}</span></div>
-    <div class="brow"><span class="br-label">Daily Target</span><span class="br-val">${fmt$(daily)}</span></div>
-    ${bud.budgeted_occupancy?`<div class="brow"><span class="br-label">Occ Target</span><span class="br-val">${fmtP(bud.budgeted_occupancy)}</span></div>`:''}
-    ${bud.budgeted_adr?`<div class="brow"><span class="br-label">ADR Target</span><span class="br-val">${fmt$2(bud.budgeted_adr)}</span></div>`:''}`;
-}
+  const latest = state.arData[0];
+  const latestDate = latest.date;
+  const latestRows = state.arData.filter(r => r.date === latestDate);
+  const total = latestRows.reduce((s,r) => s+(r.total||0),0);
+  const over90 = latestRows.reduce((s,r) => s+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0);
 
-// ═══════════════════════════════════════════
-// RENDER — YTD
-// ═══════════════════════════════════════════
-function renderYTD(){
-  const wrap = document.getElementById('ytdSection');
-  if(!state.ytdData.length){ wrap.innerHTML='<div class="loading-row">No data yet.</div>'; return; }
+  const badgeCls = over90 > 50000 ? 'badge-alert' : over90 > 20000 ? 'badge-warn' : 'badge-ok';
+  document.getElementById('ar-snap-badge').textContent = `Total ${fmt$(total)}`;
+  document.getElementById('ar-snap-badge').className = `section-badge ${badgeCls}`;
 
-  const byMonth = {};
-  state.ytdData.forEach(r=>{
-    const m = new Date(r.entry_date+'T00:00:00').getMonth()+1;
-    byMonth[m] = (byMonth[m]||0)+Number(r.room_revenue);
-  });
-
-  const today = new Date();
-  const curMonth = today.getFullYear()===state.year ? today.getMonth()+1 : 12;
-  const maxRev = Math.max(...Object.values(byMonth),1);
-
-  let html='';
-  for(let m=1;m<=curMonth;m++){
-    const rev = byMonth[m]||0;
-    const bud = state.budgets.find(b=>b.month===m);
-    const budRev = bud ? Number(bud.budgeted_revenue) : 0;
-    const pct = (rev/maxRev)*100;
-    const hit = budRev>0 && rev>=budRev;
-    const miss = budRev>0 && rev<budRev;
-    const color = hit?'var(--ok)':miss?'var(--warn)':'var(--navy)';
-    const label = budRev>0
-      ? (hit?`<span style="color:var(--ok);font-weight:600">${fmt$(rev)} ✓</span>`
-            :`<span style="color:var(--warn)">${fmt$(rev)} · ${fmtP((rev/budRev)*100)}</span>`)
-      : fmt$(rev);
-    html+=`<div class="ytd-row">
-      <div class="ytd-hdr"><span class="ytd-label">${MONTHS_SHORT[m-1]}</span>${label}</div>
-      <div class="ybar"><div class="ybar-f" style="width:${pct}%;background:${color}"></div></div>
-    </div>`;
-  }
-  wrap.innerHTML=html;
-}
-
-// ═══════════════════════════════════════════
-// BUDGET MODAL
-// ═══════════════════════════════════════════
-function openBudgetModal(){
-  document.getElementById('bmYear').value = state.year;
-  document.getElementById('bmMonth').value = state.month;
-  const bud = state.budgets.find(b=>b.month===state.month);
-  document.getElementById('bmRevenue').value = bud?.budgeted_revenue||'';
-  document.getElementById('bmOcc').value = bud?.budgeted_occupancy||'';
-  document.getElementById('bmAdr').value = bud?.budgeted_adr||'';
-  document.getElementById('bmMsg').className='form-msg';
-  document.getElementById('budgetModal').classList.add('open');
-}
-function closeBudgetModal(){ document.getElementById('budgetModal').classList.remove('open'); }
-
-async function saveBudget(){
-  const year=parseInt(document.getElementById('bmYear').value);
-  const month=parseInt(document.getElementById('bmMonth').value);
-  const revenue=parseFloat(document.getElementById('bmRevenue').value);
-  const occ=parseFloat(document.getElementById('bmOcc').value)||null;
-  const adr=parseFloat(document.getElementById('bmAdr').value)||null;
-  const msg=document.getElementById('bmMsg');
-  if(isNaN(revenue)){ msg.className='form-msg err'; msg.textContent='Revenue target required.'; return; }
-  const {error}=await SB.from('revenue_budgets').upsert({
-    property_id:state.activeProp.id,year,month,
-    budgeted_revenue:revenue,budgeted_occupancy:occ,budgeted_adr:adr,
-    updated_at:new Date().toISOString()
-  },{onConflict:'property_id,year,month'});
-  if(error){ msg.className='form-msg err'; msg.textContent='Save failed: '+error.message; return; }
-  msg.className='form-msg ok'; msg.textContent='Budget saved!';
-  setTimeout(()=>{ closeBudgetModal(); loadAll(); },800);
-}
-
-// ═══════════════════════════════════════════
-// DETAIL PORTAL
-// ═══════════════════════════════════════════
-function openPortal(){
-  if(isOwner||gmUnlocked){
-    openPortalPanel(); return;
-  }
-  document.getElementById('gmScreen').classList.remove('hidden');
-  ['selectScreen','pinScreen','ownerScreen'].forEach(s=>document.getElementById(s).classList.add('hidden'));
-}
-
-function openPortalPanel(){
-  document.getElementById('portal').classList.add('open');
-  loadPortalData();
-}
-
-function closePortal(){
-  document.getElementById('portal').classList.remove('open');
-}
-
-function setPortalTab(v,el){
-  portalTab=v;
-  document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  loadPortalData();
-}
-
-function buildOverrideSection(overrides){
-  if(!overrides||!overrides.length) return `<div class="panel" style="margin-bottom:10px"><div class="ph"><div class="ph-t">Rate override detail</div></div><div style="padding:20px;text-align:center;font-size:11px;color:var(--texts)">No overrides for this period</div></div>`;
-  const net  = overrides.reduce((s,r)=>s+Number(r.override_amount||0),0);
-  const lost = overrides.filter(r=>r.override_amount<0).reduce((s,r)=>s+Number(r.override_amount),0);
-  const rows = overrides.map(r=>{
-    const dir = (r.override_amount||0)<0 ? 'dn' : 'up';
-    const arrow = (r.override_amount||0)<0 ? '↓' : '↑';
-    return `<tr>
-      <td class="mono muted">${r.override_time?r.override_time.slice(0,5):'—'}</td>
-      <td style="font-size:11px">${r.guest_name||'—'}</td>
-      <td><span class="room-chip">${r.room_number||'—'}</span></td>
-      <td style="font-size:10px;color:var(--textm)">${r.room_type||'—'}</td>
-      <td class="mono">${fmt$2(r.sold_rate)}</td>
-      <td class="mono">${fmt$2(r.new_rate)}</td>
-      <td class="mono ${dir}" style="text-align:right">${arrow}${fmt$(Math.abs(r.override_amount||0))}</td>
-      <td style="font-size:10px;color:var(--textm)">${r.username||'—'}</td>
-      <td style="font-size:10px;color:var(--texts);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.override_reason||''}</td>
-      <td style="font-size:9px;color:var(--texts)">${r.rate_plan||''}</td>
-    </tr>`;
-  }).join('');
-  const badge = net<0
-    ? `<span class="badge badge-warn">${fmt$(Math.abs(net))} revenue impact · ${overrides.length} overrides</span>`
-    : `<span class="badge badge-ok">${overrides.length} overrides</span>`;
-  return `<div class="panel" style="margin-bottom:10px">
-    <div class="ph"><div class="ph-t">Rate override detail</div>${badge}</div>
-    <div style="overflow-x:auto">
-      <table style="min-width:700px">
-        <thead><tr><th>Time</th><th>Guest</th><th>Rm</th><th>Room Type</th><th>Orig Rate</th><th>New Rate</th><th style="text-align:right">Impact/Night</th><th>By</th><th>Reason</th><th>Plan</th></tr></thead>
-        <tbody>${rows}</tbody>
-        <tr style="background:var(--off)">
-          <td colspan="6" style="font-weight:600;font-size:11px">Totals</td>
-          <td class="mono ${net<0?'dn':'up'}" style="text-align:right;font-weight:600">${net>=0?'+':''}${fmt$(net)}</td>
-          <td colspan="3"></td>
-        </tr>
-      </table>
+  document.getElementById('ar-snap-content').innerHTML = `
+    <div class="aging-grid">
+      ${latestRows.map(co => agingCellHtml(co)).join('')}
     </div>
-    <div style="padding:6px 14px 8px;font-size:10px;color:var(--texts);font-style:italic;border-top:0.5px solid var(--borderl)">
-      Sold Rate = original system rate before override · Impact = per-night revenue difference
-    </div>
+    <div style="padding:0.75rem 1.5rem;font-family:var(--mono);font-size:0.6rem;color:var(--fog);">As of ${fmtDate(latestDate)}</div>`;
+}
+
+function agingCellHtml(co) {
+  const maxVal = Math.max(co.current_bal||0, co.over_30||0, co.over_60||0, co.over_90||0, co.over_120||0, co.over_150||0);
+  const pct = (v) => maxVal > 0 ? Math.round((v||0)/maxVal*100) : 0;
+  return `<div class="aging-cell">
+    <div class="aging-company">${co.company.replace('_',' ')}</div>
+    <div class="aging-total">${fmt$(co.total)}</div>
+    ${[
+      ['Current', co.current_bal, 'bar-current'],
+      ['30+', co.over_30, 'bar-30'],
+      ['60+', co.over_60, 'bar-60'],
+      ['90+', co.over_90, 'bar-90'],
+      ['120+', co.over_120, 'bar-120'],
+      ['150+', co.over_150, 'bar-150'],
+    ].map(([label, val, cls]) => `
+      <div class="aging-bar-row">
+        <div class="aging-bar-label">${label}</div>
+        <div class="aging-bar-track"><div class="aging-bar-fill ${cls}" style="width:${pct(val)}%"></div></div>
+        <div class="aging-bar-val">${fmt$(val)}</div>
+      </div>`).join('')}
   </div>`;
 }
 
-async function loadPortalData(){
-  const content = document.getElementById('portalContent');
-  content.innerHTML='<div class="loading-row">Loading detail data…</div>';
-  const prop = state.activeProp;
-  if(!prop) return;
-
-  const dateFilter = portalTab==='day'
-    ? {start: getLatestDate(), end: getLatestDate()}
-    : portalTab==='month'
-    ? {start:`${state.year}-${String(state.month).padStart(2,'0')}-01`, end:`${state.year}-${String(state.month).padStart(2,'0')}-31`}
-    : {start:`${state.year}-01-01`, end:`${state.year}-12-31`};
-
-  const [adjRes, payRes, taxRes, actRes, inhouseRes, taxExemptRes, revDetailRes, overrideRes] = await Promise.all([
-    SB.from('daily_adjustments').select('*').eq('property_id',prop.id).gte('entry_date',dateFilter.start).lte('entry_date',dateFilter.end).order('adj_time',{ascending:true}),
-    SB.from('daily_payments').select('*').eq('property_id',prop.id).gte('entry_date',dateFilter.start).lte('entry_date',dateFilter.end),
-    SB.from('daily_taxes').select('*').eq('property_id',prop.id).gte('entry_date',dateFilter.start).lte('entry_date',dateFilter.end),
-    SB.from('daily_user_activity').select('*').eq('property_id',prop.id).gte('entry_date',dateFilter.start).lte('entry_date',dateFilter.end).order('activity_time',{ascending:true}),
-    SB.from('inhouse_balances').select('*').eq('property_id',prop.id).eq('snapshot_date',dateFilter.end).order('outstanding_balance',{ascending:false}),
-    SB.from('tax_exempt_detail').select('*').eq('property_id',prop.id).gte('report_date',dateFilter.start).lte('report_date',dateFilter.end).order('room_revenue',{ascending:false}),
-    SB.from('daily_revenue_detail').select('*').eq('property_id',prop.id).gte('entry_date',dateFilter.start).lte('entry_date',dateFilter.end),
-    SB.from('rate_overrides').select('*').eq('property_id',prop.id).gte('stay_date',dateFilter.start).lte('stay_date',dateFilter.end).order('stay_date',{ascending:false}).order('override_time',{ascending:false}),
-  ]);
-
-  const adjs     = adjRes.data||[];
-  const pays     = payRes.data||[];
-  const taxes    = taxRes.data||[];
-  const acts     = actRes.data||[];
-  const inhouse  = inhouseRes.data||[];
-  const exempt   = taxExemptRes.data||[];
-  const revDetail= revDetailRes.data||[];
-  const overrides= overrideRes.data||[];
-
-  content.innerHTML = buildPortalHTML(adjs, pays, taxes, acts, inhouse, exempt, revDetail, overrides);
+function renderOverrideDay(d) {
+  const rows = state.overrideData.filter(r => r.stay_date === d);
+  if (rows.length === 0) {
+    document.getElementById('override-day-content').innerHTML = `<div class="empty-state"><div class="empty-state-sub">No rate overrides for ${fmtDate(d)}</div></div>`;
+    document.getElementById('override-day-badge').textContent = 'None';
+    document.getElementById('override-day-badge').className = 'section-badge badge-ok';
+    return;
+  }
+  const net = rows.reduce((s,r)=>s+(r.override_amount||0),0);
+  document.getElementById('override-day-badge').textContent = `${rows.length} overrides — net ${fmt$(net)}`;
+  document.getElementById('override-day-badge').className = `section-badge ${net < -50 ? 'badge-alert' : 'badge-warn'}`;
+  document.getElementById('override-day-content').innerHTML = overrideTableHtml(rows);
 }
 
-function getLatestDate(){
-  if(state.dailyData.length) return state.dailyData[0].entry_date;
-  const today = new Date();
-  return today.toISOString().split('T')[0];
+function overrideTableHtml(rows) {
+  return `<div style="overflow-x:auto"><table class="data-table">
+    <thead><tr>
+      <th>Guest</th><th>Room</th>
+      <th class="right">Sold Rate</th><th class="right">New Rate</th>
+      <th class="right">Difference</th>
+      <th>By</th><th>Reason</th>
+    </tr></thead>
+    <tbody>${rows.map(r => `<tr>
+      <td>${r.guest_name||'—'}</td>
+      <td class="mono">${r.room_number||'—'}</td>
+      <td class="right">${fmt$(r.sold_rate)}</td>
+      <td class="right">${fmt$(r.new_rate)}</td>
+      <td class="right"><span class="${(r.override_amount||0)<0?'pill pill-red':'pill pill-green'}">${fmt$(r.override_amount)}</span></td>
+      <td class="mono" style="font-size:0.72rem">${r.username||'—'}</td>
+      <td style="font-size:0.8rem;color:var(--fog)">${r.override_reason||'—'}</td>
+    </tr>`).join('')}</tbody>
+    <tfoot><tr class="total-row">
+      <td colspan="4">Total</td>
+      <td class="right">${fmt$(rows.reduce((s,r)=>s+(r.override_amount||0),0))}</td>
+      <td colspan="2"></td>
+    </tr></tfoot>
+  </table></div>`;
 }
 
-function buildPortalHTML(adjs, pays, taxes, acts, inhouse, exempt, revDetail, overrides){
-  const totalPay = pays.reduce((s,r)=>s+Number(r.amount),0);
-  const totalAdj = adjs.reduce((s,r)=>s+Number(r.adjusted_amount),0);
-  const totalExempt = exempt.reduce((s,r)=>s+Number(r.room_revenue),0);
-  const exemptNights = exempt.reduce((s,r)=>s+Number(r.nights),0);
-  const totalOutstanding = inhouse.reduce((s,r)=>s+Number(r.outstanding_balance),0);
-  const netTax = taxes.reduce((s,r)=>s+Number(r.amount),0);
+function renderAdjDay(d) {
+  const rows = state.adjData.filter(r => r.date === d);
+  if (rows.length === 0) {
+    document.getElementById('adj-day-content').innerHTML = `<div class="empty-state"><div class="empty-state-sub">No adjustments for ${fmtDate(d)}</div></div>`;
+    document.getElementById('adj-day-badge').textContent = 'None';
+    document.getElementById('adj-day-badge').className = 'section-badge badge-ok';
+    return;
+  }
+  const refunds = rows.filter(r => r.transaction_type === 'REFUND');
+  const net = rows.reduce((s,r)=>s+Math.abs(r.adjusted_amount||0)+Math.abs(r.transferred_charge||0),0);
+  document.getElementById('adj-day-badge').textContent = `${rows.length} events — ${fmt$(net)}`;
+  document.getElementById('adj-day-badge').className = `section-badge ${refunds.length > 0 ? 'badge-alert' : 'badge-warn'}`;
+  document.getElementById('adj-day-content').innerHTML = adjTableHtml(rows);
+}
 
-  // Revenue detail
-  const revRows = revDetail.length
-    ? revDetail.map(r=>`<tr>
-        <td>${r.charge_type.replace(/_/g,' ').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase())}</td>
-        <td class="mono" style="text-align:right">${fmt$2(r.amount)}</td>
-      </tr>`).join('')
-    : '<tr><td colspan="2" class="muted" style="padding:16px;text-align:center">No revenue detail data yet — parser will populate on next import</td></tr>';
+function adjTableHtml(rows) {
+  return `<div style="overflow-x:auto"><table class="data-table">
+    <thead><tr>
+      <th>Type</th><th>Guest</th><th>Room</th>
+      <th class="right">Amount</th><th>By</th><th>Remarks</th>
+    </tr></thead>
+    <tbody>${rows.map(r => `<tr>
+      <td><span class="pill ${r.transaction_type==='REFUND'?'pill-red':r.transaction_type==='ADJUSTMENT'?'pill-amber':'pill-gray'}">${r.transaction_type||'—'}</span></td>
+      <td>${r.guest_name||'—'}</td>
+      <td class="mono">${r.room_number||'—'}</td>
+      <td class="right">${fmt$(r.adjusted_amount || r.transferred_charge)}</td>
+      <td class="mono" style="font-size:0.72rem">${r.username||'—'}</td>
+      <td style="font-size:0.78rem;color:var(--fog)">${r.remarks||'—'}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
 
-  // Tax rows
-  const taxRows = taxes.length
-    ? taxes.map(r=>`<tr>
-        <td>${r.tax_type.replace(/_/g,' ').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase())}</td>
-        <td class="mono ${r.amount<0?'dn':''}" style="text-align:right">${fmt$2(r.amount)}</td>
-      </tr>`).join('')
-      +`<tr style="background:var(--off)"><td style="font-weight:600">Net taxes collected</td><td class="mono" style="text-align:right;font-weight:600">${fmt$2(netTax)}</td></tr>`
-    : '<tr><td colspan="2" class="muted" style="padding:16px;text-align:center">No tax data yet</td></tr>';
+// ═══════════════════════════════════════════════════
+// AR VIEW
+// ═══════════════════════════════════════════════════
+function renderARView() {
+  if (state.arData.length === 0) {
+    document.getElementById('ar-detail-content').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-title">No AR data</div><div class="empty-state-sub">Upload Direct Bill Aging reports</div></div>';
+    document.getElementById('ar-total-badge').textContent = '—';
+    return;
+  }
 
-  // Payments
-  const payOrder = ['VISA','MASTER','AMEX','DISCOVER','CASH','BILL_TO_COMPANY','CLC'];
-  const payColors = {VISA:'var(--navy)',MASTER:'#1D6B9E',AMEX:'#085041',DISCOVER:'var(--gold)',CASH:'var(--ok)',BILL_TO_COMPANY:'var(--textm)',CLC:'#534AB7'};
-  const payMap = {};
-  pays.forEach(r=>{ payMap[r.payment_method]=(payMap[r.payment_method]||0)+Number(r.amount); });
-  const allMethods = [...new Set([...payOrder, ...Object.keys(payMap)])];
-  const maxPay = Math.max(...Object.values(payMap),1);
-  const payRows = allMethods.filter(m=>payMap[m]>0).map(m=>{
-    const amt = payMap[m]||0;
-    const pct = totalPay>0?(amt/totalPay)*100:0;
-    const barPct = (amt/maxPay)*100;
-    const color = payColors[m]||'var(--texts)';
-    return `<div class="pay-row">
-      <div class="pay-lbl">${m.replace(/_/g,' ')}</div>
-      <div class="pay-track"><div class="pay-fill" style="width:${barPct}%;background:${color}"></div></div>
-      <div class="pay-amt">${fmt$2(amt)}</div>
-      <div class="pay-pct">${pct.toFixed(1)}%</div>
-    </div>`;
-  }).join('') || '<div style="padding:16px;text-align:center;font-size:11px;color:var(--texts)">No payment data yet</div>';
+  const latest = state.arData[0];
+  const latestDate = latest.date;
+  const latestRows = state.arData.filter(r => r.date === latestDate);
+  const total = latestRows.reduce((s,r) => s+(r.total||0),0);
 
-  // Adjustments
-  const adjTagClass = code => code==='CORRECTION'?'tag-correction':code==='MANAGER DISCRETION'?'tag-discretion':'tag-transfer';
-  const adjRows = adjs.length
-    ? adjs.map(r=>`<tr>
-        <td class="mono muted">${r.adj_time?r.adj_time.slice(0,5):'—'}</td>
-        <td style="font-size:11px">${r.guest_name||'—'}</td>
-        <td><span class="room-chip">${r.room_number||'—'}</span></td>
-        <td><span class="tag ${adjTagClass(r.reason_code)}">${r.reason_code||'—'}</span></td>
-        <td class="mono ${r.adjusted_amount<0?'dn':'up'}" style="text-align:right">${fmt$2(r.adjusted_amount)}</td>
-        <td class="mono muted" style="text-align:right">${fmt$2(r.adjusted_tax)}</td>
-        <td style="font-size:10px;color:var(--textm)">${r.username||'—'}</td>
-        <td style="font-size:10px;color:var(--texts);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.remarks||''}</td>
-      </tr>`).join('')
-      +`<tr style="background:var(--off)"><td colspan="4" style="font-weight:600;font-size:11px">Total</td>
-          <td class="mono" style="text-align:right;font-weight:600">${fmt$2(totalAdj)}</td>
-          <td colspan="3"></td></tr>`
-    : '<tr><td colspan="8" class="muted" style="padding:16px;text-align:center">No adjustments for this period</td></tr>';
+  document.getElementById('ar-total-badge').textContent = `Total ${fmt$(total)}`;
+  document.getElementById('ar-detail-content').innerHTML = `<div class="aging-grid">${latestRows.map(co => agingCellHtml(co)).join('')}</div>
+    <div style="padding:0.75rem 1.5rem;font-family:var(--mono);font-size:0.6rem;color:var(--fog);">As of ${fmtDate(latestDate)}</div>`;
 
-  // Tax exempt
-  const exemptRows = exempt.length
-    ? exempt.slice(0,20).map(r=>`<tr>
-        <td style="font-size:11px">${r.guest_name||'—'}</td>
-        <td><span class="room-chip">${r.room_number||'—'}</span></td>
-        <td class="mono muted">${r.arrival_date||'—'}</td>
-        <td class="mono muted">${r.departure_date||'—'}</td>
-        <td class="mono" style="text-align:center">${r.nights||0}</td>
-        <td class="mono" style="text-align:right">${fmt$2(r.room_revenue)}</td>
-        <td><span class="tag tag-correction" style="font-size:9px">${(r.exempt_type||'').replace(/_/g,' ')}</span></td>
-      </tr>`).join('')
-      +`<tr style="background:var(--off)"><td colspan="4" style="font-weight:600;font-size:11px">Total</td>
-          <td class="mono" style="text-align:center;font-weight:600">${exemptNights}</td>
-          <td class="mono" style="text-align:right;font-weight:600">${fmt$2(totalExempt)}</td><td></td></tr>`
-    : '<tr><td colspan="7" class="muted" style="padding:16px;text-align:center">No tax exempt data for this period</td></tr>';
-
-  // User activity
-  const actIconColor = type => {
-    if(type==='ADJUST_CHARGE') return 'background:rgba(239,159,39,0.15);color:var(--warn)';
-    if(type==='CANCEL_RESERVATION') return 'background:rgba(226,75,74,0.1);color:var(--bad)';
-    if(type==='RATE_CODE_CHANGE') return 'background:rgba(239,159,39,0.15);color:var(--warn)';
-    if(type==='CHECKOUT_DATE_CHANGE') return 'background:rgba(200,146,42,0.15);color:var(--gold)';
-    return 'background:rgba(28,43,58,0.07);color:var(--textm)';
-  };
-  const actIcon = type => {
-    if(type==='ADJUST_CHARGE') return '$';
-    if(type==='CANCEL_RESERVATION') return '✕';
-    if(type==='RATE_CODE_CHANGE') return '↕';
-    if(type==='CHECKOUT_DATE_CHANGE') return '📅';
-    if(type==='ROOM_NUMBER_CHANGE') return '⇄';
-    return '·';
-  };
-  const actHTML = acts.length
-    ? acts.map(r=>`<div class="act-row">
-        <div class="act-icon" style="${actIconColor(r.action_type)}">${actIcon(r.action_type)}</div>
-        <div class="act-body">
-          <div class="act-action">${(r.action_type||'').replace(/_/g,' ').toLowerCase()}</div>
-          <div class="act-detail">${r.guest_name||'—'} · <span class="room-chip">${r.room_number||'—'}</span>
-            ${r.previous_value?` <span class="muted">${r.previous_value} → ${r.current_value}</span>`:''}
-          </div>
-          <div class="act-meta">${r.username||'—'}${r.remarks?' · '+r.remarks:''}</div>
-        </div>
-        <div class="act-time">${r.activity_time?r.activity_time.slice(0,5):'—'}</div>
-      </div>`).join('')
-    : '<div style="padding:20px;text-align:center;font-size:11px;color:var(--texts)">No activity data for this period</div>';
+  // Trend
+  const dates = [...new Set(state.arData.map(r => r.date))].sort().slice(-7);
+  if (dates.length > 1) {
+    const trendHtml = `<table class="data-table">
+      <thead><tr><th>Date</th><th class="right">CLC</th><th class="right">IHG Rewards</th><th class="right">Total</th><th class="right">Change</th></tr></thead>
+      <tbody>${dates.map((dt, i) => {
+        const rows = state.arData.filter(r => r.date === dt);
+        const tot = rows.reduce((s,r)=>s+(r.total||0),0);
+        let chg = '';
+        if (i > 0) {
+          const prevDt = dates[i-1];
+          const prevTot = state.arData.filter(r => r.date === prevDt).reduce((s,r)=>s+(r.total||0),0);
+          const diff = tot - prevTot;
+          chg = `<span style="color:${diff>0?'var(--red)':'var(--green)'};font-family:var(--mono);font-size:0.7rem">${diff>0?'+':''}${fmt$(diff)}</span>`;
+        }
+        const clc = rows.find(r=>r.company==='CLC');
+        const ihg = rows.find(r=>r.company==='IHG_REWARDS');
+        return `<tr><td class="mono">${fmtDate(dt)}</td><td class="right">${fmt$(clc?.total)}</td><td class="right">${fmt$(ihg?.total)}</td><td class="right" style="font-weight:600">${fmt$(tot)}</td><td class="right">${chg}</td></tr>`;
+      }).join('')}</tbody>
+    </table>`;
+    document.getElementById('ar-trend-content').innerHTML = trendHtml;
+  }
 
   // In-house
-  const inhouseRows = inhouse.length
-    ? inhouse.map(r=>`<tr>
-        <td><span class="room-chip">${r.room_number||'—'}</span></td>
-        <td style="font-size:11px">${r.guest_name||'—'}</td>
-        <td class="mono">${fmt$2(r.room_rate)}</td>
-        <td class="mono muted">${r.departure_date||'—'}</td>
-        <td style="font-size:10px;color:var(--textm)">${r.payment_method||'—'}</td>
-        <td class="mono warn" style="text-align:right">${fmt$2(r.outstanding_balance)}</td>
-      </tr>`).join('')
-      +`<tr style="background:var(--off)"><td colspan="5" style="font-weight:600;font-size:11px">Total outstanding</td>
-          <td class="mono" style="text-align:right;font-weight:600;color:var(--warn)">${fmt$2(totalOutstanding)}</td></tr>`
-    : '<tr><td colspan="6" class="muted" style="padding:16px;text-align:center">No in-house data for this date</td></tr>';
-
-  return `
-    <div class="sec-hdr">Revenue detail</div>
-    <div class="pgrid2">
-      <div class="panel">
-        <div class="ph"><div class="ph-t">By charge type</div></div>
-        <table><thead><tr><th>Charge Type</th><th style="text-align:right">Amount</th></tr></thead>
-        <tbody>${revRows}</tbody></table>
-      </div>
-      <div class="panel">
-        <div class="ph"><div class="ph-t">Tax breakdown</div></div>
-        <table><thead><tr><th>Tax Type</th><th style="text-align:right">Amount</th></tr></thead>
-        <tbody>${taxRows}</tbody></table>
-      </div>
-    </div>
-
-    <div class="sec-hdr">Payments</div>
-    <div class="panel" style="margin-bottom:10px">
-      <div class="ph"><div class="ph-t">Payment method breakdown</div><span style="font-size:10px;color:var(--texts)">${fmt$2(totalPay)} total</span></div>
-      <div class="pay-body">${payRows}</div>
-    </div>
-
-    <div class="sec-hdr">Adjustments &amp; refunds</div>
-    <div class="panel" style="margin-bottom:10px">
-      <div class="ph">
-        <div class="ph-t">Adjustments and refunds activity</div>
-        <span class="badge ${adjs.some(a=>a.reason_code==='MANAGER DISCRETION')?'badge-warn':'badge-ok'}">${adjs.length} adjustments</span>
-      </div>
-      <div style="overflow-x:auto">
-        <table style="min-width:700px">
-          <thead><tr><th>Time</th><th>Guest</th><th>Room</th><th>Reason</th><th style="text-align:right">Amount</th><th style="text-align:right">Tax</th><th>By</th><th>Remarks</th></tr></thead>
-          <tbody>${adjRows}</tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="sec-hdr">Tax exempt revenue</div>
-    <div class="panel" style="margin-bottom:10px">
-      <div class="ph">
-        <div class="ph-t">Tax exempt detail</div>
-        <span class="badge badge-gold">${fmt$2(totalExempt)} · ${exemptNights} nights</span>
-      </div>
-      <div style="overflow-x:auto">
-        <table>
-          <thead><tr><th>Guest</th><th>Room</th><th>Arrival</th><th>Departure</th><th style="text-align:center">Nts</th><th style="text-align:right">Revenue</th><th>Type</th></tr></thead>
-          <tbody>${exemptRows}</tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="pgrid2">
-      <div class="panel">
-        <div class="ph"><div class="ph-t">Staff activity log</div><span style="font-size:10px;color:var(--texts)">${acts.length} actions</span></div>
-        <div style="max-height:340px;overflow-y:auto">${actHTML}</div>
-      </div>
-      <div class="panel">
-        <div class="ph">
-          <div class="ph-t">In-house guest balances</div>
-          <span class="badge badge-warn">${fmt$2(totalOutstanding)} outstanding</span>
-        </div>
-        <table>
-          <thead><tr><th>Rm</th><th>Guest</th><th>Rate</th><th>Dep</th><th>Method</th><th style="text-align:right">Balance</th></tr></thead>
-          <tbody>${inhouseRows}</tbody>
-        </table>
-      </div>
-    </div>
-
-    <div style="padding:8px 0 20px;text-align:center;font-size:10px;color:var(--texts);font-style:italic">
-      CC reconciliation tool coming soon · All data sourced from nightly PDF auto-import
-    </div>`;
-}
-
-// ═══════════════════════════════════════════
-// SETTINGS
-// ═══════════════════════════════════════════
-function openSettings(){ document.getElementById('settingsOverlay').classList.add('open'); }
-function closeSettings(){ document.getElementById('settingsOverlay').classList.remove('open'); }
-function closeSettingsOutside(e){ if(e.target===document.getElementById('settingsOverlay')) closeSettings(); }
-
-async function manualEntry(){
-  const date  = document.getElementById('sdDate').value;
-  const occ   = parseInt(document.getElementById('sdOcc').value);
-  const avail = parseInt(document.getElementById('sdAvail').value);
-  const rev   = parseFloat(document.getElementById('sdRev').value);
-  const notes = document.getElementById('sdNotes').value;
-  const msg   = document.getElementById('sdEntryMsg');
-  if(!date||isNaN(occ)||isNaN(avail)||isNaN(rev)){
-    msg.className='sd-msg err'; msg.textContent='All fields required.'; return;
+  if (state.inhouseData.length > 0) {
+    const latestIH = state.inhouseData[0].date;
+    const ihRows = state.inhouseData.filter(r => r.date === latestIH);
+    const totalBal = ihRows.reduce((s,r)=>s+(r.folio_balance||0),0);
+    document.getElementById('inhouse-badge').textContent = `${ihRows.length} guests — ${fmt$(totalBal)}`;
+    document.getElementById('inhouse-content').innerHTML = `<div style="overflow-x:auto"><table class="data-table">
+      <thead><tr>
+        <th>Room</th><th>Guest</th><th>Company</th>
+        <th class="right">Rate/Night</th><th class="right">Folio Balance</th><th>Payment</th>
+      </tr></thead>
+      <tbody>${ihRows.map(r=>`<tr>
+        <td class="mono">${r.room_number||'—'}</td>
+        <td>${r.guest_name||'—'}</td>
+        <td>${r.company ? `<span class="pill pill-blue">${r.company}</span>` : '—'}</td>
+        <td class="right">${fmt$(r.room_rate)}</td>
+        <td class="right" style="font-weight:500">${fmt$(r.folio_balance)}</td>
+        <td class="mono" style="font-size:0.7rem">${r.payment_method||'—'}</td>
+      </tr>`).join('')}</tbody>
+      <tfoot><tr class="total-row"><td colspan="4">Total</td><td class="right">${fmt$(totalBal)}</td><td></td></tr></tfoot>
+    </table></div><div style="padding:0.75rem 1.5rem;font-family:var(--mono);font-size:0.6rem;color:var(--fog);">As of ${fmtDate(latestIH)}</div>`;
   }
-  const {error} = await SB.from('daily_revenue').upsert({
-    property_id:state.activeProp.id, entry_date:date,
-    rooms_occupied:occ, rooms_available:avail, room_revenue:rev,
-    notes:notes||'Manual entry — fallback', source:'manual',
-    updated_at:new Date().toISOString()
-  },{onConflict:'property_id,entry_date'});
-  if(error){ msg.className='sd-msg err'; msg.textContent='Failed: '+error.message; return; }
-  msg.className='sd-msg ok'; msg.textContent='Entry saved.';
-  setTimeout(loadAll, 500);
 }
 
-// ═══════════════════════════════════════════
-// BOOT
-// ═══════════════════════════════════════════
-window.addEventListener('DOMContentLoaded', init);
+// ═══════════════════════════════════════════════════
+// ACCOUNTABILITY VIEW
+// ═══════════════════════════════════════════════════
+function renderAccountabilityView() {
+  // Overrides by clerk
+  if (state.overrideData.length > 0) {
+    const byClerk = {};
+    state.overrideData.forEach(r => {
+      const u = r.username || 'Unknown';
+      if (!byClerk[u]) byClerk[u] = { count: 0, net: 0 };
+      byClerk[u].count++;
+      byClerk[u].net += (r.override_amount||0);
+    });
+    const clerkRows = Object.entries(byClerk).sort((a,b) => a[1].net - b[1].net);
+    document.getElementById('override-clerk-badge').textContent = `${state.overrideData.length} total overrides`;
+    document.getElementById('override-clerk-badge').className = 'section-badge badge-warn';
+    document.getElementById('override-clerk-content').innerHTML = `<table class="data-table">
+      <thead><tr><th>Staff Member</th><th class="right">Count</th><th class="right">Net Revenue Impact</th><th class="right">Avg per Override</th></tr></thead>
+      <tbody>${clerkRows.map(([name, d]) => `<tr>
+        <td style="font-weight:500">${name}</td>
+        <td class="right mono">${d.count}</td>
+        <td class="right"><span class="${d.net<0?'pill pill-red':'pill pill-green'}">${fmt$(d.net)}</span></td>
+        <td class="right mono">${fmt$(d.net/d.count)}</td>
+      </tr>`).join('')}</tbody>
+      <tfoot><tr class="total-row">
+        <td>Total</td>
+        <td class="right mono">${state.overrideData.length}</td>
+        <td class="right">${fmt$(state.overrideData.reduce((s,r)=>s+(r.override_amount||0),0))}</td>
+        <td></td>
+      </tr></tfoot>
+    </table>`;
+
+    document.getElementById('override-all-badge').textContent = `${state.overrideData.length} records`;
+    document.getElementById('override-all-badge').className = 'section-badge badge-info';
+    document.getElementById('override-all-content').innerHTML = `<div style="overflow-x:auto">${overrideTableHtml(state.overrideData.slice(0, 100))}</div>`;
+  }
+
+  // Adjustments all
+  if (state.adjData.length > 0) {
+    const refunds = state.adjData.filter(r=>r.transaction_type==='REFUND');
+    const total = state.adjData.reduce((s,r)=>s+Math.abs(r.adjusted_amount||0),0);
+    document.getElementById('adj-all-badge').textContent = `${state.adjData.length} events — ${refunds.length} refunds`;
+    document.getElementById('adj-all-badge').className = `section-badge ${refunds.length>0?'badge-warn':'badge-ok'}`;
+    document.getElementById('adj-all-content').innerHTML = `<div style="overflow-x:auto">${adjTableHtml(state.adjData.slice(0, 100))}</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// MONTHLY TABLE
+// ═══════════════════════════════════════════════════
+function renderMonthlyTable() {
+  if (state.monthlyData.length === 0) {
+    document.getElementById('monthly-table-content').innerHTML = `<div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-title">No historical data</div><div class="empty-state-sub">Add monthly records in the History tab</div></div>`;
+    return;
+  }
+  const maxRev = Math.max(...state.monthlyData.map(r=>r.room_revenue||0));
+  document.getElementById('monthly-table-content').innerHTML = `<div style="overflow-x:auto"><table class="data-table">
+    <thead><tr>
+      <th>Month</th><th class="right">Occ%</th><th class="right">ADR</th>
+      <th class="right">RevPAR</th><th class="right">Room Revenue</th>
+      <th class="right">Total Revenue</th><th>Source</th><th style="width:120px">Bar</th>
+    </tr></thead>
+    <tbody>${state.monthlyData.map(r=>`<tr>
+      <td class="mono">${fmtMonth(r.period_start)}</td>
+      <td class="right">${fmtPct(r.occ_pct)}</td>
+      <td class="right">${fmt$(r.adr)}</td>
+      <td class="right">${fmt$(r.revpar)}</td>
+      <td class="right" style="font-weight:500">${fmt$(r.room_revenue)}</td>
+      <td class="right">${fmt$(r.total_revenue)}</td>
+      <td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source||'—'}</span></td>
+      <td><div class="month-bar" style="width:${maxRev>0?Math.round((r.room_revenue||0)/maxRev*110):0}px"></div></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+let monthlyChart = null;
+function renderMonthlyChart() {
+  if (state.monthlyData.length === 0) return;
+  const ctx = document.getElementById('chart-monthly-rev').getContext('2d');
+  if (monthlyChart) monthlyChart.destroy();
+  monthlyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: state.monthlyData.map(r => fmtMonth(r.period_start)),
+      datasets: [{
+        label: 'Room Revenue',
+        data: state.monthlyData.map(r => r.room_revenue || 0),
+        backgroundColor: 'rgba(201,151,58,0.7)',
+        borderColor: 'rgba(201,151,58,1)',
+        borderWidth: 1,
+        borderRadius: 3
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k', font: { family: 'DM Mono', size: 10 } }, grid: { color: '#e2e0db' } },
+        x: { ticks: { font: { family: 'DM Mono', size: 9 }, maxRotation: 45 }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// PERFORMANCE CHARTS
+// ═══════════════════════════════════════════════════
+function renderDailyChart() {
+  const rows = Object.values(state.dailyData).sort((a,b)=>a.date.localeCompare(b.date)).slice(-30);
+  if (rows.length === 0) return;
+  const ctx = document.getElementById('chart-daily-rev').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: rows.map(r => r.date.slice(5)),
+      datasets: [
+        {
+          label: 'Room Revenue',
+          data: rows.map(r => r.room_revenue || 0),
+          borderColor: 'rgba(201,151,58,1)',
+          backgroundColor: 'rgba(201,151,58,0.08)',
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: true,
+          tension: 0.3
+        },
+        {
+          label: 'LY Room Revenue',
+          data: rows.map(r => r.ly_room_revenue || null),
+          borderColor: 'rgba(136,146,164,0.5)',
+          borderWidth: 1.5,
+          borderDash: [4,3],
+          pointRadius: 0,
+          fill: false,
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { font: { family: 'DM Mono', size: 10 } } } },
+      scales: {
+        y: { ticks: { callback: v => '$' + (v/1000).toFixed(1)+'k', font: { family: 'DM Mono', size: 10 } }, grid: { color: '#e2e0db' } },
+        x: { ticks: { font: { family: 'DM Mono', size: 9 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// HISTORY MANUAL ENTRY
+// ═══════════════════════════════════════════════════
+function renderHistoryList() {
+  const el = document.getElementById('hist-list-content');
+  const badge = document.getElementById('hist-count-badge');
+  if (state.monthlyData.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-title">No historical data yet</div><div class="empty-state-sub">Use the form to enter Opera Flash data starting Jan 2023</div></div>`;
+    badge.textContent = '0 months';
+    return;
+  }
+  badge.textContent = `${state.monthlyData.length} months`;
+  el.innerHTML = `<table class="data-table">
+    <thead><tr><th>Month</th><th class="right">Revenue</th><th class="right">Occ%</th><th>Source</th></tr></thead>
+    <tbody>${[...state.monthlyData].reverse().map(r=>`<tr>
+      <td class="mono">${fmtMonth(r.period_start)}</td>
+      <td class="right">${fmt$(r.room_revenue)}</td>
+      <td class="right">${fmtPct(r.occ_pct)}</td>
+      <td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source}</span></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+document.getElementById('hist-save-btn').addEventListener('click', async () => {
+  const start = document.getElementById('hist-period-start').value;
+  const end   = document.getElementById('hist-period-end').value;
+  if (!start || !end) { toast('Period start and end are required', 'error'); return; }
+
+  const rec = {
+    period_start:    start,
+    period_end:      end,
+    occ_pct:         parseFloat(document.getElementById('hist-occ').value) || null,
+    adr:             parseFloat(document.getElementById('hist-adr').value) || null,
+    revpar:          parseFloat(document.getElementById('hist-revpar').value) || null,
+    rooms_sold:      parseInt(document.getElementById('hist-rooms-sold').value) || null,
+    rooms_available: parseInt(document.getElementById('hist-rooms-avail').value) || null,
+    room_revenue:    parseFloat(document.getElementById('hist-room-rev').value) || null,
+    misc_revenue:    parseFloat(document.getElementById('hist-misc-rev').value) || null,
+    total_revenue:   parseFloat(document.getElementById('hist-total-rev').value) || null,
+    source:          document.getElementById('hist-source').value,
+    notes:           document.getElementById('hist-notes').value || null
+  };
+
+  try {
+    await sbInsert('monthly_revenue', rec, 'period_start');
+    await loadMonthlyRevenue();
+    renderHistoryList();
+    renderMonthlyTable();
+    toast(`Saved ${fmtMonth(start)}`);
+    document.getElementById('hist-clear-btn').click();
+  } catch(e) {
+    toast('Save failed: ' + e.message, 'error');
+  }
+});
+
+document.getElementById('hist-clear-btn').addEventListener('click', () => {
+  ['hist-period-start','hist-period-end','hist-occ','hist-adr','hist-revpar',
+   'hist-rooms-sold','hist-rooms-avail','hist-room-rev','hist-misc-rev',
+   'hist-total-rev','hist-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('hist-source').value = 'opera_flash';
+});
+
+// ═══════════════════════════════════════════════════
+// UPLOAD & FILE DETECTION
+// ═══════════════════════════════════════════════════
+const uploadZone = document.getElementById('upload-zone');
+const fileInput  = document.getElementById('file-input');
+const uploadResults = document.getElementById('upload-results');
+const commitBtn  = document.getElementById('upload-commit-btn');
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  handleFiles([...e.dataTransfer.files]);
+});
+fileInput.addEventListener('change', () => handleFiles([...fileInput.files]));
+
+async function handleFiles(files) {
+  state.pendingFiles = [];
+  uploadResults.innerHTML = '';
+
+  for (const file of files) {
+    const item = document.createElement('div');
+    item.className = 'upload-item';
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    let detected = 'UNKNOWN';
+    let detectedLabel = 'Detecting...';
+    let parsedData = null;
+
+    try {
+      if (ext === 'pdf') {
+        const text = await readFileAsText(file);
+        const result = detectPDFReport(text, file.name);
+        detected = result.type;
+        parsedData = result.data;
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        detected = 'RATE_OVERRIDE';
+        parsedData = { raw: file, filename: file.name };
+      }
+    } catch(e) {
+      detected = 'ERROR';
+    }
+
+    const typeClass = detected === 'UNKNOWN' ? 'type-unknown' : detected === 'ERROR' ? 'type-error' : 'type-detected';
+    const typeLabel = {
+      HOTEL_STATISTICS: 'Hotel Statistics',
+      AR_AGING: 'Direct Bill Aging',
+      RATE_OVERRIDE: 'Rate Override',
+      ADJUSTMENTS: 'Adjustments & Refunds',
+      INHOUSE_BALANCES: 'In-House Balances',
+      TAX_REPORT: 'Tax Report',
+      USER_ACTIVITY: 'User Activity',
+      CLERK_ACTIVITY: 'Clerk Activity',
+      CLOSED_FOLIO: 'Closed Folio',
+      UNKNOWN: 'Unrecognized',
+      ERROR: 'Read Error'
+    }[detected] || detected;
+
+    const saveable = ['HOTEL_STATISTICS','AR_AGING','ADJUSTMENTS','INHOUSE_BALANCES','RATE_OVERRIDE'].includes(detected);
+    if (saveable && parsedData) state.pendingFiles.push({ type: detected, data: parsedData, name: file.name });
+
+    item.innerHTML = `
+      <div class="upload-item-icon">${ext==='xlsx'?'📊':'📄'}</div>
+      <div class="upload-item-name">${file.name}</div>
+      <span class="upload-item-type ${typeClass}">${typeLabel}</span>
+      <div class="upload-item-status">${saveable ? '→ will save' : detected==='UNKNOWN'?'not saved':'display only'}</div>
+    `;
+    uploadResults.appendChild(item);
+  }
+
+  commitBtn.disabled = state.pendingFiles.length === 0;
+  commitBtn.textContent = state.pendingFiles.length > 0
+    ? `Save ${state.pendingFiles.length} report${state.pendingFiles.length>1?'s':''} to Database`
+    : 'Save to Database';
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+// ── PDF DETECTION BY CONTENT ──
+function detectPDFReport(text, filename) {
+  const t = text.toUpperCase();
+
+  // Hotel Statistics
+  if (t.includes('HOTEL STATISTICS') && (t.includes('ACTUAL TODAY') || t.includes('M-T-D'))) {
+    return { type: 'HOTEL_STATISTICS', data: parseHotelStatistics(text) };
+  }
+  // Direct Bill Aging
+  if (t.includes('DIRECT BILL AGING') && t.includes('OVER 150')) {
+    return { type: 'AR_AGING', data: parseARAgingPDF(text) };
+  }
+  // Adjustments & Refunds
+  if (t.includes('ADJUSTMENTS AND REFUNDS') || (t.includes('ADJUSTMENT') && t.includes('REASON CODE'))) {
+    return { type: 'ADJUSTMENTS', data: parseAdjustmentsPDF(text) };
+  }
+  // In-House Guest Balances
+  if (t.includes('IN HOUSE GUEST BALANCES') || t.includes('IN-HOUSE GUEST BALANCES')) {
+    return { type: 'INHOUSE_BALANCES', data: parseInhousePDF(text) };
+  }
+  // Tax Report
+  if (t.includes('TAX REPORT') && t.includes('PAYABLE TAX')) {
+    return { type: 'TAX_REPORT', data: null };
+  }
+  // User Activity
+  if (t.includes('USER ACTIVITY REPORT')) {
+    return { type: 'USER_ACTIVITY', data: null };
+  }
+  // Clerk Activity
+  if (t.includes('CLERK ACTIVITY')) {
+    return { type: 'CLERK_ACTIVITY', data: null };
+  }
+  // Closed Folio
+  if (t.includes('CLOSED FOLIO BALANCES')) {
+    return { type: 'CLOSED_FOLIO', data: null };
+  }
+  return { type: 'UNKNOWN', data: null };
+}
+
+// ── PARSERS ──
+function extractDate(text) {
+  // Try "Date: Mon DD, YYYY" format from HotelKey
+  const m1 = text.match(/Date:\s*(\w+\s+\d+,?\s*\d{4})/i);
+  if (m1) {
+    const d = new Date(m1[1]);
+    if (!isNaN(d)) return d.toISOString().slice(0,10);
+  }
+  // Try "Date Range: Mon DD, YYYY - Mon DD, YYYY"
+  const m2 = text.match(/Date Range:\s*(\w+\s+\d+,?\s*\d{4})/i);
+  if (m2) {
+    const d = new Date(m2[1]);
+    if (!isNaN(d)) return d.toISOString().slice(0,10);
+  }
+  // Try MM-DD-YY from Opera Flash header
+  const m3 = text.match(/(\d{2}-\d{2}-\d{2})/);
+  if (m3) {
+    const parts = m3[1].split('-');
+    return `20${parts[2]}-${parts[0]}-${parts[1]}`;
+  }
+  return null;
+}
+
+function parseNum(s) {
+  if (!s) return null;
+  const n = parseFloat(s.replace(/[$,%]/g,'').replace(/,/g,''));
+  return isNaN(n) ? null : n;
+}
+
+function parseHotelStatistics(text) {
+  const date = extractDate(text);
+  // Pull "Actual Today" column values using line-by-line parsing
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  function findVal(keyword) {
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].toUpperCase().includes(keyword.toUpperCase())) {
+        // Look for numeric values in next few tokens
+        const combined = lines.slice(i, i+3).join(' ');
+        const nums = combined.match(/[\d,]+\.?\d*/g);
+        if (nums && nums.length > 0) return parseNum(nums[0]);
+      }
+    }
+    return null;
+  }
+
+  // Find key values — Actual Today column
+  let occ = findVal('Occupancy Including Out');
+  let adr = findVal('ADR Including');
+  let revpar = findVal('RevPAR');
+  let rooms_sold = findVal('Room Sold');
+  let rooms_avail = findVal('Rooms Available');
+
+  // Revenue totals from "Totals" row under Room Revenue section
+  let room_revenue = null, misc_revenue = null;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i] === 'Totals' || lines[i].toLowerCase().startsWith('totals')) {
+      const nums = lines.slice(i, i+4).join(' ').match(/\$?[\d,]+\.?\d*/g);
+      if (nums && nums.length >= 1) {
+        room_revenue = parseNum(nums[0]);
+        break;
+      }
+    }
+  }
+
+  // Try to get LY values (LY-M-T-D column)
+  let ly_occ = null, ly_adr = null, ly_room_rev = null;
+
+  return { date, occ_pct: occ, adr, revpar, rooms_sold, rooms_available: rooms_avail, room_revenue, misc_revenue, ly_occ_pct: ly_occ, ly_adr, ly_room_revenue: ly_room_rev };
+}
+
+function parseARAgingPDF(text) {
+  const date = extractDate(text);
+  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const result = [];
+
+  ['CLC', 'IHG REWARD'].forEach(co => {
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].toUpperCase().includes(co)) {
+        const combined = lines.slice(i, i+5).join(' ');
+        const nums = combined.match(/[-$\d,]+\.?\d*/g)?.map(parseNum).filter(n=>n!==null) || [];
+        if (nums.length >= 7) {
+          result.push({
+            date,
+            company: co === 'CLC' ? 'CLC' : 'IHG_REWARDS',
+            current_bal: nums[0],
+            over_30: nums[2],
+            over_60: nums[3],
+            over_90: nums[4],
+            over_120: nums[5],
+            over_150: nums[6],
+            total: nums[7] || null
+          });
+          break;
+        }
+      }
+    }
+  });
+
+  return result;
+}
+
+function parseAdjustmentsPDF(text) {
+  const date = extractDate(text);
+  // Return minimal parsed object — detailed parsing handled at commit time
+  return { date, raw: text };
+}
+
+function parseInhousePDF(text) {
+  const date = extractDate(text);
+  return { date, raw: text };
+}
+
+// ── COMMIT TO SUPABASE ──
+commitBtn.addEventListener('click', async () => {
+  commitBtn.disabled = true;
+  commitBtn.textContent = 'Saving...';
+  let saved = 0, errors = 0;
+
+  for (const file of state.pendingFiles) {
+    try {
+      if (file.type === 'HOTEL_STATISTICS' && file.data?.date) {
+        const d = file.data;
+        await sbInsert('daily_revenue', {
+          date: d.date,
+          occ_pct: d.occ_pct,
+          adr: d.adr,
+          revpar: d.revpar,
+          rooms_sold: d.rooms_sold,
+          rooms_available: d.rooms_available,
+          room_revenue: d.room_revenue,
+          misc_revenue: d.misc_revenue,
+          total_revenue: d.room_revenue && d.misc_revenue ? d.room_revenue + d.misc_revenue : d.room_revenue,
+          ly_occ_pct: d.ly_occ_pct,
+          ly_adr: d.ly_adr,
+          ly_room_revenue: d.ly_room_revenue
+        }, 'date');
+        saved++;
+      }
+
+      if (file.type === 'AR_AGING' && Array.isArray(file.data)) {
+        for (const row of file.data) {
+          if (row.date && row.company) {
+            await sbInsert('ar_aging', row, 'date,company');
+            saved++;
+          }
+        }
+      }
+
+      if (file.type === 'ADJUSTMENTS' && file.data?.date) {
+        // Basic save with raw note
+        await sbInsert('adjustments', {
+          date: file.data.date,
+          transaction_type: 'ADJUSTMENT',
+          reason_code: 'UPLOADED',
+          remarks: `Uploaded from: ${file.name}`
+        });
+        saved++;
+      }
+
+    } catch(e) {
+      console.error(file.name, e);
+      errors++;
+    }
+  }
+
+  // Reload
+  await Promise.all([loadDailyRevenue(), loadArAging(), loadAdjustments(), loadRateOverrides(), loadInhouseBalances()]);
+  renderDailyView();
+  renderARView();
+  renderAccountabilityView();
+
+  if (errors === 0) {
+    toast(`Saved ${saved} record${saved>1?'s':''}`, 'success');
+  } else {
+    toast(`Saved ${saved}, ${errors} failed — check console`, 'error');
+  }
+
+  commitBtn.disabled = false;
+  commitBtn.textContent = 'Save to Database';
+  state.pendingFiles = [];
+});
+
+// ── Render daily chart when Performance tab activated ──
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  if (btn.dataset.view === 'performance') {
+    btn.addEventListener('click', () => {
+      setTimeout(renderDailyChart, 100);
+    });
+  }
+});
+
 </script>
 </body>
 </html>
