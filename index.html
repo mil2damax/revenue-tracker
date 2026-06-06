@@ -1237,17 +1237,61 @@ function buildAccountability(){
 // ═══════════════════════════════════════════
 function buildHistory(){
   const prop = S.mode;
-  const propMonthly = S.monthly.filter(r=>r.property===prop);
+  const isOwner = S.mode === 'OWNER';
+
+  // Property PIN users — read-only view of their property records
+  if(!isOwner){
+    const propMonthly = [...S.monthly].filter(r=>r.property===prop).reverse();
+    return `
+      <div class="page-header">
+        <div class="page-title">Historical Data</div>
+        <div class="page-sub">${PROPS[prop]?.name} · Jan 2023 – May 2026 · Read only</div>
+      </div>
+      <div class="content">
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">Loaded Records</div>
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <div class="section-badge badge-info">${propMonthly.length} months</div>
+              <div class="section-badge badge-gold">Owner PIN required to edit</div>
+            </div>
+          </div>
+          <div style="max-height:520px;overflow-y:auto">
+            ${propMonthly.length
+              ? `<table class="data-table">
+                  <thead><tr><th>Month</th><th class="r">Room Revenue</th><th class="r">Occ%</th><th class="r">ADR</th><th class="r">RevPAR</th><th>Source</th></tr></thead>
+                  <tbody>${propMonthly.map(r=>`<tr>
+                    <td class="mono">${fmtMonth(r.period_start)}</td>
+                    <td class="r" style="font-weight:500">${fmt$(r.room_revenue)}</td>
+                    <td class="r">${fmtPct(r.occ_pct)}</td>
+                    <td class="r">${fmt$(r.adr)}</td>
+                    <td class="r">${fmt$(r.revpar)}</td>
+                    <td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source}</span></td>
+                  </tr>`).join('')}</tbody>
+                </table>`
+              : empty('No historical data yet','Owner can upload Opera Flash reports or enter data manually')}
+          </div>
+        </div>
+      </div>`;}
+
+  // Owner — full access: add, edit, delete across all properties
   return `
     <div class="page-header">
       <div class="page-title">Historical Data</div>
-      <div class="page-sub">${PROPS[prop]?.name} · Jan 2023 – May 2026 · Manual entry</div>
+      <div class="page-sub">Owner · Add · Edit · Delete monthly records</div>
     </div>
     <div class="content">
       <div class="two-col">
         <div class="section-card">
-          <div class="section-head"><div class="section-title">Add Monthly Record</div></div>
+          <div class="section-head"><div class="section-title">Add / Edit Monthly Record</div><div class="section-badge badge-gold">Owner Only</div></div>
           <div class="form-grid">
+            <div class="form-group"><label class="form-label">Property</label>
+              <select class="form-input" id="h-prop">
+                <option value="WKFCW">WKFCW — Candlewood</option>
+                <option value="RDURM">RDURM — Tru</option>
+                <option value="RDUTT">RDUTT — Home2</option>
+              </select>
+            </div>
             <div class="form-group"><label class="form-label">Month Start</label><input type="date" class="form-input" id="h-start"></div>
             <div class="form-group"><label class="form-label">Month End</label><input type="date" class="form-input" id="h-end"></div>
             <div class="form-group"><label class="form-label">Occupancy %</label><input type="number" class="form-input" id="h-occ" placeholder="95.30" step="0.01"></div>
@@ -1273,22 +1317,38 @@ function buildHistory(){
           </div>
         </div>
         <div class="section-card">
-          <div class="section-head"><div class="section-title">Loaded Records</div><div class="section-badge badge-info" id="h-count">${propMonthly.length} months</div></div>
-          <div id="h-list" style="max-height:500px;overflow-y:auto">
-            ${propMonthly.length
-              ? `<table class="data-table"><thead><tr><th>Month</th><th class="r">Revenue</th><th class="r">Occ%</th><th>Source</th></tr></thead>
-                <tbody>${[...propMonthly].reverse().map(r=>`<tr>
-                  <td class="mono">${fmtMonth(r.period_start)}</td>
-                  <td class="r">${fmt$(r.room_revenue)}</td>
-                  <td class="r">${fmtPct(r.occ_pct)}</td>
-                  <td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source}</span></td>
-                </tr>`).join('')}</tbody></table>`
-              : empty('No historical data yet','Use the form to enter Opera Flash data')}
+          <div class="section-head">
+            <div class="section-title">Loaded Records</div>
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <select class="form-input" id="h-prop-filter" style="height:28px;padding:.1rem .5rem;font-size:.65rem">
+                <option value="WKFCW">WKFCW</option>
+                <option value="RDURM">RDURM</option>
+                <option value="RDUTT">RDUTT</option>
+              </select>
+              <div class="section-badge badge-info" id="h-count">${S.monthly.length} months</div>
+            </div>
+          </div>
+          <div id="h-list" style="max-height:520px;overflow-y:auto">
+            ${buildHistoryList(S.monthly, 'WKFCW')}
           </div>
         </div>
       </div>
-    </div>`;
-}
+    </div>`;}
+
+function buildHistoryList(data, prop){
+  const filtered = [...data].filter(r=>r.property===prop).reverse();
+  if(!filtered.length) return empty('No records for '+prop,'Upload Opera Flash PDFs or use the form');
+  return `<table class="data-table">
+    <thead><tr><th>Month</th><th class="r">Revenue</th><th class="r">Occ%</th><th>Source</th><th></th></tr></thead>
+    <tbody>${filtered.map(r=>`<tr>
+      <td class="mono">${fmtMonth(r.period_start)}</td>
+      <td class="r">${fmt$(r.room_revenue)}</td>
+      <td class="r">${fmtPct(r.occ_pct)}</td>
+      <td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source}</span></td>
+      <td><button class="btn-delete" data-id="${r.id}" data-month="${r.period_start}" title="Delete">✕</button></td>
+    </tr>`).join('')}</tbody>
+  </table>`;}
+
 
 function wireHistory(){
   // Save
