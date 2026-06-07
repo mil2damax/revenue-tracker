@@ -812,7 +812,7 @@ function wireHistory(){
     const btn=e.target.closest('.btn-delete'); if(!btn) return;
     const id=btn.dataset.id, month=btn.dataset.month;
     if(!confirm(`Delete ${fmtMonth(month)}? This cannot be undone.`)) return;
-    try { await sbDelete('monthly_revenue',`id=eq.${id}`); await loadAllData(); const fp=document.getElementById('h-prop-filter')?.value||'WKFCW'; document.getElementById('h-list').innerHTML=buildHistoryList(S.monthly,fp); document.getElementById('h-count').textContent=S.monthly.length+' months'; toast(`Deleted ${fmtMonth(month)}`); } catch(e){ toast('Delete failed: '+e.message,'error'); }
+    try { await sbDelete('monthly_revenue',`id=eq.${id}`); await loadAllData(); toast(`Deleted ${fmtMonth(month)}`); renderView('history'); } catch(e){ toast('Delete failed: '+e.message,'error'); }
   });
 }
 
