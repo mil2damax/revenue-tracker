@@ -283,10 +283,14 @@ const PROPS = {
   RDUTT:{ name:'Home2 Suites Raleigh North',    short:'Home2 Raleigh', pms:'PEP',      active:false }
 };
 
+// Local-timezone date string (YYYY-MM-DD) — avoids the UTC-shift bug where
+// toISOString() rolls the date forward/back near midnight in non-UTC zones.
+const localISODate=d=>{ const dt=d||new Date(); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); };
+
 // ═══════════════════════════════════
 // STATE
 // ═══════════════════════════════════
-let S = { mode:null, currentDate:new Date().toISOString().slice(0,10), daily:{}, ar:[], overrides:[], adjs:[], inhouse:[], monthly:[], pending:[], charts:{}, drillProp:null };
+let S ={ mode:null, currentDate:localISODate(), daily:{}, ar:[], overrides:[], adjs:[], inhouse:[], monthly:[], pending:[], charts:{}, drillProp:null };
 
 // ═══════════════════════════════════
 // SUPABASE
@@ -402,7 +406,7 @@ function buildAppShell(){
   document.getElementById('switch-prop-btn').addEventListener('click', lockApp);
 }
 function lockApp(){
-  S={mode:null,currentDate:new Date().toISOString().slice(0,10),daily:{},ar:[],overrides:[],adjs:[],inhouse:[],monthly:[],pending:[],charts:{},drillProp:null};
+  S={mode:null,currentDate:localISODate(),daily:{},ar:[],overrides:[],adjs:[],inhouse:[],monthly:[],pending:[],charts:{},drillProp:null};
   pinEntry=''; pinTarget=null;
   document.getElementById('entry-screen').style.display='flex';
   document.getElementById('entry-screen').classList.remove('hidden');
@@ -473,17 +477,48 @@ function toast(msg,type='success'){ const t=document.getElementById('toast'); t.
 // ═══════════════════════════════════
 function buildOwnerSummary(){
   const today=S.currentDate, curMonth=today.slice(0,7), curYear=today.slice(0,4);
+  const curYearNum=Number(curYear), curMonthNum=Number(curMonth.slice(5,7));
   const allRows=Object.values(S.daily);
   const mtdAll=allRows.filter(r=>r.date.startsWith(curMonth));
-  const ytdAll=allRows.filter(r=>r.date.startsWith(curYear));
-  const mtdRev=mtdAll.reduce((s,r)=>s+(r.room_revenue||0),0);
-  const ytdRev=ytdAll.reduce((s,r)=>s+(r.room_revenue||0),0);
+
+  // MTD figures come from the running monthly_revenue M-T-D row for the
+  // current month — this is the authoritative running total kept live by
+  // each daily upload (see process-night-audit), so it's accurate even if
+  // a day's upload is still pending.
+  const curMonthRow=S.monthly.find(r=>r.period_start===curMonth+'-01');
+  const mtdRoomRev=curMonthRow?.room_revenue||0;
+  const mtdTotalRev=curMonthRow?.total_revenue||0;
   const lyMtd=mtdAll.reduce((s,r)=>s+(r.ly_room_revenue||0),0);
+
+  // YTD figures: sum each finished/in-progress month of the current year
+  // from monthly_revenue (the only table that holds the full year's history —
+  // daily_revenue only goes back to the start of live daily tracking).
+  const ytdMonthly=S.monthly.filter(r=>{ const [y,m]=r.period_start.split('-').map(Number); return y===curYearNum&&m<=curMonthNum; });
+  const ytdRoomRev=ytdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0);
+  const ytdTotalRev=ytdMonthly.reduce((s,r)=>s+(r.total_revenue||0),0);
+  // Same Jan..currentMonth window, prior year — for a like-for-like YTD vs LY comparison
+  const lyYtdMonthly=S.monthly.filter(r=>{ const [y,m]=r.period_start.split('-').map(Number); return y===curYearNum-1&&m<=curMonthNum; });
+  const lyYtdRoomRev=lyYtdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0);
+
   const latARDate=S.ar[0]?.date;
   const latAR=latARDate?S.ar.filter(r=>r.date===latARDate):[];
   const arTotal=latAR.reduce((s,r)=>s+(r.total||0),0);
   const ar90=latAR.reduce((s,r)=>s+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0);
   const ovrMTD=S.overrides.filter(r=>r.stay_date?.startsWith(curMonth));
+
+  // Portfolio-level aggregate (active properties only) — average of each
+  // property's most-recent-day Occ% / RevPAR, so multi-property owners get
+  // a quick read on the whole portfolio without digging into each card.
+  const activeCodes=Object.entries(PROPS).filter(([,p])=>p.active).map(([c])=>c);
+  const latestByProp=activeCodes.map(code=>{
+    const rows=Object.values(S.daily).filter(r=>r.property===code).sort((a,b)=>a.date.localeCompare(b.date));
+    return rows[rows.length-1]||null;
+  }).filter(Boolean);
+  const portfolioOcc=latestByProp.length?latestByProp.reduce((s,r)=>s+(r.occ_pct||0),0)/latestByProp.length:null;
+  const portfolioRevPAR=latestByProp.length?latestByProp.reduce((s,r)=>s+(r.revpar||0),0)/latestByProp.length:null;
+
+  // "Data current through" — latest date we actually have a daily snapshot for
+  const latestDataDate=allRows.reduce((max,r)=>r.date>max?r.date:max,'');
 
   const cards=Object.entries(PROPS).map(([code,p])=>{
     if(!p.active) return `<div class="prop-summary-card" data-prop="${code}"><div class="psc-header"><div class="psc-dot dot-${code.toLowerCase()}"></div><div><div class="psc-name">${p.short}</div><div class="psc-code">${code} · ${p.pms}</div></div></div><div class="psc-coming">Coming Soon — ${p.pms} integration pending</div></div>`;
@@ -499,11 +534,12 @@ function buildOwnerSummary(){
     return `<div class="prop-summary-card" data-prop="${code}"><div class="psc-header"><div class="psc-dot dot-${code.toLowerCase()}"></div><div><div class="psc-name">${p.short}</div><div class="psc-code">${code} · ${p.pms}</div></div></div><div class="psc-body"><div class="psc-kpi-row"><div class="psc-kpi"><div class="psc-kpi-val">${lat?fmtPct(lat.occ_pct):'—'}</div><div class="psc-kpi-lbl">Today Occ</div></div><div class="psc-kpi"><div class="psc-kpi-val">${lat?fmt$(lat.adr):'—'}</div><div class="psc-kpi-lbl">Today ADR</div></div><div class="psc-kpi"><div class="psc-kpi-val">${fmt$(mtdR||null)}</div><div class="psc-kpi-lbl">MTD Rev</div></div></div>${chg?`<div style="font-family:var(--mono);font-size:.6rem;color:${chg>0?'var(--green)':'var(--red)'}">MTD Rev vs LY: ${chg>0?'+':''}${chg}%</div>`:''}</div><div class="psc-footer"><span class="psc-foot-lbl">Avg Occ MTD</span><span class="psc-foot-val">${fmtPct(avgOcc)}</span><span class="psc-foot-lbl" style="margin-left:1rem">Avg ADR MTD</span><span class="psc-foot-val">${fmt$(avgADR)}</span></div></div>`;
   }).join('');
 
-  return `<div class="page-header"><div class="page-title">Owner Overview</div><div class="page-sub">All Properties · ${fmtDate(today)}</div></div>
+  return `<div class="page-header"><div class="page-title">Owner Overview</div><div class="page-sub">All Properties · ${fmtDate(today)}${latestDataDate?` · Data current through ${fmtDate(latestDataDate)}`:''}</div></div>
   <div class="content">
     <div class="kpi-grid">
-      <div class="kpi-card gold"><div class="kpi-label">MTD Room Revenue</div><div class="kpi-value">${fmt$(mtdRev||null)}</div>${lyMtd>0?deltaChip(mtdRev,lyMtd):''}<div class="kpi-meta">All active properties</div></div>
-      <div class="kpi-card blue"><div class="kpi-label">YTD Room Revenue</div><div class="kpi-value">${fmt$(ytdRev||null)}</div><div class="kpi-meta">${curYear} to date</div></div>
+      <div class="kpi-card gold"><div class="kpi-label">MTD Room / Total Revenue</div><div class="kpi-value">${fmt$(mtdRoomRev||null)}</div><div class="kpi-meta" style="margin-top:-.1rem">${fmt$(mtdTotalRev||null)} total</div>${lyMtd>0?deltaChip(mtdRoomRev,lyMtd):''}<div class="kpi-meta">All active properties</div></div>
+      <div class="kpi-card blue"><div class="kpi-label">YTD Room / Total Revenue</div><div class="kpi-value">${fmt$(ytdRoomRev||null)}</div><div class="kpi-meta" style="margin-top:-.1rem">${fmt$(ytdTotalRev||null)} total</div>${lyYtdRoomRev>0?deltaChip(ytdRoomRev,lyYtdRoomRev):''}<div class="kpi-meta">Jan – ${fmtMonth(curMonth+'-01')}</div></div>
+      <div class="kpi-card green"><div class="kpi-label">Portfolio Occ% / RevPAR</div><div class="kpi-value">${portfolioOcc!=null?fmtPct(portfolioOcc):'—'}</div><div class="kpi-meta" style="margin-top:-.1rem">${portfolioRevPAR!=null?fmt$(portfolioRevPAR):'—'} RevPAR</div><div class="kpi-meta">Avg across active properties · latest day</div></div>
       <div class="kpi-card ${ar90>50000?'red':'amber'}"><div class="kpi-label">Total AR Outstanding</div><div class="kpi-value">${fmt$(arTotal||null)}</div><div class="kpi-meta">90+ days: ${fmt$(ar90||null)}</div></div>
       <div class="kpi-card amber"><div class="kpi-label">Override Impact MTD</div><div class="kpi-value">${fmt$(ovrMTD.reduce((s,r)=>s+(r.override_amount||0),0)||null)}</div><div class="kpi-meta">${ovrMTD.length} overrides</div></div>
     </div>
@@ -610,9 +646,9 @@ function buildDaily(){
 }
 function wireDaily(){
   document.getElementById('d-label').textContent=fmtDate(S.currentDate);
-  document.getElementById('d-prev').addEventListener('click',()=>{ const d=new Date(S.currentDate+'T00:00:00'); d.setDate(d.getDate()-1); S.currentDate=d.toISOString().slice(0,10); document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
-  document.getElementById('d-next').addEventListener('click',()=>{ const d=new Date(S.currentDate+'T00:00:00'); d.setDate(d.getDate()+1); S.currentDate=d.toISOString().slice(0,10); document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
-  document.getElementById('d-today').addEventListener('click',()=>{ S.currentDate=new Date().toISOString().slice(0,10); document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
+  document.getElementById('d-prev').addEventListener('click',()=>{ const d=new Date(S.currentDate+'T00:00:00'); d.setDate(d.getDate()-1); S.currentDate=localISODate(d); document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
+  document.getElementById('d-next').addEventListener('click',()=>{ const d=new Date(S.currentDate+'T00:00:00'); d.setDate(d.getDate()+1); S.currentDate=localISODate(d); document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
+  document.getElementById('d-today').addEventListener('click',()=>{ S.currentDate=localISODate(); document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
 }
 function renderDailyContent(){
   const d=S.currentDate, prop=S.mode, row=dailyRow(d,prop);
