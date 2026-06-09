@@ -623,11 +623,11 @@ function buildOwnerDrill(){
   const mtdRev=mtd.reduce((s,r)=>s+(r.room_revenue||0),0);
   const mtdOcc=mtd.length?mtd.reduce((s,r)=>s+(r.occ_pct||0),0)/mtd.length:null;
   const mtdADR=mtd.length?mtd.reduce((s,r)=>s+(r.adr||0),0)/mtd.length:null;
-  const drillActDates=[...new Set(S.arActivity.filter(r=>r.property===code).map(r=>r.snapshot_date))].sort().reverse();
-  const drillActDate=drillActDates[0]||null;
-  const drillActCos=drillActDate?arActivitySummary(code,drillActDate):[];
-  const arTotal=drillActCos.reduce((s,c)=>s+c.total,0)||(S.ar.filter(r=>r.property===code)[0]?S.ar.filter(r=>r.property===code&&r.date===S.ar.filter(r=>r.property===code)[0].date).reduce((s,r)=>s+(r.total||0),0):0);
-  const latAR=drillActDate;
+  const drillARrows=S.ar.filter(r=>r.property===code&&r.category==='Accounts Receivables');
+  const latAR=[...new Set(drillARrows.map(r=>r.date))].sort().reverse()[0]||null;
+  const drillCos=latAR?arAgingSummary(code,latAR,'Accounts Receivables'):[];
+  const arTotal=drillCos.reduce((s,c)=>s+c.total,0);
+  const ar90drill=drillCos.reduce((s,c)=>s+c.b90+c.b120+c.b150,0);
   return `<div class="page-header" style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
     <div><div class="page-title">${p?.name}</div><div class="page-sub">${code} · Owner drill-in</div></div>
     <button class="btn-sec" id="drill-back" style="margin-left:auto">← Back to Overview</button>
@@ -638,9 +638,9 @@ function buildOwnerDrill(){
       <div class="kpi-card green"><div class="kpi-label">Latest ADR</div><div class="kpi-value">${lat?fmt$(lat.adr):'—'}</div><div class="kpi-meta">LY: ${fmt$(lat?.ly_adr)}</div></div>
       <div class="kpi-card blue"><div class="kpi-label">MTD Room Revenue</div><div class="kpi-value">${fmt$(mtdRev||null)}</div><div class="kpi-meta">${mtd.length} days</div></div>
       <div class="kpi-card gold"><div class="kpi-label">MTD Avg Occ%</div><div class="kpi-value">${fmtPct(mtdOcc)}</div><div class="kpi-meta">MTD Avg ADR: ${fmt$(mtdADR)}</div></div>
-      <div class="kpi-card ${arTotal>150000?'red':'amber'}"><div class="kpi-label">Total AR</div><div class="kpi-value">${fmt$(arTotal||null)}</div><div class="kpi-meta">As of ${fmtDate(latAR)}</div></div>
+      <div class="kpi-card ${ar90drill>50000?'red':'amber'}"><div class="kpi-label">Total AR · 90+ Days</div><div class="kpi-value">${fmt$(arTotal||null)}</div><div class="kpi-meta">90+ days: ${fmt$(ar90drill)} · ${fmtDate(latAR)}</div></div>
     </div>
-    ${arRows.length?`<div class="section-card"><div class="section-head"><div class="section-title">AR Aging</div></div><div class="aging-grid">${arRows.map(r=>agingCellHtml(r)).join('')}</div></div>`:''}
+    ${drillCos.length?`<div class="section-card"><div class="section-head"><div class="section-title">AR Aging — ${fmtDate(latAR)}</div></div>${arAgingHtml(drillCos)}</div>`:''}
     <div class="section-card"><div class="section-head"><div class="section-title">Recent Daily Revenue</div></div>
       <div class="tbl-wrap"><table class="data-table">
         <thead><tr><th>Date</th><th class="r">Occ%</th><th class="r">ADR</th><th class="r">RevPAR</th><th class="r">Room Revenue</th><th class="r">LY Room Rev</th></tr></thead>
@@ -680,6 +680,7 @@ function buildDaily(){
       <div class="section-card"><div class="section-head"><div class="section-title">Year to Date</div><div class="section-badge badge-info" id="ytd-badge">—</div></div><div id="ytd-body">${loading()}</div></div>
     </div>
     <div class="section-card"><div class="section-head"><div class="section-title">AR Snapshot</div><div class="section-badge badge-info" id="ar-snap-badge">—</div></div><div id="ar-snap-body">${loading()}</div></div>
+    <div class="section-card"><div class="section-head"><div class="section-title">In-House Guest Balances</div><div class="section-badge badge-info" id="ih-badge">—</div></div><div id="ih-body">${loading()}</div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">Rate Overrides — This Day</div><div class="section-badge" id="ovr-badge">—</div></div><div id="ovr-body">${empty('No override data','Upload Rate Override report')}</div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">Adjustments &amp; Refunds — This Day</div><div class="section-badge" id="adj-badge">—</div></div><div id="adj-body">${empty('No adjustment data','Upload Adjustments & Refunds report')}</div></div>
   </div>`;
@@ -755,6 +756,13 @@ function renderDailyContent(){
     document.getElementById('ar-snap-body').innerHTML=empty('No AR data','Upload Direct Bill Aging report');
     document.getElementById('ar-snap-badge').textContent='—';
   }
+  // In-House Guest Balances — show latest available (not date-specific since IH is a snapshot)
+  const propIH=S.inhouse.filter(r=>r.property===prop); const latIH=propIH[0]?.date;
+  const ihRows=latIH?propIH.filter(r=>r.date===latIH):[];
+  document.getElementById('ih-badge').textContent=ihRows.length?`${ihRows.length} guests · ${fmtDate(latIH)}`:'—';
+  document.getElementById('ih-body').innerHTML=ihRows.length
+    ?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Room</th><th>Guest</th><th>Company</th><th class="r">Rate</th><th class="r">Balance</th><th>Payment</th></tr></thead><tbody>${ihRows.map(r=>`<tr><td class="mono">${r.room_number||'—'}</td><td>${r.guest_name||'—'}</td><td>${r.company?`<span class="pill pill-blue">${r.company}</span>`:'—'}</td><td class="r">${fmt$(r.room_rate)}</td><td class="r" style="font-weight:500">${fmt$(r.folio_balance)}</td><td class="mono" style="font-size:.7rem">${r.payment_method||'—'}</td></tr>`).join('')}</tbody><tfoot><tr class="tot"><td colspan="4">Total Balance</td><td class="r">${fmt$(ihRows.reduce((s,r)=>s+(r.folio_balance||0),0))}</td><td></td></tr></tfoot></table></div>`
+    :empty('No in-house data','Upload In-House Guest Balances report');
   if(dayOvr.length){ const net=dayOvr.reduce((s,r)=>s+(r.override_amount||0),0); document.getElementById('ovr-badge').textContent=`${dayOvr.length} — net ${fmt$(net)}`; document.getElementById('ovr-badge').className=`section-badge ${net<-50?'badge-alert':'badge-warn'}`; document.getElementById('ovr-body').innerHTML=`<div class="tbl-wrap">${overrideTableHtml(dayOvr)}</div>`; }
   else { document.getElementById('ovr-badge').textContent='None'; document.getElementById('ovr-badge').className='section-badge badge-ok'; document.getElementById('ovr-body').innerHTML=empty('No overrides',''); }
   if(dayAdj.length){ document.getElementById('adj-badge').textContent=`${dayAdj.length} events`; document.getElementById('adj-badge').className=`section-badge ${refunds.length?'badge-alert':'badge-warn'}`; document.getElementById('adj-body').innerHTML=`<div class="tbl-wrap">${adjTableHtml(dayAdj)}</div>`; }
@@ -871,10 +879,7 @@ function buildAR(){
   const latActDate=actDates[0]||null;
   const actDetail=latActDate?S.arActivity.filter(r=>r.property===prop&&r.snapshot_date===latActDate):[];
 
-  const propIH=S.inhouse.filter(r=>r.property===prop), latestIH=propIH[0]?.date;
-  const ihRows=latestIH?propIH.filter(r=>r.date===latestIH):[];
-
-  return `<div class="page-header"><div class="page-title">AR &amp; Aging</div><div class="page-sub">${PROPS[prop]?.name} · Direct Bill · In-House</div></div>
+  return `<div class="page-header"><div class="page-title">AR &amp; Aging</div><div class="page-sub">${PROPS[prop]?.name} · Direct Bill Aging · Trend</div></div>
   <div class="content">
     <div class="section-card">
       <div class="section-head">
@@ -890,7 +895,6 @@ function buildAR(){
       <div class="section-head"><div class="section-title">Transaction Detail — ${fmtDate(latActDate)}</div><div class="section-badge badge-info">${actDetail.length} transactions</div></div>
       <div class="tbl-wrap"><table class="data-table sticky-head" style="font-size:.78rem"><thead><tr><th>Company</th><th>Guest</th><th>Type</th><th class="r">Current</th><th class="r">31–60</th><th class="r">61–90</th><th class="r">91–120</th><th class="r">121–150</th><th class="r">Over 150</th><th class="r">Total</th></tr></thead><tbody>${actDetail.slice(0,200).map(r=>{const tot=(r.current_bal||0)+(r.over_30||0)+(r.over_60||0)+(r.over_90||0)+(r.over_120||0)+(r.over_150||0); const aged=(r.over_90||0)+(r.over_120||0)+(r.over_150||0); return `<tr${aged>0?' style="background:rgba(185,28,28,.03)"':''}><td style="font-weight:500">${r.company_name||'—'}</td><td style="font-size:.75rem">${r.guest_name||'—'}</td><td class="mono" style="font-size:.65rem">${r.transaction_type||'—'}</td><td class="r mono">${r.current_bal?fmt$(r.current_bal):'—'}</td><td class="r mono">${r.over_30?fmt$(r.over_30):'—'}</td><td class="r mono">${r.over_60?fmt$(r.over_60):'—'}</td><td class="r mono"><span style="${r.over_90?'color:var(--amber)':''}">${r.over_90?fmt$(r.over_90):'—'}</span></td><td class="r mono"><span style="${r.over_120?'color:var(--red)':''}">${r.over_120?fmt$(r.over_120):'—'}</span></td><td class="r mono"><span style="${r.over_150?'color:var(--red);font-weight:600':''}">${r.over_150?fmt$(r.over_150):'—'}</span></td><td class="r mono" style="font-weight:500">${fmt$(tot)}</td></tr>`; }).join('')}</tbody></table></div>
     </div>`:''}
-    <div class="section-card"><div class="section-head"><div class="section-title">In-House Guest Balances</div><div class="section-badge badge-info">${ihRows.length} guests</div></div>${ihRows.length?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Room</th><th>Guest</th><th>Company</th><th class="r">Rate</th><th class="r">Balance</th><th>Payment</th></tr></thead><tbody>${ihRows.map(r=>`<tr><td class="mono">${r.room_number||'—'}</td><td>${r.guest_name||'—'}</td><td>${r.company?`<span class="pill pill-blue">${r.company}</span>`:'—'}</td><td class="r">${fmt$(r.room_rate)}</td><td class="r" style="font-weight:500">${fmt$(r.folio_balance)}</td><td class="mono" style="font-size:.7rem">${r.payment_method||'—'}</td></tr>`).join('')}</tbody><tfoot><tr class="tot"><td colspan="4">Total</td><td class="r">${fmt$(ihRows.reduce((s,r)=>s+(r.folio_balance||0),0))}</td><td></td></tr></tfoot></table></div>`:empty('No in-house data','Upload In-House Guest Balances report')}</div>
   </div>`;
 }
 function buildARTrendTable(prop){
@@ -1018,6 +1022,12 @@ function buildOwnerAccountability(){
 
     <div class="section-card"><div class="section-head"><div class="section-title">Override Impact by Staff — All Properties</div><div class="section-badge badge-warn">${S.overrides.length} total overrides</div></div>
       ${staffRows.length?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Staff Member</th><th class="r">Count</th><th class="r">Net Impact</th>${activeCodes.map(c=>`<th class="r">${c}</th>`).join('')}</tr></thead><tbody>${staffRows.map(([name,d])=>`<tr><td style="font-weight:500">${name}</td><td class="r mono">${d.count}</td><td class="r"><span class="${d.total<0?'pill pill-red':'pill pill-green'}">${fmt$(d.total)}</span></td>${activeCodes.map(c=>`<td class="r mono">${d.props[c]!=null?fmt$(d.props[c]):'—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:empty('No override data','Upload Rate Override reports for active properties')}
+    </div>
+
+    ${(()=>{const allRef=S.adjActivity.filter(r=>r.date?.startsWith(curMonth)&&(r.section==='Refunds'||r.section==='Manager Refund')); return allRef.length?`<div class="section-card"><div class="section-head"><div class="section-title">Refunds MTD — All Properties</div><div class="section-badge badge-alert">${allRef.length} refunds · ${fmt$(allRef.reduce((s,r)=>s+Math.abs(r.adjusted_amount||0),0))}</div></div><div class="tbl-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Property</th><th>Type</th><th>Guest</th><th>Room</th><th>Payment</th><th>Reason</th><th class="r">Amount</th><th>Processed By</th></tr></thead><tbody>${allRef.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(r=>`<tr style="background:rgba(185,28,28,.03)"><td class="mono">${fmtDate(r.date)}</td><td><span class="pill pill-blue">${r.property}</span></td><td><span class="pill pill-red">${r.section==='Manager Refund'?'Mgr Refund':'Refund'}</span></td><td style="font-weight:500">${r.guest_name||'—'}</td><td class="mono">${r.room_number||'—'}</td><td class="mono" style="font-size:.7rem">${r.charge_type||'—'}</td><td style="font-size:.75rem;color:var(--ink3)">${r.adjustment_reason||'—'}</td><td class="r mono" style="color:var(--red);font-weight:600">${fmt$(Math.abs(r.adjusted_amount))}</td><td class="mono" style="font-size:.7rem;font-weight:500">${r.username||'—'}</td></tr>`).join('')}</tbody><tfoot><tr class="tot"><td colspan="7">Total Refunded MTD</td><td class="r" style="color:var(--red)">${fmt$(allRef.reduce((s,r)=>s+Math.abs(r.adjusted_amount||0),0))}</td><td></td></tr></tfoot></table></div></div>`:empty('No refunds this month','');})()}
+
+    <div class="section-card"><div class="section-head"><div class="section-title">Adjustments MTD — All Properties</div><div class="section-badge badge-warn">${S.adjActivity.filter(r=>r.date?.startsWith(curMonth)&&(r.section==='Adjustments'||r.section==='Manager Charge Adjustments')).length} records</div></div>
+      ${S.adjActivity.filter(r=>r.date?.startsWith(curMonth)&&(r.section==='Adjustments'||r.section==='Manager Charge Adjustments')).length?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Property</th><th>Type</th><th>Guest</th><th>Room</th><th>Reason</th><th class="r">Amount</th><th>User</th></tr></thead><tbody>${S.adjActivity.filter(r=>r.date?.startsWith(curMonth)&&(r.section==='Adjustments'||r.section==='Manager Charge Adjustments')).sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,100).map(r=>`<tr><td class="mono">${fmtDate(r.date)}</td><td><span class="pill pill-blue">${r.property}</span></td><td><span class="pill pill-amber">${r.section==='Manager Charge Adjustments'?'Mgr':r.section}</span></td><td>${r.guest_name||'—'}</td><td class="mono">${r.room_number||'—'}</td><td style="font-size:.75rem;color:var(--ink3)">${r.adjustment_reason||'—'}</td><td class="r mono">${fmt$(r.adjusted_amount)}</td><td class="mono" style="font-size:.7rem">${r.username||'—'}</td></tr>`).join('')}</tbody></table></div>`:empty('No adjustments this month','')}
     </div>
   </div>`;
 }
