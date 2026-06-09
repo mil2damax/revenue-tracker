@@ -294,7 +294,7 @@ const localISODate=d=>{ const dt=d||new Date(); return dt.getFullYear()+'-'+Stri
 // STATE
 // ═══════════════════════════════════
 const localYesterday=()=>localISODate(new Date(Date.now()-864e5));
-let S ={ mode:null, currentDate:localYesterday(), daily:{}, ar:[], arActivity:[], overrides:[], adjs:[], inhouse:[], monthly:[], clerkActivity:[], userActivity:[], adjActivity:[], pending:[], charts:{}, drillProp:null, drillView:'revenue' };
+let S ={ mode:null, currentDate:localYesterday(), daily:{}, ar:[], arActivity:[], overrides:[], adjs:[], inhouse:[], monthly:[], clerkActivity:[], userActivity:[], adjActivity:[], lineItems:[], pending:[], charts:{}, drillProp:null, drillView:'revenue' };
 // Returns the property to use for building any view — drillProp overrides mode when set
 function vp(){ return S.drillProp||S.mode; }
 
@@ -418,7 +418,7 @@ function buildAppShell(){
   document.getElementById('switch-prop-btn').addEventListener('click', lockApp);
 }
 function lockApp(){
-  S={mode:null,currentDate:localYesterday(),daily:{},ar:[],arActivity:[],overrides:[],adjs:[],inhouse:[],monthly:[],clerkActivity:[],userActivity:[],adjActivity:[],pending:[],charts:{},drillProp:null,drillView:'revenue'};
+  S={mode:null,currentDate:localYesterday(),daily:{},ar:[],arActivity:[],overrides:[],adjs:[],inhouse:[],monthly:[],clerkActivity:[],userActivity:[],adjActivity:[],lineItems:[],pending:[],charts:{},drillProp:null,drillView:'revenue'};
   pinEntry=''; pinTarget=null;
   document.getElementById('entry-screen').style.display='flex';
   document.getElementById('entry-screen').classList.remove('hidden');
@@ -489,12 +489,13 @@ async function loadAllData(){
   } catch(e){ console.warn('Core load error:',e); }
   // Activity tables — load independently so a failure here never breaks core views
   try {
-    const [clerkActivity,userActivity,adjActivity] = await Promise.all([
+    const [clerkActivity,userActivity,adjActivity,lineItems] = await Promise.all([
       sbGet('clerk_activity','?order=date.desc&limit=2000'+pf),
       sbGet('user_activity','?order=date.desc&limit=2000'+pf),
-      sbGet('adjustments_activity','?order=date.desc&limit=1000'+pf)
+      sbGet('adjustments_activity','?order=date.desc&limit=1000'+pf),
+      sbGet('revenue_line_items','?order=date.desc&limit=2000'+pf)
     ]);
-    S.clerkActivity=clerkActivity; S.userActivity=userActivity; S.adjActivity=adjActivity;
+    S.clerkActivity=clerkActivity; S.userActivity=userActivity; S.adjActivity=adjActivity; S.lineItems=lineItems;
   } catch(e){ console.warn('Activity load error:',e); }
 }
 function dailyRow(date,prop){ return S.daily[(prop||S.mode)+'_'+date]||null; }
@@ -726,6 +727,7 @@ function buildDaily(){
   </div>
   <div class="content">
     <div class="kpi-grid" id="d-kpis">${loading()}</div>
+    <div class="section-card" id="misc-detail-card" style="display:none"><div class="section-head"><div class="section-title">Misc Revenue Detail</div><div class="section-badge badge-amber" id="misc-detail-badge">—</div></div><div id="misc-detail-body"></div></div>
     <div class="two-col">
       <div class="section-card"><div class="section-head"><div class="section-title">Month to Date</div><div class="section-badge badge-info" id="mtd-badge">—</div></div><div id="mtd-body">${loading()}</div></div>
       <div class="section-card"><div class="section-head"><div class="section-title">Year to Date</div><div class="section-badge badge-info" id="ytd-badge">—</div></div><div id="ytd-body">${loading()}</div></div>
@@ -764,7 +766,7 @@ function renderDailyContent(){
       <div class="kpi-card green"><div class="kpi-label">ADR</div><div class="kpi-value">${fmt$(row.adr)}</div>${deltaChip(row.adr,row.ly_adr)}<div class="kpi-meta">LY: ${fmt$(row.ly_adr)}</div></div>
       <div class="kpi-card blue"><div class="kpi-label">RevPAR</div><div class="kpi-value">${fmt$(row.revpar)}</div><div class="kpi-meta">${fmtN(row.rooms_sold)} / ${fmtN(row.rooms_available)} rooms</div></div>
       <div class="kpi-card gold"><div class="kpi-label">Room Revenue</div><div class="kpi-value">${fmt$(row.room_revenue)}</div>${deltaChip(row.room_revenue,row.ly_room_revenue)}<div class="kpi-meta">LY: ${fmt$(row.ly_room_revenue)}</div></div>
-      <div class="kpi-card amber"><div class="kpi-label">Misc Revenue</div><div class="kpi-value">${fmt$(row.misc_revenue)}</div><div class="kpi-meta">Total: ${fmt$(row.total_revenue)}</div></div>`;
+      <div class="kpi-card amber" id="misc-kpi" style="cursor:pointer" title="Click to expand detail"><div class="kpi-label">Misc Revenue <span style="font-size:.55rem;opacity:.6">▼ detail</span></div><div class="kpi-value">${fmt$(row.misc_revenue)}</div><div class="kpi-meta">Total: ${fmt$(row.total_revenue)}</div></div>`;
   } else {
     document.getElementById('d-kpis').innerHTML=`<div style="grid-column:1/-1">${empty('No data for '+fmtDate(d),'Upload the Hotel Statistics report for this date')}</div>`;
   }
@@ -831,6 +833,36 @@ function renderDailyContent(){
     document.getElementById('adj-badge').className=`section-badge ${refunds.length?'badge-alert':'badge-warn'}`;
     document.getElementById('adj-body').innerHTML=`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Type</th><th>Guest</th><th>Room</th><th>Reason</th><th class="r">Amount</th><th>User</th></tr></thead><tbody>${dayAdj.map(r=>`<tr><td><span class="pill ${r.section==='Refunds'||r.section==='Manager Refund'?'pill-red':r.section==='Manager Charge Adjustments'?'pill-amber':'pill-blue'}">${r.section==='Manager Charge Adjustments'?'Mgr Adj':r.section==='Manager Refund'?'Mgr Refund':r.section}</span></td><td style="font-weight:500">${r.guest_name||'—'}</td><td class="mono">${r.room_number||'—'}</td><td style="font-size:.78rem;color:var(--ink3)">${r.adjustment_reason||'—'}</td><td class="r mono" style="${r.section==='Refunds'||r.section==='Manager Refund'?'color:var(--red);font-weight:600':''}">${fmt$(Math.abs(r.adjusted_amount))}</td><td class="mono" style="font-size:.68rem">${r.username||'—'}</td></tr>`).join('')}</tbody></table></div>`;
   } else { document.getElementById('adj-badge').textContent='None'; document.getElementById('adj-badge').className='section-badge badge-ok'; document.getElementById('adj-body').innerHTML=empty('No adjustments or refunds',''); }
+  // Misc Revenue drill-in — wire click on Misc KPI
+  const miscKpi=document.getElementById('misc-kpi');
+  const miscCard=document.getElementById('misc-detail-card');
+  if(miscKpi&&miscCard){
+    const dayMisc=S.lineItems.filter(r=>r.property===prop&&r.date===d&&r.section==='Misc Revenue'&&(r.actual_today||0)+(r.mtd||0)!==0);
+    const allMisc=S.lineItems.filter(r=>r.property===prop&&r.date===d&&r.section==='Misc Revenue');
+    if(allMisc.length){
+      const nonZeroToday=dayMisc.filter(r=>(r.actual_today||0)!==0);
+      const mtdOnly=dayMisc.filter(r=>(r.actual_today||0)===0&&(r.mtd||0)!==0);
+      document.getElementById('misc-detail-badge').textContent=`${nonZeroToday.length} items today · ${fmt$(allMisc.reduce((s,r)=>s+(r.mtd||0),0))} MTD`;
+      document.getElementById('misc-detail-body').innerHTML=`<div class="tbl-wrap"><table class="data-table">
+        <thead><tr><th>Category</th><th class="r">Today</th><th class="r">MTD</th><th class="r">YTD</th></tr></thead>
+        <tbody>${allMisc.filter(r=>(r.actual_today||0)!==0||(r.mtd||0)!==0||(r.ytd||0)!==0).sort((a,b)=>(b.actual_today||0)-(a.actual_today||0)).map(r=>`<tr>
+          <td style="font-size:.8rem">${r.label||'—'}</td>
+          <td class="r mono" style="${(r.actual_today||0)>0?'font-weight:600':'color:var(--fog)'}">${(r.actual_today||0)!==0?fmt$(r.actual_today):'—'}</td>
+          <td class="r mono">${(r.mtd||0)!==0?fmt$(r.mtd):'—'}</td>
+          <td class="r mono" style="color:var(--fog)">${(r.ytd||0)!==0?fmt$(r.ytd):'—'}</td>
+        </tr>`).join('')}</tbody>
+        <tfoot><tr class="tot"><td>Total</td><td class="r">${fmt$(allMisc.reduce((s,r)=>s+(r.actual_today||0),0))}</td><td class="r">${fmt$(allMisc.reduce((s,r)=>s+(r.mtd||0),0))}</td><td class="r" style="color:var(--fog)">${fmt$(allMisc.reduce((s,r)=>s+(r.ytd||0),0))}</td></tr></tfoot>
+      </table></div>`;
+      let miscOpen=false;
+      miscKpi.addEventListener('click',()=>{
+        miscOpen=!miscOpen;
+        miscCard.style.display=miscOpen?'':'none';
+        miscKpi.querySelector('.kpi-label span').textContent=miscOpen?'▲ detail':'▼ detail';
+      });
+    } else {
+      miscKpi.style.cursor='default';
+    }
+  }
 }
 
 // ═══════════════════════════════════
