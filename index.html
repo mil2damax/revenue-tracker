@@ -290,7 +290,8 @@ const localISODate=d=>{ const dt=d||new Date(); return dt.getFullYear()+'-'+Stri
 // ═══════════════════════════════════
 // STATE
 // ═══════════════════════════════════
-let S ={ mode:null, currentDate:localISODate(), daily:{}, ar:[], overrides:[], adjs:[], inhouse:[], monthly:[], pending:[], charts:{}, drillProp:null };
+const localYesterday=()=>localISODate(new Date(Date.now()-864e5));
+let S ={ mode:null, currentDate:localYesterday(), daily:{}, ar:[], overrides:[], adjs:[], inhouse:[], monthly:[], clerkActivity:[], userActivity:[], adjActivity:[], pending:[], charts:{}, drillProp:null };
 
 // ═══════════════════════════════════
 // SUPABASE
@@ -392,7 +393,7 @@ function buildAppShell(){
   else { tag.textContent=S.mode; tag.className='topbar-prop-tag tag-'+S.mode.toLowerCase(); }
   const isOwner=S.mode==='OWNER', propActive=S.mode!=='OWNER'&&PROPS[S.mode]?.active;
   let nav='';
-  if(isOwner) nav=`<button class="nav-btn active" data-view="owner-summary">Overview</button><button class="nav-btn" data-view="owner-ar">AR / Aging</button><button class="nav-btn" data-view="owner-performance">Performance</button><button class="nav-btn" data-view="owner-upload">Upload</button><button class="nav-btn" data-view="history">History</button>`;
+  if(isOwner) nav=`<button class="nav-btn active" data-view="owner-summary">Overview</button><button class="nav-btn" data-view="owner-ar">AR / Aging</button><button class="nav-btn" data-view="owner-performance">Performance</button><button class="nav-btn" data-view="owner-accountability">Accountability</button><button class="nav-btn" data-view="owner-upload">Upload</button><button class="nav-btn" data-view="history">History</button>`;
   else if(propActive) nav=`<button class="nav-btn active" data-view="daily">Daily</button><button class="nav-btn" data-view="performance">Performance</button><button class="nav-btn" data-view="ar">AR / Aging</button><button class="nav-btn" data-view="accountability">Accountability</button><button class="nav-btn" data-view="history">History</button><button class="nav-btn" data-view="upload">Upload</button>`;
   else nav=`<button class="nav-btn active" data-view="coming-soon">Overview</button>`;
   document.getElementById('topbar-nav').innerHTML=nav;
@@ -406,7 +407,7 @@ function buildAppShell(){
   document.getElementById('switch-prop-btn').addEventListener('click', lockApp);
 }
 function lockApp(){
-  S={mode:null,currentDate:localISODate(),daily:{},ar:[],overrides:[],adjs:[],inhouse:[],monthly:[],pending:[],charts:{},drillProp:null};
+  S={mode:null,currentDate:localYesterday(),daily:{},ar:[],overrides:[],adjs:[],inhouse:[],monthly:[],clerkActivity:[],userActivity:[],adjActivity:[],pending:[],charts:{},drillProp:null};
   pinEntry=''; pinTarget=null;
   document.getElementById('entry-screen').style.display='flex';
   document.getElementById('entry-screen').classList.remove('hidden');
@@ -430,6 +431,7 @@ function renderView(view){
   else if(view==='owner-performance') { body.innerHTML=buildOwnerPerf(); setTimeout(renderOwnerPerfChart,100); }
   else if(view==='owner-upload'){ body.innerHTML=buildUploadView('OWNER'); wireUploadView('ou'); }
   else if(view==='owner-drill') { body.innerHTML=buildOwnerDrill(); wireOwnerDrill(); }
+  else if(view==='owner-accountability') { body.innerHTML=buildOwnerAccountability(); }
   else if(view==='daily')       { body.innerHTML=buildDaily(); wireDaily(); renderDailyContent(); }
   else if(view==='performance') { body.innerHTML=buildPerformance(); setTimeout(renderPerfCharts,100); }
   else if(view==='ar')          { body.innerHTML=buildAR(); }
@@ -445,16 +447,20 @@ function renderView(view){
 async function loadAllData(){
   const prop=S.mode, isOwner=prop==='OWNER', pf=isOwner?'':'&property=eq.'+prop;
   try {
-    const [daily,ar,overrides,adjs,inhouse,monthly] = await Promise.all([
+    const [daily,ar,overrides,adjs,inhouse,monthly,clerkActivity,userActivity,adjActivity] = await Promise.all([
       sbGet('daily_revenue','?order=date.desc&limit=400'+pf),
       sbGet('ar_aging','?order=date.desc&limit=120'+pf),
       sbGet('rate_overrides','?order=stay_date.desc&limit=600'+pf),
       sbGet('adjustments','?order=date.desc&limit=600'+pf),
       sbGet('inhouse_balances','?order=date.desc&limit=300'+pf),
-      sbGet('monthly_revenue','?order=period_start.asc'+pf)
+      sbGet('monthly_revenue','?order=period_start.asc'+pf),
+      sbGet('clerk_activity','?order=date.desc&limit=2000'+pf),
+      sbGet('user_activity','?order=date.desc&limit=2000'+pf),
+      sbGet('adjustments_activity','?order=date.desc&limit=1000'+pf)
     ]);
     S.daily={}; daily.forEach(r=>{ S.daily[(r.property||'WKFCW')+'_'+r.date]=r; });
     S.ar=ar; S.overrides=overrides; S.adjs=adjs; S.inhouse=inhouse; S.monthly=monthly;
+    S.clerkActivity=clerkActivity; S.userActivity=userActivity; S.adjActivity=adjActivity;
   } catch(e){ console.warn('Load error:',e); }
 }
 function dailyRow(date,prop){ return S.daily[(prop||S.mode)+'_'+date]||null; }
@@ -476,7 +482,7 @@ function toast(msg,type='success'){ const t=document.getElementById('toast'); t.
 // OWNER VIEWS
 // ═══════════════════════════════════
 function buildOwnerSummary(){
-  const today=S.currentDate, curMonth=today.slice(0,7), curYear=today.slice(0,4);
+  const today=localISODate(), curMonth=today.slice(0,7), curYear=today.slice(0,4);
   const curYearNum=Number(curYear), curMonthNum=Number(curMonth.slice(5,7));
   const allRows=Object.values(S.daily);
   const mtdAll=allRows.filter(r=>r.date.startsWith(curMonth));
@@ -488,7 +494,9 @@ function buildOwnerSummary(){
   const curMonthRow=S.monthly.find(r=>r.period_start===curMonth+'-01');
   const mtdRoomRev=curMonthRow?.room_revenue||0;
   const mtdTotalRev=curMonthRow?.total_revenue||0;
-  const lyMtd=mtdAll.reduce((s,r)=>s+(r.ly_room_revenue||0),0);
+  // LY-M-T-D comes straight from the report's own column (captured at parse time —
+  // there's no daily history for prior years to derive an equivalent total from).
+  const lyMtd=curMonthRow?.ly_mtd_room_revenue||0;
 
   // YTD figures: sum each finished/in-progress month of the current year
   // from monthly_revenue (the only table that holds the full year's history —
@@ -627,7 +635,7 @@ function buildDaily(){
       <button class="date-btn" id="d-prev">‹</button>
       <div class="date-display" id="d-label">—</div>
       <button class="date-btn" id="d-next">›</button>
-      <button class="date-today-btn" id="d-today">Today</button>
+      <button class="date-today-btn" id="d-today">Latest</button>
       <div class="spacer"></div>
       <div style="font-family:var(--mono);font-size:.58rem;color:var(--fog)" id="d-src"></div>
     </div>
@@ -648,7 +656,7 @@ function wireDaily(){
   document.getElementById('d-label').textContent=fmtDate(S.currentDate);
   document.getElementById('d-prev').addEventListener('click',()=>{ const d=new Date(S.currentDate+'T00:00:00'); d.setDate(d.getDate()-1); S.currentDate=localISODate(d); document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
   document.getElementById('d-next').addEventListener('click',()=>{ const d=new Date(S.currentDate+'T00:00:00'); d.setDate(d.getDate()+1); S.currentDate=localISODate(d); document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
-  document.getElementById('d-today').addEventListener('click',()=>{ S.currentDate=localISODate(); document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
+  document.getElementById('d-today').addEventListener('click',()=>{ S.currentDate=localYesterday(); document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
 }
 function renderDailyContent(){
   const d=S.currentDate, prop=S.mode, row=dailyRow(d,prop);
@@ -676,22 +684,32 @@ function renderDailyContent(){
     document.getElementById('d-kpis').innerHTML=`<div style="grid-column:1/-1">${empty('No data for '+fmtDate(d),'Upload the Hotel Statistics report for this date')}</div>`;
   }
   const [yr,mo]=d.split('-');
-  const mtdRows=Object.values(S.daily).filter(r=>r.property===prop&&r.date.startsWith(`${yr}-${mo}`));
-  if(mtdRows.length){
-    const mtdRev=mtdRows.reduce((s,r)=>s+(r.room_revenue||0),0), mtdMisc=mtdRows.reduce((s,r)=>s+(r.misc_revenue||0),0);
-    const mtdOcc=mtdRows.reduce((s,r)=>s+(r.occ_pct||0),0)/mtdRows.length, mtdADR=mtdRows.reduce((s,r)=>s+(r.adr||0),0)/mtdRows.length;
-    const lyMtd=mtdRows.reduce((s,r)=>s+(r.ly_room_revenue||0),0);
-    document.getElementById('mtd-badge').textContent=`${mtdRows.length} days`;
-    document.getElementById('mtd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(mtdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(mtdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(mtdRev+mtdMisc)}</td></tr><tr><td>Avg Occupancy</td><td class="r">${fmtPct(mtdOcc)}</td></tr><tr><td>Avg ADR</td><td class="r">${fmt$(mtdADR)}</td></tr>${lyMtd>0?`<tr><td>LY Room Revenue</td><td class="r" style="color:var(--fog)">${fmt$(lyMtd)} ${deltaChip(mtdRev,lyMtd)}</td></tr>`:''}</table>`;
-  } else { document.getElementById('mtd-body').innerHTML=empty('No MTD data',''); document.getElementById('mtd-badge').textContent='0 days'; }
-  const ytdRows=Object.values(S.daily).filter(r=>r.property===prop&&r.date.startsWith(yr));
-  if(ytdRows.length){
-    const ytdRev=ytdRows.reduce((s,r)=>s+(r.room_revenue||0),0), ytdMisc=ytdRows.reduce((s,r)=>s+(r.misc_revenue||0),0);
-    const ytdOcc=ytdRows.reduce((s,r)=>s+(r.occ_pct||0),0)/ytdRows.length, ytdADR=ytdRows.reduce((s,r)=>s+(r.adr||0),0)/ytdRows.length;
-    const lyYtd=ytdRows.reduce((s,r)=>s+(r.ly_room_revenue||0),0);
-    document.getElementById('ytd-badge').textContent=`${ytdRows.length} days`;
-    document.getElementById('ytd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(ytdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(ytdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdRev+ytdMisc)}</td></tr><tr><td>Avg Occupancy</td><td class="r">${fmtPct(ytdOcc)}</td></tr><tr><td>Avg ADR</td><td class="r">${fmt$(ytdADR)}</td></tr>${lyYtd>0?`<tr><td>LY Room Revenue</td><td class="r" style="color:var(--fog)">${fmt$(lyYtd)} ${deltaChip(ytdRev,lyYtd)}</td></tr>`:''}</table>`;
-  } else { document.getElementById('ytd-body').innerHTML=empty('No YTD data',''); document.getElementById('ytd-badge').textContent='0 days'; }
+  const yrNum=Number(yr), moNum=Number(mo);
+  // MTD comes straight from the running monthly_revenue M-T-D row for this property
+  // + month — the authoritative running total kept live by each daily upload, which
+  // also carries the report's own LY-M-T-D figures (captured at parse time, since
+  // there's no daily history for prior years to reconstruct an equivalent total).
+  const curMonthRow=S.monthly.find(r=>r.property===prop&&r.period_start===`${yr}-${mo}-01`);
+  if(curMonthRow){
+    const mtdRev=curMonthRow.room_revenue||0, mtdMisc=curMonthRow.misc_revenue||0, mtdTot=curMonthRow.total_revenue||0;
+    const lyMtdRev=curMonthRow.ly_mtd_room_revenue;
+    document.getElementById('mtd-badge').textContent=curMonthRow.snapshot_date?`Through ${fmtDate(curMonthRow.snapshot_date)}`:'—';
+    document.getElementById('mtd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(mtdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(mtdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(mtdTot)}</td></tr><tr><td>Occupancy</td><td class="r">${fmtPct(curMonthRow.occ_pct)}</td></tr><tr><td>ADR</td><td class="r">${fmt$(curMonthRow.adr)}</td></tr><tr><td>RevPAR</td><td class="r">${fmt$(curMonthRow.revpar)}</td></tr>${lyMtdRev!=null?`<tr><td>LY Room Revenue (same M-T-D)</td><td class="r" style="color:var(--fog)">${fmt$(lyMtdRev)} ${deltaChip(mtdRev,lyMtdRev)}</td></tr>`:''}</table>`;
+  } else { document.getElementById('mtd-body').innerHTML=empty('No MTD data',''); document.getElementById('mtd-badge').textContent='—'; }
+
+  // YTD: sum each finished/in-progress month of the current year from monthly_revenue
+  // (the only table holding the full multi-year history — daily_revenue only goes
+  // back to the start of live daily tracking in June 2026). LY-YTD is the same
+  // Jan..currentMonth window for the prior year, for a like-for-like comparison.
+  const ytdMonthly=S.monthly.filter(r=>{ if(r.property!==prop) return false; const [y,m]=r.period_start.split('-').map(Number); return y===yrNum&&m<=moNum; });
+  const lyYtdMonthly=S.monthly.filter(r=>{ if(r.property!==prop) return false; const [y,m]=r.period_start.split('-').map(Number); return y===yrNum-1&&m<=moNum; });
+  if(ytdMonthly.length){
+    const ytdRev=ytdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0), ytdMisc=ytdMonthly.reduce((s,r)=>s+(r.misc_revenue||0),0), ytdTot=ytdMonthly.reduce((s,r)=>s+(r.total_revenue||0),0);
+    const ytdOcc=ytdMonthly.reduce((s,r)=>s+(r.occ_pct||0),0)/ytdMonthly.length, ytdADR=ytdMonthly.reduce((s,r)=>s+(r.adr||0),0)/ytdMonthly.length;
+    const lyYtdRev=lyYtdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0), lyYtdTot=lyYtdMonthly.reduce((s,r)=>s+(r.total_revenue||0),0);
+    document.getElementById('ytd-badge').textContent=`${ytdMonthly.length} mo · Jan–${fmtMonth(`${yr}-${mo}-01`).split(' ')[0]}`;
+    document.getElementById('ytd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(ytdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(ytdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdTot)}</td></tr><tr><td>Avg Occupancy</td><td class="r">${fmtPct(ytdOcc)}</td></tr><tr><td>Avg ADR</td><td class="r">${fmt$(ytdADR)}</td></tr>${lyYtdRev>0?`<tr><td>LY Room / Total Revenue</td><td class="r" style="color:var(--fog)">${fmt$(lyYtdRev)} / ${fmt$(lyYtdTot)} ${deltaChip(ytdRev,lyYtdRev)}</td></tr>`:''}</table>`;
+  } else { document.getElementById('ytd-body').innerHTML=empty('No YTD data',''); document.getElementById('ytd-badge').textContent='0 mo'; }
   const latAR=propAR[0]?.date, arRows=latAR?propAR.filter(r=>r.date===latAR):[];
   const arTot=arRows.reduce((s,r)=>s+(r.total||0),0), ar90=arRows.reduce((s,r)=>s+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0);
   if(arRows.length){ document.getElementById('ar-snap-badge').textContent=fmt$(arTot); document.getElementById('ar-snap-badge').className=`section-badge ${ar90>50000?'badge-alert':ar90>20000?'badge-warn':'badge-ok'}`; document.getElementById('ar-snap-body').innerHTML=`<div class="aging-grid">${arRows.map(r=>agingCellHtml(r)).join('')}</div><div style="padding:.6rem 1.4rem;font-family:var(--mono);font-size:.58rem;color:var(--fog)">As of ${fmtDate(latAR)}</div>`; }
@@ -779,16 +797,125 @@ function buildARTrendTable(prop){
 // ACCOUNTABILITY VIEW
 // ═══════════════════════════════════
 function buildAccountability(){
-  const prop=S.mode, propOvr=S.overrides.filter(r=>r.property===prop), propAdj=S.adjs.filter(r=>r.property===prop);
-  const refunds=propAdj.filter(r=>r.transaction_type==='REFUND');
-  const byClerk={};
-  propOvr.forEach(r=>{ const u=r.username||'Unknown'; if(!byClerk[u]) byClerk[u]={count:0,net:0}; byClerk[u].count++; byClerk[u].net+=(r.override_amount||0); });
-  const clerkRows=Object.entries(byClerk).sort((a,b)=>a[1].net-b[1].net);
-  return `<div class="page-header"><div class="page-title">Accountability</div><div class="page-sub">${PROPS[prop]?.name} · Overrides · Adjustments</div></div>
+  const prop=S.mode, curMonth=localISODate().slice(0,7);
+
+  // ── Rate Overrides ─────────────────
+  const propOvr=S.overrides.filter(r=>r.property===prop);
+  const ovrMTD=propOvr.filter(r=>r.stay_date?.startsWith(curMonth));
+  const ovrImpact=ovrMTD.reduce((s,r)=>s+(r.override_amount||0),0);
+  const byOvrStaff={};
+  propOvr.forEach(r=>{ const u=r.username||'Unknown'; if(!byOvrStaff[u]) byOvrStaff[u]={count:0,net:0}; byOvrStaff[u].count++; byOvrStaff[u].net+=(r.override_amount||0); });
+  const ovrStaffRows=Object.entries(byOvrStaff).sort((a,b)=>a[1].net-b[1].net);
+
+  // ── Adjustments & Refunds ──────────
+  const propAdj=S.adjActivity.filter(r=>r.property===prop);
+  const adjMTD=propAdj.filter(r=>r.date?.startsWith(curMonth));
+  const refundsMTD=adjMTD.filter(r=>r.section==='Refunds'||r.section==='Manager Refund');
+  const adjMTDamt=adjMTD.filter(r=>r.section==='Adjustments'||r.section==='Manager Charge Adjustments').reduce((s,r)=>s+(r.adjusted_amount||0),0);
+
+  // ── Clerk Activity — Payments ──────
+  const propClerk=S.clerkActivity.filter(r=>r.property===prop);
+  const clerkMTD=propClerk.filter(r=>r.date?.startsWith(curMonth));
+  const paymentsMTD=clerkMTD.reduce((s,r)=>s+Math.abs(r.amount||0),0);
+  const byClerkStaff={};
+  clerkMTD.forEach(r=>{ const u=r.username||'Unknown'; if(!byClerkStaff[u]) byClerkStaff[u]={count:0,total:0}; byClerkStaff[u].count++; byClerkStaff[u].total+=(r.amount||0); });
+  const clerkStaffRows=Object.entries(byClerkStaff).sort((a,b)=>Math.abs(b[1].total)-Math.abs(a[1].total));
+
+  // ── User Activity — Reservation Actions ─
+  const propUser=S.userActivity.filter(r=>r.property===prop);
+  const userMTD=propUser.filter(r=>r.date?.startsWith(curMonth));
+  const byUserStaff={};
+  userMTD.forEach(r=>{ const u=r.username||'Unknown'; if(!byUserStaff[u]) byUserStaff[u]={}; const a=r.action||'OTHER'; byUserStaff[u][a]=(byUserStaff[u][a]||0)+1; });
+  const allActions=[...new Set(userMTD.map(r=>r.action||'OTHER'))].sort();
+  const userStaffRows=Object.entries(byUserStaff).sort((a,b)=>Object.values(b[1]).reduce((s,n)=>s+n,0)-Object.values(a[1]).reduce((s,n)=>s+n,0));
+
+  return `<div class="page-header"><div class="page-title">Accountability</div><div class="page-sub">${PROPS[prop]?.name} · MTD ${curMonth.slice(0,7)}</div></div>
   <div class="content">
-    <div class="section-card"><div class="section-head"><div class="section-title">Rate Overrides by Staff</div><div class="section-badge badge-warn">${propOvr.length} total</div></div>${clerkRows.length?`<table class="data-table"><thead><tr><th>Staff Member</th><th class="r">Count</th><th class="r">Net Impact</th><th class="r">Avg per Override</th></tr></thead><tbody>${clerkRows.map(([name,d])=>`<tr><td style="font-weight:500">${name}</td><td class="r mono">${d.count}</td><td class="r"><span class="${d.net<0?'pill pill-red':'pill pill-green'}">${fmt$(d.net)}</span></td><td class="r mono">${fmt$(d.net/d.count)}</td></tr>`).join('')}</tbody><tfoot><tr class="tot"><td>Total</td><td class="r mono">${propOvr.length}</td><td class="r">${fmt$(propOvr.reduce((s,r)=>s+(r.override_amount||0),0))}</td><td></td></tr></tfoot></table>`:empty('No override data','Upload Rate Override reports')}</div>
-    <div class="section-card"><div class="section-head"><div class="section-title">All Rate Overrides</div><div class="section-badge badge-info">${propOvr.length} records</div></div>${propOvr.length?`<div class="tbl-wrap">${overrideTableHtml(propOvr.slice(0,100))}</div>`:empty('No overrides','')}</div>
-    <div class="section-card"><div class="section-head"><div class="section-title">Adjustments &amp; Refunds</div><div class="section-badge ${refunds.length?'badge-alert':'badge-ok'}">${propAdj.length} events · ${refunds.length} refunds</div></div>${propAdj.length?`<div class="tbl-wrap">${adjTableHtml(propAdj.slice(0,100))}</div>`:empty('No adjustment data','')}</div>
+    <div class="kpi-grid">
+      <div class="kpi-card amber"><div class="kpi-label">Override Impact MTD</div><div class="kpi-value">${fmt$(ovrImpact||null)}</div><div class="kpi-meta">${ovrMTD.length} overrides · ${ovrStaffRows.length} staff</div></div>
+      <div class="kpi-card ${refundsMTD.length>0?'red':'green'}"><div class="kpi-label">Adjustments MTD</div><div class="kpi-value">${adjMTD.length}</div><div class="kpi-meta">${adjMTD.filter(r=>r.section==='Adjustments'||r.section==='Manager Charge Adjustments').length} adjustments · ${refundsMTD.length} refunds · ${fmt$(adjMTDamt)}</div></div>
+      <div class="kpi-card blue"><div class="kpi-label">Payments Processed MTD</div><div class="kpi-value">${fmt$(paymentsMTD||null)}</div><div class="kpi-meta">${clerkMTD.length} transactions · ${clerkStaffRows.length} staff</div></div>
+      <div class="kpi-card gold"><div class="kpi-label">Reservation Actions MTD</div><div class="kpi-value">${userMTD.length}</div><div class="kpi-meta">${userStaffRows.length} staff · ${allActions.length} action types</div></div>
+    </div>
+
+    <div class="section-card"><div class="section-head"><div class="section-title">Override Impact by Staff</div><div class="section-badge badge-warn">${propOvr.length} total overrides</div></div>
+      ${ovrStaffRows.length?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Staff Member</th><th class="r">Count</th><th class="r">Net Impact</th><th class="r">Avg / Override</th></tr></thead><tbody>${ovrStaffRows.map(([name,d])=>`<tr><td style="font-weight:500">${name}</td><td class="r mono">${d.count}</td><td class="r"><span class="${d.net<0?'pill pill-red':'pill pill-green'}">${fmt$(d.net)}</span></td><td class="r mono">${fmt$(d.net/d.count)}</td></tr>`).join('')}</tbody><tfoot><tr class="tot"><td>Total</td><td class="r mono">${propOvr.length}</td><td class="r">${fmt$(propOvr.reduce((s,r)=>s+(r.override_amount||0),0))}</td><td></td></tr></tfoot></table></div>`:empty('No override data','Upload Rate Override reports')}
+    </div>
+
+    <div class="section-card"><div class="section-head"><div class="section-title">Payments Processed by Staff — MTD</div><div class="section-badge badge-info">${clerkMTD.length} transactions</div></div>
+      ${clerkStaffRows.length?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Staff Member</th><th class="r">Transactions</th><th class="r">Total Processed</th><th class="r">Avg / Transaction</th></tr></thead><tbody>${clerkStaffRows.map(([name,d])=>`<tr><td style="font-weight:500">${name}</td><td class="r mono">${d.count}</td><td class="r mono">${fmt$(d.total)}</td><td class="r mono">${fmt$(d.total/d.count)}</td></tr>`).join('')}</tbody><tfoot><tr class="tot"><td>Total</td><td class="r mono">${clerkMTD.length}</td><td class="r">${fmt$(clerkMTD.reduce((s,r)=>s+(r.amount||0),0))}</td><td></td></tr></tfoot></table></div>`:empty('No payment data','Upload Clerk Activity reports')}
+    </div>
+
+    <div class="section-card"><div class="section-head"><div class="section-title">Reservation Actions by Staff — MTD</div><div class="section-badge badge-info">${userMTD.length} actions</div></div>
+      ${userStaffRows.length?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Staff Member</th><th class="r">Total</th>${allActions.map(a=>`<th class="r" style="font-size:.55rem">${a.replace(/_/g,' ')}</th>`).join('')}</tr></thead><tbody>${userStaffRows.map(([name,counts])=>`<tr><td style="font-weight:500">${name}</td><td class="r mono" style="font-weight:600">${Object.values(counts).reduce((s,n)=>s+n,0)}</td>${allActions.map(a=>`<td class="r mono">${counts[a]||'—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:empty('No user activity data','Upload User Activity reports')}
+    </div>
+
+    <div class="section-card"><div class="section-head"><div class="section-title">Adjustments &amp; Refunds — All Days</div><div class="section-badge ${propAdj.filter(r=>r.section==='Refunds'||r.section==='Manager Refund').length?'badge-alert':'badge-ok'}">${propAdj.length} records</div></div>
+      ${propAdj.length?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Section</th><th>Guest</th><th>Room</th><th>Reason</th><th class="r">Adj Amount</th><th class="r">Tax</th><th>User</th></tr></thead><tbody>${propAdj.slice(0,150).map(r=>`<tr><td class="mono">${r.date||'—'}</td><td><span class="pill ${r.section==='Refunds'||r.section==='Manager Refund'?'pill-red':'pill-amber'}">${r.section}</span></td><td>${r.guest_name||'—'}</td><td class="mono">${r.room_number||'—'}</td><td style="font-size:.78rem;color:var(--ink3)">${r.adjustment_reason||'—'}</td><td class="r mono">${fmt$(r.adjusted_amount)}</td><td class="r mono">${fmt$(r.adjusted_tax)}</td><td class="mono" style="font-size:.68rem">${r.username||'—'}</td></tr>`).join('')}</tbody></table></div>`:empty('No adjustment data','Upload Adjustments & Refunds Activity reports')}
+    </div>
+
+    <div class="section-card"><div class="section-head"><div class="section-title">All Rate Overrides</div><div class="section-badge badge-info">${propOvr.length} records</div></div>
+      ${propOvr.length?`<div class="tbl-wrap">${overrideTableHtml(propOvr.slice(0,100))}</div>`:empty('No overrides','')}
+    </div>
+  </div>`;
+}
+
+function buildOwnerAccountability(){
+  const curMonth=localISODate().slice(0,7);
+  const activeCodes=Object.entries(PROPS).filter(([,p])=>p.active).map(([c])=>c);
+
+  // Aggregate override impact by staff across all properties
+  const allOvrMTD=S.overrides.filter(r=>r.stay_date?.startsWith(curMonth));
+  const totalOvrImpact=allOvrMTD.reduce((s,r)=>s+(r.override_amount||0),0);
+
+  // Adjustments MTD
+  const allAdjMTD=S.adjActivity.filter(r=>r.date?.startsWith(curMonth));
+  const allRefundsMTD=allAdjMTD.filter(r=>r.section==='Refunds'||r.section==='Manager Refund');
+
+  // Payments MTD
+  const allClerkMTD=S.clerkActivity.filter(r=>r.date?.startsWith(curMonth));
+  const totalPaymentsMTD=allClerkMTD.reduce((s,r)=>s+Math.abs(r.amount||0),0);
+
+  // User actions MTD
+  const allUserMTD=S.userActivity.filter(r=>r.date?.startsWith(curMonth));
+
+  // Override by staff cross-property
+  const byStaff={};
+  S.overrides.forEach(r=>{
+    const u=r.username||'Unknown', p=r.property||'?';
+    if(!byStaff[u]) byStaff[u]={total:0,count:0,props:{}};
+    byStaff[u].count++; byStaff[u].total+=(r.override_amount||0);
+    byStaff[u].props[p]=(byStaff[u].props[p]||0)+(r.override_amount||0);
+  });
+  const staffRows=Object.entries(byStaff).sort((a,b)=>a[1].total-b[1].total);
+
+  // Per-property summary
+  const propRows=activeCodes.map(code=>{
+    const ovrMTD=S.overrides.filter(r=>r.property===code&&r.stay_date?.startsWith(curMonth));
+    const adjMTD=S.adjActivity.filter(r=>r.property===code&&r.date?.startsWith(curMonth));
+    const clerkMTD=S.clerkActivity.filter(r=>r.property===code&&r.date?.startsWith(curMonth));
+    const userMTD=S.userActivity.filter(r=>r.property===code&&r.date?.startsWith(curMonth));
+    return {code, ovrCount:ovrMTD.length, ovrImpact:ovrMTD.reduce((s,r)=>s+(r.override_amount||0),0), adjCount:adjMTD.length, refCount:adjMTD.filter(r=>r.section==='Refunds'||r.section==='Manager Refund').length, payments:clerkMTD.reduce((s,r)=>s+Math.abs(r.amount||0),0), userActions:userMTD.length};
+  });
+
+  return `<div class="page-header"><div class="page-title">Owner Accountability</div><div class="page-sub">All Active Properties · MTD ${curMonth}</div></div>
+  <div class="content">
+    <div class="kpi-grid">
+      <div class="kpi-card amber"><div class="kpi-label">Override Impact MTD</div><div class="kpi-value">${fmt$(totalOvrImpact||null)}</div><div class="kpi-meta">${allOvrMTD.length} overrides across all properties</div></div>
+      <div class="kpi-card ${allRefundsMTD.length>0?'red':'green'}"><div class="kpi-label">Adjustments MTD</div><div class="kpi-value">${allAdjMTD.length}</div><div class="kpi-meta">${allRefundsMTD.length} refunds across all properties</div></div>
+      <div class="kpi-card blue"><div class="kpi-label">Payments Processed MTD</div><div class="kpi-value">${fmt$(totalPaymentsMTD||null)}</div><div class="kpi-meta">${allClerkMTD.length} transactions</div></div>
+      <div class="kpi-card gold"><div class="kpi-label">Reservation Actions MTD</div><div class="kpi-value">${allUserMTD.length}</div><div class="kpi-meta">Across all active properties</div></div>
+    </div>
+
+    <div class="section-card"><div class="section-head"><div class="section-title">MTD Summary by Property</div></div>
+      <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Property</th><th class="r">Overrides</th><th class="r">Override Impact</th><th class="r">Adjustments</th><th class="r">Refunds</th><th class="r">Payments</th><th class="r">Res. Actions</th></tr></thead>
+      <tbody>${propRows.map(p=>`<tr><td><span class="pill pill-blue">${p.code}</span> ${PROPS[p.code]?.short}</td><td class="r mono">${p.ovrCount}</td><td class="r"><span class="${p.ovrImpact<0?'pill pill-red':'pill pill-green'}">${fmt$(p.ovrImpact)}</span></td><td class="r mono">${p.adjCount}</td><td class="r mono ${p.refCount>0?'':''}"><span class="${p.refCount>0?'pill pill-red':'pill pill-gray'}">${p.refCount}</span></td><td class="r mono">${fmt$(p.payments)}</td><td class="r mono">${p.userActions}</td></tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+
+    <div class="section-card"><div class="section-head"><div class="section-title">Override Impact by Staff — All Properties</div><div class="section-badge badge-warn">${S.overrides.length} total overrides</div></div>
+      ${staffRows.length?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Staff Member</th><th class="r">Count</th><th class="r">Net Impact</th>${activeCodes.map(c=>`<th class="r">${c}</th>`).join('')}</tr></thead><tbody>${staffRows.map(([name,d])=>`<tr><td style="font-weight:500">${name}</td><td class="r mono">${d.count}</td><td class="r"><span class="${d.total<0?'pill pill-red':'pill pill-green'}">${fmt$(d.total)}</span></td>${activeCodes.map(c=>`<td class="r mono">${d.props[c]!=null?fmt$(d.props[c]):'—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:empty('No override data','Upload Rate Override reports for active properties')}
+    </div>
   </div>`;
 }
 
@@ -873,9 +1000,12 @@ function buildUploadView(context){
     <div class="section-card"><div class="section-head"><div class="section-title">Detection Guide</div></div>
       <div style="padding:1.4rem"><table class="data-table"><thead><tr><th>Report</th><th>Detected By</th><th>Saves To</th></tr></thead><tbody>
         <tr><td><span class="pill pill-blue">Hotel Statistics</span></td><td class="mono">"Hotel Statistics" + "Actual Today"</td><td class="mono">daily_revenue</td></tr>
-        <tr><td><span class="pill pill-amber">Direct Bill Aging</span></td><td class="mono">"Direct Bill Aging" + "Over 150"</td><td class="mono">ar_aging</td></tr>
-        <tr><td><span class="pill pill-red">Rate Override</span></td><td class="mono">XLSX file</td><td class="mono">rate_overrides</td></tr>
-        <tr><td><span class="pill pill-red">Adjustments & Refunds</span></td><td class="mono">"Adjustments and Refunds Activity"</td><td class="mono">adjustments</td></tr>
+        <tr><td><span class="pill pill-amber">Direct Bill Aging</span></td><td class="mono">"Direct Bill Aging" + "Over N"</td><td class="mono">ar_aging</td></tr>
+        <tr><td><span class="pill pill-red">Rate Override</span></td><td class="mono">"Rate Override" in content</td><td class="mono">rate_overrides</td></tr>
+        <tr><td><span class="pill pill-amber">Adjustments &amp; Refunds</span></td><td class="mono">"Adjustments and Refunds"</td><td class="mono">adjustments_activity</td></tr>
+        <tr><td><span class="pill pill-blue">AR Activity</span></td><td class="mono">"Accounts Receivable Activity"</td><td class="mono">ar_activity</td></tr>
+        <tr><td><span class="pill pill-green">Clerk Activity</span></td><td class="mono">"Clerk Activity" + "Transaction Number"</td><td class="mono">clerk_activity</td></tr>
+        <tr><td><span class="pill pill-gold">User Activity</span></td><td class="mono">"User Activity Report" + "Confirmation Number"</td><td class="mono">user_activity</td></tr>
         <tr><td><span class="pill pill-green">In-House Balances</span></td><td class="mono">"In House Guest Balances"</td><td class="mono">inhouse_balances</td></tr>
         <tr><td><span class="pill pill-gold">Opera Flash</span></td><td class="mono">"Manager Flash" in content</td><td class="mono">monthly_revenue</td></tr>
       </tbody></table></div>
