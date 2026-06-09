@@ -278,7 +278,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 // ═══════════════════════════════════
 const SUPABASE_URL = 'https://ltbjavxegskmhyjqpext.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0YmphdnhlZ3NrbWh5anFwZXh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTU5NzksImV4cCI6MjA5NjI5MTk3OX0.mE-bSDLH7K9UXTqKDQKOuiEy9gv6Qi1xRj9Q2a9gw6I';
-const PINS = { OWNER:'0616', WKFCW:'2011', RDURM:'2023', RDUTT:'2021' };
+const VERIFY_PIN_URL = 'https://ltbjavxegskmhyjqpext.supabase.co/functions/v1/verify-pin';
 const EDGE_FN_URL = 'https://ltbjavxegskmhyjqpext.supabase.co/functions/v1/process-night-audit';
 const PROPS = {
   WKFCW:{ name:'Candlewood Suites Wake Forest', short:'Candlewood WF', pms:'HotelKey', active:true },
@@ -362,14 +362,19 @@ document.addEventListener('keydown', e=>{
   else if(e.key==='Escape') handlePinKey('clr');
 });
 
+let pinChecking=false;
 function handlePinKey(k){
+  if(pinChecking) return;
   if(k==='clr'){pinEntry='';updateDots();return}
   if(k==='del'){pinEntry=pinEntry.slice(0,-1);updateDots();return}
   if(pinEntry.length>=4) return;
   pinEntry+=k; updateDots();
   if(pinEntry.length===4){
-    if(pinEntry===PINS[pinTarget]) enterApp(pinTarget);
-    else pinError();
+    pinChecking=true;
+    fetch(VERIFY_PIN_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},body:JSON.stringify({property:pinTarget,pin:pinEntry})})
+      .then(r=>r.json())
+      .then(data=>{ if(data.valid) enterApp(pinTarget); else { pinError(); pinChecking=false; } })
+      .catch(()=>{ pinError(); pinChecking=false; });
   }
 }
 function updateDots(){
@@ -378,7 +383,7 @@ function updateDots(){
 function pinError(){
   for(let i=0;i<4;i++) document.getElementById('pd'+i).className='pin-dot error';
   document.getElementById('pin-err').classList.add('show');
-  setTimeout(()=>{ pinEntry=''; updateDots(); document.getElementById('pin-err').classList.remove('show'); },800);
+  setTimeout(()=>{ pinEntry=''; pinChecking=false; updateDots(); document.getElementById('pin-err').classList.remove('show'); },800);
 }
 function enterApp(mode){
   S.mode=mode;
@@ -727,6 +732,7 @@ function buildDaily(){
     </div>
     <div class="section-card"><div class="section-head"><div class="section-title">AR Snapshot</div><div class="section-badge badge-info" id="ar-snap-badge">—</div></div><div id="ar-snap-body">${loading()}</div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">In-House Guest Balances</div><div class="section-badge badge-info" id="ih-badge">—</div></div><div id="ih-body">${loading()}</div></div>
+    <div class="section-card"><div class="section-head"><div class="section-title">Rate Overrides — This Day</div><div class="section-badge" id="ovr-badge">—</div></div><div id="ovr-body">${empty('No overrides','No rate overrides for this date')}</div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">Adjustments &amp; Refunds — This Day</div><div class="section-badge" id="adj-badge">—</div></div><div id="adj-body">${empty('No adjustment data','Upload Adjustments & Refunds report')}</div></div>
   </div>`;
 }
@@ -742,8 +748,9 @@ function renderDailyContent(){
   const dayAdj=S.adjActivity.filter(r=>r.date===d&&r.property===prop);
   const refunds=dayAdj.filter(r=>r.section==='Refunds'||r.section==='Manager Refund');
   const ovrNet=dayOvr.reduce((s,r)=>s+(r.override_amount||0),0);
-  const propAR=S.ar.filter(r=>r.property===prop);
-  const arTotal=propAR.length?propAR.slice(0,2).reduce((s,r)=>s+(r.total||0),0):0;
+  const propAR=S.ar.filter(r=>r.property===prop&&r.category==='Accounts Receivables');
+  const latArAlert=[...new Set(propAR.map(r=>r.date))].sort().reverse()[0]||null;
+  const arTotal=latArAlert?propAR.filter(r=>r.date===latArAlert).reduce((s,r)=>s+(r.total||0),0):0;
   const alerts=[];
   if(dayOvr.length) alerts.push(`<div class="alert-chip ${ovrNet<-100?'alert':'warn'}">⚡ ${dayOvr.length} override${dayOvr.length>1?'s':''} — net ${fmt$(ovrNet)}</div>`);
   if(refunds.length) alerts.push(`<div class="alert-chip alert">↩ ${refunds.length} refund${refunds.length>1?'s':''}</div>`);
@@ -808,8 +815,18 @@ function renderDailyContent(){
   document.getElementById('ih-body').innerHTML=ihRows.length
     ?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Room</th><th>Guest</th><th>Company</th><th>Arrival</th><th>Departure</th><th class="r">Rate</th><th class="r">Balance</th><th>Payment</th></tr></thead><tbody>${ihRows.sort((a,b)=>(a.room_number||'').localeCompare(b.room_number||'')).map(r=>`<tr><td class="mono" style="font-weight:600">${r.room_number||'—'}</td><td>${r.guest_name||'—'}</td><td>${r.company?`<span class="pill pill-blue">${r.company}</span>`:'—'}</td><td class="mono" style="font-size:.72rem">${r.arrival_date?fmtDate(r.arrival_date):'—'}</td><td class="mono" style="font-size:.72rem">${r.departure_date?fmtDate(r.departure_date):'—'}</td><td class="r">${fmt$(r.room_rate)}</td><td class="r" style="font-weight:500">${fmt$(r.folio_balance)}</td><td class="mono" style="font-size:.7rem">${r.payment_method||'—'}</td></tr>`).join('')}</tbody><tfoot><tr class="tot"><td colspan="6">Total Balance</td><td class="r">${fmt$(ihRows.reduce((s,r)=>s+(r.folio_balance||0),0))}</td><td></td></tr></tfoot></table></div>`
     :empty('No in-house data','Upload In-House Guest Balances report');
+  // Rate overrides for this day
+  if(dayOvr.length){
+    const ovrNeg=dayOvr.filter(r=>(r.override_amount||0)<0).length;
+    document.getElementById('ovr-badge').textContent=`${dayOvr.length} override${dayOvr.length>1?'s':''} · net ${fmt$(ovrNet)}`;
+    document.getElementById('ovr-badge').className=`section-badge ${ovrNeg?'badge-alert':'badge-warn'}`;
+    document.getElementById('ovr-body').innerHTML=`<div class="tbl-wrap">${overrideTableHtml(dayOvr)}</div>`;
+  } else {
+    document.getElementById('ovr-badge').textContent='None';
+    document.getElementById('ovr-badge').className='section-badge badge-ok';
+    document.getElementById('ovr-body').innerHTML=empty('No rate overrides','No overrides for this date');
+  }
   if(dayAdj.length){
-    const adjOnly=dayAdj.filter(r=>r.section==='Adjustments'||r.section==='Manager Charge Adjustments');
     document.getElementById('adj-badge').textContent=`${dayAdj.length} events${refunds.length?' · '+refunds.length+' refund'+(refunds.length>1?'s':''):''}`;
     document.getElementById('adj-badge').className=`section-badge ${refunds.length?'badge-alert':'badge-warn'}`;
     document.getElementById('adj-body').innerHTML=`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Type</th><th>Guest</th><th>Room</th><th>Reason</th><th class="r">Amount</th><th>User</th></tr></thead><tbody>${dayAdj.map(r=>`<tr><td><span class="pill ${r.section==='Refunds'||r.section==='Manager Refund'?'pill-red':r.section==='Manager Charge Adjustments'?'pill-amber':'pill-blue'}">${r.section==='Manager Charge Adjustments'?'Mgr Adj':r.section==='Manager Refund'?'Mgr Refund':r.section}</span></td><td style="font-weight:500">${r.guest_name||'—'}</td><td class="mono">${r.room_number||'—'}</td><td style="font-size:.78rem;color:var(--ink3)">${r.adjustment_reason||'—'}</td><td class="r mono" style="${r.section==='Refunds'||r.section==='Manager Refund'?'color:var(--red);font-weight:600':''}">${fmt$(Math.abs(r.adjusted_amount))}</td><td class="mono" style="font-size:.68rem">${r.username||'—'}</td></tr>`).join('')}</tbody></table></div>`;
