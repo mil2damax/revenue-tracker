@@ -542,11 +542,11 @@ function buildOwnerSummary(){
   const lyYtdMonthly=S.monthly.filter(r=>{ const [y,m]=r.period_start.split('-').map(Number); return y===curYearNum-1&&m<=curMonthNum; });
   const lyYtdRoomRev=lyYtdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0);
 
-  // AR KPI: use ar_aging (7 days, all buckets correct)
-  const arAllAR=S.ar.filter(r=>r.category==='Accounts Receivables');
+  // AR KPI: all categories (AR + Settlements + Invoices)
+  const arAllAR=S.ar; // no category filter — show everything
   const latArDateAll=[...new Set(arAllAR.map(r=>r.date))].sort().reverse()[0]||null;
   const arTotal=latArDateAll?arAllAR.filter(r=>r.date===latArDateAll).reduce((s,r)=>s+(r.total||0),0):0;
-  const ar90=latArDateAll?arAllAR.filter(r=>r.date===latArDateAll).reduce((s,r)=>s+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0):0;
+  const ar90=latArDateAll?arAllAR.filter(r=>r.date===latArDateAll&&r.category==='Accounts Receivables').reduce((s,r)=>s+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0):0;
   const ovrMTD=S.overrides.filter(r=>r.stay_date?.startsWith(curMonth));
 
   // Portfolio-level aggregate (active properties only) — average of each
@@ -598,16 +598,16 @@ function wireOwnerSummary(){
 function buildOwnerAR(){
   const activeCodes=Object.entries(PROPS).filter(([,p])=>p.active).map(([c])=>c);
   const propSections=activeCodes.map(code=>{
-    const propARrows=S.ar.filter(r=>r.property===code&&r.category==='Accounts Receivables');
+    const propARrows=S.ar.filter(r=>r.property===code); // all categories
     const latDate=[...new Set(propARrows.map(r=>r.date))].sort().reverse()[0]||null;
-    const cos=latDate?arAgingSummary(code,latDate,'Accounts Receivables'):[];
+    const cos=latDate?arAgingSummary(code,latDate):[];  // all categories
     const tot=cos.reduce((s,c)=>s+c.total,0);
-    const over90=cos.reduce((s,c)=>s+c.b90+c.b120+c.b150,0);
+    const over90=cos.filter(c=>c.category==='Accounts Receivables').reduce((s,c)=>s+c.b90+c.b120+c.b150,0);
     if(!cos.length) return '';
-    return `<div class="section-card"><div class="section-head"><div class="section-title">${PROPS[code]?.short} — Direct Bill Aging</div><div style="display:flex;gap:.5rem;align-items:center"><span style="font-family:var(--mono);font-size:.58rem;color:var(--fog)">90+ days: <span style="color:var(--red)">${fmt$(over90)}</span></span><div class="section-badge ${over90>50000?'badge-alert':'badge-warn'}">${fmt$(tot)}</div></div></div>${arAgingHtml(cos)}<div style="padding:.4rem 1.4rem .8rem;font-family:var(--mono);font-size:.58rem;color:var(--fog)">${fmtDate(latDate)}</div></div>`;
+    return `<div class="section-card"><div class="section-head"><div class="section-title">${PROPS[code]?.short} — AR &amp; Balances</div><div style="display:flex;gap:.5rem;align-items:center"><span style="font-family:var(--mono);font-size:.58rem;color:var(--fog)">90+ days: <span style="color:var(--red)">${fmt$(over90)}</span></span><div class="section-badge ${over90>50000?'badge-alert':'badge-warn'}">${fmt$(tot)}</div></div></div>${arAgingHtml(cos)}<div style="padding:.4rem 1.4rem .8rem;font-family:var(--mono);font-size:.58rem;color:var(--fog)">${fmtDate(latDate)}</div></div>`;
   }).join('');
   const grandTotal=activeCodes.reduce((s,code)=>{
-    const d=S.ar.filter(r=>r.property===code&&r.category==='Accounts Receivables');
+    const d=S.ar.filter(r=>r.property===code); // all categories
     const lat=[...new Set(d.map(r=>r.date))].sort().reverse()[0]||null;
     return s+(lat?d.filter(r=>r.date===lat).reduce((ss,r)=>ss+(r.total||0),0):0);
   },0);
@@ -656,9 +656,9 @@ function buildOwnerDrill(){
     const mtdRev=mtd.reduce((s,r)=>s+(r.room_revenue||0),0);
     const mtdOcc=mtd.length?mtd.reduce((s,r)=>s+(r.occ_pct||0),0)/mtd.length:null;
     const mtdADR=mtd.length?mtd.reduce((s,r)=>s+(r.adr||0),0)/mtd.length:null;
-    const drillARrows=S.ar.filter(r=>r.property===code&&r.category==='Accounts Receivables');
+    const drillARrows=S.ar.filter(r=>r.property===code); // all categories
     const latAR=[...new Set(drillARrows.map(r=>r.date))].sort().reverse()[0]||null;
-    const drillCos=latAR?arAgingSummary(code,latAR,'Accounts Receivables'):[];
+    const drillCos=latAR?arAgingSummary(code,latAR):[];  // all categories
     const arTotal=drillCos.reduce((s,c)=>s+c.total,0);
     const ar90drill=drillCos.reduce((s,c)=>s+c.b90+c.b120+c.b150,0);
     content=`<div class="content">
@@ -748,7 +748,7 @@ function renderDailyContent(){
   const dayAdj=S.adjActivity.filter(r=>r.date===d&&r.property===prop);
   const refunds=dayAdj.filter(r=>r.section==='Refunds'||r.section==='Manager Refund');
   const ovrNet=dayOvr.reduce((s,r)=>s+(r.override_amount||0),0);
-  const propAR=S.ar.filter(r=>r.property===prop&&r.category==='Accounts Receivables');
+  const propAR=S.ar.filter(r=>r.property===prop); // all categories
   const latArAlert=[...new Set(propAR.map(r=>r.date))].sort().reverse()[0]||null;
   const arTotal=latArAlert?propAR.filter(r=>r.date===latArAlert).reduce((s,r)=>s+(r.total||0),0):0;
   const alerts=[];
@@ -796,10 +796,10 @@ function renderDailyContent(){
     document.getElementById('ytd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(ytdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(ytdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdTot)}</td></tr><tr><td>Avg Occupancy</td><td class="r">${fmtPct(ytdOcc)}</td></tr><tr><td>Avg ADR</td><td class="r">${fmt$(ytdADR)}</td></tr>${lyYtdRev>0?`<tr><td>LY Room / Total Revenue</td><td class="r" style="color:var(--fog)">${fmt$(lyYtdRev)} / ${fmt$(lyYtdTot)} ${deltaChip(ytdRev,lyYtdRev)}</td></tr>`:''}</table>`;
   } else { document.getElementById('ytd-body').innerHTML=empty('No YTD data',''); document.getElementById('ytd-badge').textContent='0 mo'; }
   // AR snap: use ar_aging (all buckets correct, 7 days)
-  const propARrows=S.ar.filter(r=>r.property===prop&&r.category==='Accounts Receivables');
+  const propARrows=S.ar.filter(r=>r.property===prop); // all categories
   const latArDate=[...new Set(propARrows.map(r=>r.date))].sort().reverse()[0]||null;
-  const arSnapCos=latArDate?arAgingSummary(prop,latArDate,'Accounts Receivables'):[];
-  const arTot=arSnapCos.reduce((s,c)=>s+c.total,0), ar90=arSnapCos.reduce((s,c)=>s+c.b90+c.b120+c.b150,0);
+  const arSnapCos=latArDate?arAgingSummary(prop,latArDate):[];  // all categories
+  const arTot=arSnapCos.reduce((s,c)=>s+c.total,0), ar90=arSnapCos.filter(c=>c.category==='Accounts Receivables').reduce((s,c)=>s+c.b90+c.b120+c.b150,0);
   if(arSnapCos.length){
     document.getElementById('ar-snap-badge').textContent=fmt$(arTot);
     document.getElementById('ar-snap-badge').className=`section-badge ${ar90>50000?'badge-alert':ar90>20000?'badge-warn':'badge-ok'}`;
@@ -932,11 +932,9 @@ function buildAR(){
   const prop=vp();
   const propAR=S.ar.filter(r=>r.property===prop);
   const latDate=propAR[0]?.date||null;
-  const arCos=latDate?arAgingSummary(prop,latDate,'Accounts Receivables'):[];
+  const arCos=latDate?arAgingSummary(prop,latDate):[];  // all categories
   const arTotal=arCos.reduce((s,c)=>s+c.total,0);
-  const ar90=arCos.reduce((s,c)=>s+c.b90+c.b120+c.b150,0);
-  // Other categories (Settlements, Invoices)
-  const otherCos=latDate?propAR.filter(r=>r.date===latDate&&r.category!=='Accounts Receivables'&&r.total!==0):[];
+  const ar90=arCos.filter(c=>c.category==='Accounts Receivables').reduce((s,c)=>s+c.b90+c.b120+c.b150,0);
 
   // ar_activity transaction detail
   const actDates=[...new Set(S.arActivity.filter(r=>r.property===prop).map(r=>r.snapshot_date))].sort().reverse();
@@ -952,7 +950,6 @@ function buildAR(){
       </div>
       ${latDate?`<div style="padding:.4rem 1.4rem .2rem;font-family:var(--mono);font-size:.58rem;color:var(--fog)">90+ days: <span style="color:var(--red);font-weight:600">${fmt$(ar90)}</span></div>`:''}
       ${arCos.length?arAgingHtml(arCos):empty('No AR data','Upload Direct Bill Aging report')}
-      ${otherCos.length?`<div style="padding:.5rem 1.4rem;font-family:var(--mono);font-size:.58rem;color:var(--fog);border-top:1px solid var(--border)">${otherCos.map(r=>`${r.category}: ${r.company} ${fmt$(r.total)}`).join(' · ')}</div>`:''}
     </div>
     <div class="section-card"><div class="section-head"><div class="section-title">Day-over-Day Trend</div></div><div style="padding:1.4rem">${buildARTrendTable(prop)}</div></div>
     ${actDetail.length?`<div class="section-card">
@@ -962,18 +959,22 @@ function buildAR(){
   </div>`;
 }
 function buildARTrendTable(prop){
-  // ar_aging has 7 daily snapshots — use that for the trend table
-  const propAR=S.ar.filter(r=>(!prop||r.property===prop)&&r.category==='Accounts Receivables');
+  // ar_aging has 7 daily snapshots — all categories
+  const propAR=S.ar.filter(r=>(!prop||r.property===prop));
   const dates=[...new Set(propAR.map(r=>r.date))].sort().slice(-7);
   if(!dates.length) return empty('Not enough data','Upload Direct Bill Aging reports');
-  return `<table class="data-table"><thead><tr><th>Date</th><th class="r">CLC</th><th class="r">IHG Rewards</th><th class="r">Total AR</th><th class="r">90+ Days</th><th class="r">Change</th></tr></thead><tbody>${dates.map((dt,i)=>{
+  return `<table class="data-table"><thead><tr><th>Date</th><th class="r">CLC AR</th><th class="r">IHG Rewards</th><th class="r">Settlements</th><th class="r">KFLEX</th><th class="r">Grand Total</th><th class="r">90+ Days</th><th class="r">Change</th></tr></thead><tbody>${dates.map((dt,i)=>{
     const rows=propAR.filter(r=>r.date===dt);
     const tot=rows.reduce((s,r)=>s+(r.total||0),0);
-    const over90=rows.reduce((s,r)=>s+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0);
-    const clc=rows.find(r=>r.company==='CLC'), ihg=rows.find(r=>r.company==='IHG REWARD NIGHT REIMBURSEMENTS');
+    const arRows=rows.filter(r=>r.category==='Accounts Receivables');
+    const over90=arRows.reduce((s,r)=>s+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0);
+    const clc=rows.find(r=>r.company==='CLC'&&r.category==='Accounts Receivables');
+    const ihg=rows.find(r=>r.company==='IHG REWARD NIGHT REIMBURSEMENTS');
+    const settle=rows.find(r=>r.category==='Settlements');
+    const kflex=rows.find(r=>r.category==='Invoices');
     let chg='';
     if(i>0){const prevTot=propAR.filter(r=>r.date===dates[i-1]).reduce((s,r)=>s+(r.total||0),0); const diff=tot-prevTot; chg=`<span style="color:${diff>0?'var(--red)':'var(--green)'};">${diff>0?'+':''}${fmt$(diff)}</span>`;}
-    return `<tr><td class="mono">${fmtDate(dt)}</td><td class="r mono">${fmt$(clc?.total)}</td><td class="r mono">${fmt$(ihg?.total)}</td><td class="r mono" style="font-weight:600">${fmt$(tot)}</td><td class="r mono" style="color:var(--red)">${fmt$(over90)}</td><td class="r mono">${chg}</td></tr>`;
+    return `<tr><td class="mono">${fmtDate(dt)}</td><td class="r mono">${fmt$(clc?.total)}</td><td class="r mono">${fmt$(ihg?.total)}</td><td class="r mono" style="color:var(--fog)">${settle?fmt$(settle.total):'—'}</td><td class="r mono" style="color:${kflex&&kflex.total<0?'var(--green)':'var(--ink3)'}">${kflex?fmt$(kflex.total):'—'}</td><td class="r mono" style="font-weight:600">${fmt$(tot)}</td><td class="r mono" style="color:var(--red)">${fmt$(over90)}</td><td class="r mono">${chg}</td></tr>`;
   }).join('')}</tbody></table>`;
 }
 
