@@ -432,7 +432,14 @@ function renderView(view){
   else if(view==='owner-upload'){ body.innerHTML=buildUploadView('OWNER'); wireUploadView('ou'); }
   else if(view==='owner-drill') { body.innerHTML=buildOwnerDrill(); wireOwnerDrill(); }
   else if(view==='owner-accountability') { body.innerHTML=buildOwnerAccountability(); }
-  else if(view==='daily')       { body.innerHTML=buildDaily(); wireDaily(); renderDailyContent(); }
+  else if(view==='daily')       {
+    // Always open on the most recent night-audit date available (≤ yesterday).
+    // Never show today — night audits cover the prior business day.
+    const yesterday=localYesterday();
+    const avail=Object.keys(S.daily).filter(k=>k.startsWith(S.mode+'_')).map(k=>k.split('_')[1]).filter(d=>d<=yesterday).sort();
+    S.currentDate=avail.length?avail[avail.length-1]:yesterday;
+    body.innerHTML=buildDaily(); wireDaily(); renderDailyContent();
+  }
   else if(view==='performance') { body.innerHTML=buildPerformance(); setTimeout(renderPerfCharts,100); }
   else if(view==='ar')          { body.innerHTML=buildAR(); }
   else if(view==='accountability') { body.innerHTML=buildAccountability(); }
@@ -681,7 +688,7 @@ function wireDaily(){
   document.getElementById('d-label').textContent=fmtDate(S.currentDate);
   document.getElementById('d-prev').addEventListener('click',()=>{ const d=new Date(S.currentDate+'T00:00:00'); d.setDate(d.getDate()-1); S.currentDate=localISODate(d); document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
   document.getElementById('d-next').addEventListener('click',()=>{ const d=new Date(S.currentDate+'T00:00:00'); d.setDate(d.getDate()+1); S.currentDate=localISODate(d); document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
-  document.getElementById('d-today').addEventListener('click',()=>{ S.currentDate=localYesterday(); document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
+  document.getElementById('d-today').addEventListener('click',()=>{ const yesterday=localYesterday(); const avail=Object.keys(S.daily).filter(k=>k.startsWith(S.mode+'_')).map(k=>k.split('_')[1]).filter(d=>d<=yesterday).sort(); S.currentDate=avail.length?avail[avail.length-1]:yesterday; document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
 }
 function renderDailyContent(){
   const d=S.currentDate, prop=S.mode, row=dailyRow(d,prop);
