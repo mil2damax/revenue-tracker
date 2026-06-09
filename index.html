@@ -291,7 +291,7 @@ const localISODate=d=>{ const dt=d||new Date(); return dt.getFullYear()+'-'+Stri
 // STATE
 // ═══════════════════════════════════
 const localYesterday=()=>localISODate(new Date(Date.now()-864e5));
-let S ={ mode:null, currentDate:localYesterday(), daily:{}, ar:[], overrides:[], adjs:[], inhouse:[], monthly:[], clerkActivity:[], userActivity:[], adjActivity:[], pending:[], charts:{}, drillProp:null };
+let S ={ mode:null, currentDate:localYesterday(), daily:{}, ar:[], arActivity:[], overrides:[], adjs:[], inhouse:[], monthly:[], clerkActivity:[], userActivity:[], adjActivity:[], pending:[], charts:{}, drillProp:null };
 
 // ═══════════════════════════════════
 // SUPABASE
@@ -407,7 +407,7 @@ function buildAppShell(){
   document.getElementById('switch-prop-btn').addEventListener('click', lockApp);
 }
 function lockApp(){
-  S={mode:null,currentDate:localYesterday(),daily:{},ar:[],overrides:[],adjs:[],inhouse:[],monthly:[],clerkActivity:[],userActivity:[],adjActivity:[],pending:[],charts:{},drillProp:null};
+  S={mode:null,currentDate:localYesterday(),daily:{},ar:[],arActivity:[],overrides:[],adjs:[],inhouse:[],monthly:[],clerkActivity:[],userActivity:[],adjActivity:[],pending:[],charts:{},drillProp:null};
   pinEntry=''; pinTarget=null;
   document.getElementById('entry-screen').style.display='flex';
   document.getElementById('entry-screen').classList.remove('hidden');
@@ -446,22 +446,30 @@ function renderView(view){
 // ═══════════════════════════════════
 async function loadAllData(){
   const prop=S.mode, isOwner=prop==='OWNER', pf=isOwner?'':'&property=eq.'+prop;
+  // Core tables — must all succeed
   try {
-    const [daily,ar,overrides,adjs,inhouse,monthly,clerkActivity,userActivity,adjActivity] = await Promise.all([
+    const [daily,ar,overrides,adjs,inhouse,monthly,arActivity] = await Promise.all([
       sbGet('daily_revenue','?order=date.desc&limit=400'+pf),
       sbGet('ar_aging','?order=date.desc&limit=120'+pf),
       sbGet('rate_overrides','?order=stay_date.desc&limit=600'+pf),
       sbGet('adjustments','?order=date.desc&limit=600'+pf),
       sbGet('inhouse_balances','?order=date.desc&limit=300'+pf),
       sbGet('monthly_revenue','?order=period_start.asc'+pf),
+      sbGet('ar_activity','?order=snapshot_date.desc&limit=2000'+pf)
+    ]);
+    S.daily={}; daily.forEach(r=>{ S.daily[(r.property||'WKFCW')+'_'+r.date]=r; });
+    S.ar=ar; S.overrides=overrides; S.adjs=adjs; S.inhouse=inhouse; S.monthly=monthly;
+    S.arActivity=arActivity;
+  } catch(e){ console.warn('Core load error:',e); }
+  // Activity tables — load independently so a failure here never breaks core views
+  try {
+    const [clerkActivity,userActivity,adjActivity] = await Promise.all([
       sbGet('clerk_activity','?order=date.desc&limit=2000'+pf),
       sbGet('user_activity','?order=date.desc&limit=2000'+pf),
       sbGet('adjustments_activity','?order=date.desc&limit=1000'+pf)
     ]);
-    S.daily={}; daily.forEach(r=>{ S.daily[(r.property||'WKFCW')+'_'+r.date]=r; });
-    S.ar=ar; S.overrides=overrides; S.adjs=adjs; S.inhouse=inhouse; S.monthly=monthly;
     S.clerkActivity=clerkActivity; S.userActivity=userActivity; S.adjActivity=adjActivity;
-  } catch(e){ console.warn('Load error:',e); }
+  } catch(e){ console.warn('Activity load error:',e); }
 }
 function dailyRow(date,prop){ return S.daily[(prop||S.mode)+'_'+date]||null; }
 
@@ -508,10 +516,12 @@ function buildOwnerSummary(){
   const lyYtdMonthly=S.monthly.filter(r=>{ const [y,m]=r.period_start.split('-').map(Number); return y===curYearNum-1&&m<=curMonthNum; });
   const lyYtdRoomRev=lyYtdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0);
 
-  const latARDate=S.ar[0]?.date;
-  const latAR=latARDate?S.ar.filter(r=>r.date===latARDate):[];
-  const arTotal=latAR.reduce((s,r)=>s+(r.total||0),0);
-  const ar90=latAR.reduce((s,r)=>s+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0);
+  // AR KPI: prefer ar_activity (full ledger), fall back to ar_aging
+  const actDatesAll=[...new Set(S.arActivity.map(r=>r.snapshot_date))].sort().reverse();
+  const latActDateAll=actDatesAll[0]||null;
+  const actSummaryAll=latActDateAll?S.arActivity.filter(r=>r.snapshot_date===latActDateAll):[];
+  const arTotal=actSummaryAll.reduce((s,r)=>s+(r.current_bal||0)+(r.over_30||0)+(r.over_60||0)+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0)||S.ar.reduce((s,r)=>s+(r.total||0),0);
+  const ar90=actSummaryAll.reduce((s,r)=>s+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0)||S.ar.reduce((s,r)=>s+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0);
   const ovrMTD=S.overrides.filter(r=>r.stay_date?.startsWith(curMonth));
 
   // Portfolio-level aggregate (active properties only) — average of each
@@ -561,12 +571,22 @@ function wireOwnerSummary(){
   });
 }
 function buildOwnerAR(){
-  if(!S.ar.length) return `<div class="page-header"><div class="page-title">AR / Aging</div></div><div class="content">${empty('No AR data','Upload Direct Bill Aging reports')}</div>`;
-  const ld=S.ar[0].date, rows=S.ar.filter(r=>r.date===ld), total=rows.reduce((s,r)=>s+(r.total||0),0);
-  return `<div class="page-header"><div class="page-title">AR / Aging — All Properties</div><div class="page-sub">Total: ${fmt$(total)} · As of ${fmtDate(ld)}</div></div>
+  const activeCodes=Object.entries(PROPS).filter(([,p])=>p.active).map(([c])=>c);
+  const propSections=activeCodes.map(code=>{
+    const actDates=[...new Set(S.arActivity.filter(r=>r.property===code).map(r=>r.snapshot_date))].sort().reverse();
+    const latDate=actDates[0]||null;
+    const cos=latDate?arActivitySummary(code,latDate):[];
+    const tot=cos.reduce((s,c)=>s+c.total,0);
+    const over90=cos.reduce((s,c)=>s+c.b90+c.b120+c.b150,0);
+    if(!cos.length) return '';
+    return `<div class="section-card"><div class="section-head"><div class="section-title">${PROPS[code]?.short} — AR Full Ledger</div><div style="display:flex;gap:.5rem;align-items:center"><span style="font-family:var(--mono);font-size:.58rem;color:var(--fog)">90+ days: <span style="color:var(--red)">${fmt$(over90)}</span></span><div class="section-badge ${over90>50000?'badge-alert':'badge-warn'}">${fmt$(tot)}</div></div></div>${arActivityAgingHtml(cos)}<div style="padding:.4rem 1.4rem .8rem;font-family:var(--mono);font-size:.58rem;color:var(--fog)">Snapshot: ${fmtDate(latDate)}</div></div>`;
+  }).join('');
+  const grandTotal=activeCodes.reduce((s,code)=>{const d=[...new Set(S.arActivity.filter(r=>r.property===code).map(r=>r.snapshot_date))].sort().reverse()[0];return s+(d?arActivitySummary(code,d).reduce((ss,c)=>ss+c.total,0):0);},0);
+  if(!propSections.trim()) return `<div class="page-header"><div class="page-title">AR / Aging</div></div><div class="content">${empty('No AR data','Upload AR Activity reports')}</div>`;
+  return `<div class="page-header"><div class="page-title">AR / Aging — All Properties</div><div class="page-sub">Total Outstanding: ${fmt$(grandTotal)} · Full ledger from AR Activity reports</div></div>
   <div class="content">
-    <div class="section-card"><div class="section-head"><div class="section-title">Direct Bill Aging</div><div class="section-badge badge-alert">${fmt$(total)}</div></div><div class="aging-grid">${rows.map(r=>agingCellHtml(r)).join('')}</div></div>
-    <div class="section-card"><div class="section-head"><div class="section-title">Day-over-Day Trend</div></div><div style="padding:1.4rem">${buildARTrendTable()}</div></div>
+    ${propSections}
+    <div class="section-card"><div class="section-head"><div class="section-title">Snapshot Trend</div></div><div style="padding:1.4rem">${buildARTrendTable()}</div></div>
   </div>`;
 }
 function buildOwnerPerf(){
@@ -593,9 +613,11 @@ function buildOwnerDrill(){
   const mtdRev=mtd.reduce((s,r)=>s+(r.room_revenue||0),0);
   const mtdOcc=mtd.length?mtd.reduce((s,r)=>s+(r.occ_pct||0),0)/mtd.length:null;
   const mtdADR=mtd.length?mtd.reduce((s,r)=>s+(r.adr||0),0)/mtd.length:null;
-  const propAR=S.ar.filter(r=>r.property===code), latAR=propAR[0]?.date;
-  const arRows=latAR?propAR.filter(r=>r.date===latAR):[];
-  const arTotal=arRows.reduce((s,r)=>s+(r.total||0),0);
+  const drillActDates=[...new Set(S.arActivity.filter(r=>r.property===code).map(r=>r.snapshot_date))].sort().reverse();
+  const drillActDate=drillActDates[0]||null;
+  const drillActCos=drillActDate?arActivitySummary(code,drillActDate):[];
+  const arTotal=drillActCos.reduce((s,c)=>s+c.total,0)||(S.ar.filter(r=>r.property===code)[0]?S.ar.filter(r=>r.property===code&&r.date===S.ar.filter(r=>r.property===code)[0].date).reduce((s,r)=>s+(r.total||0),0):0);
+  const latAR=drillActDate;
   return `<div class="page-header" style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
     <div><div class="page-title">${p?.name}</div><div class="page-sub">${code} · Owner drill-in</div></div>
     <button class="btn-sec" id="drill-back" style="margin-left:auto">← Back to Overview</button>
@@ -710,10 +732,19 @@ function renderDailyContent(){
     document.getElementById('ytd-badge').textContent=`${ytdMonthly.length} mo · Jan–${fmtMonth(`${yr}-${mo}-01`).split(' ')[0]}`;
     document.getElementById('ytd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(ytdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(ytdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdTot)}</td></tr><tr><td>Avg Occupancy</td><td class="r">${fmtPct(ytdOcc)}</td></tr><tr><td>Avg ADR</td><td class="r">${fmt$(ytdADR)}</td></tr>${lyYtdRev>0?`<tr><td>LY Room / Total Revenue</td><td class="r" style="color:var(--fog)">${fmt$(lyYtdRev)} / ${fmt$(lyYtdTot)} ${deltaChip(ytdRev,lyYtdRev)}</td></tr>`:''}</table>`;
   } else { document.getElementById('ytd-body').innerHTML=empty('No YTD data',''); document.getElementById('ytd-badge').textContent='0 mo'; }
-  const latAR=propAR[0]?.date, arRows=latAR?propAR.filter(r=>r.date===latAR):[];
-  const arTot=arRows.reduce((s,r)=>s+(r.total||0),0), ar90=arRows.reduce((s,r)=>s+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0);
-  if(arRows.length){ document.getElementById('ar-snap-badge').textContent=fmt$(arTot); document.getElementById('ar-snap-badge').className=`section-badge ${ar90>50000?'badge-alert':ar90>20000?'badge-warn':'badge-ok'}`; document.getElementById('ar-snap-body').innerHTML=`<div class="aging-grid">${arRows.map(r=>agingCellHtml(r)).join('')}</div><div style="padding:.6rem 1.4rem;font-family:var(--mono);font-size:.58rem;color:var(--fog)">As of ${fmtDate(latAR)}</div>`; }
-  else { document.getElementById('ar-snap-body').innerHTML=empty('No AR data','Upload Direct Bill Aging'); document.getElementById('ar-snap-badge').textContent='—'; }
+  // AR snap: use ar_activity (full ledger) for this property
+  const propActDates=[...new Set(S.arActivity.filter(r=>r.property===prop).map(r=>r.snapshot_date))].sort().reverse();
+  const latActDate=propActDates[0]||null;
+  const actCos=latActDate?arActivitySummary(prop,latActDate):[];
+  const arTot=actCos.reduce((s,c)=>s+c.total,0), ar90=actCos.reduce((s,c)=>s+c.b90+c.b120+c.b150,0);
+  if(actCos.length){
+    document.getElementById('ar-snap-badge').textContent=fmt$(arTot);
+    document.getElementById('ar-snap-badge').className=`section-badge ${ar90>50000?'badge-alert':ar90>20000?'badge-warn':'badge-ok'}`;
+    document.getElementById('ar-snap-body').innerHTML=arActivityAgingHtml(actCos)+`<div style="padding:.4rem 1.4rem .8rem;font-family:var(--mono);font-size:.58rem;color:var(--fog)">Snapshot: ${fmtDate(latActDate)} · 90+ days: <span style="color:var(--red)">${fmt$(ar90)}</span></div>`;
+  } else {
+    document.getElementById('ar-snap-body').innerHTML=empty('No AR data','Upload AR Activity report');
+    document.getElementById('ar-snap-badge').textContent='—';
+  }
   if(dayOvr.length){ const net=dayOvr.reduce((s,r)=>s+(r.override_amount||0),0); document.getElementById('ovr-badge').textContent=`${dayOvr.length} — net ${fmt$(net)}`; document.getElementById('ovr-badge').className=`section-badge ${net<-50?'badge-alert':'badge-warn'}`; document.getElementById('ovr-body').innerHTML=`<div class="tbl-wrap">${overrideTableHtml(dayOvr)}</div>`; }
   else { document.getElementById('ovr-badge').textContent='None'; document.getElementById('ovr-badge').className='section-badge badge-ok'; document.getElementById('ovr-body').innerHTML=empty('No overrides',''); }
   if(dayAdj.length){ document.getElementById('adj-badge').textContent=`${dayAdj.length} events`; document.getElementById('adj-badge').className=`section-badge ${refunds.length?'badge-alert':'badge-warn'}`; document.getElementById('adj-body').innerHTML=`<div class="tbl-wrap">${adjTableHtml(dayAdj)}</div>`; }
@@ -766,30 +797,90 @@ function buildMonthlyTableHtml(){
 }
 
 // ═══════════════════════════════════
-// AR VIEW
+// AR VIEW  (uses ar_activity — full ledger)
 // ═══════════════════════════════════
+
+// Summarise ar_activity rows into per-company bucket totals for a given snapshot date
+function arActivitySummary(prop, snapshotDate){
+  const rows = S.arActivity.filter(r => r.property===prop && r.snapshot_date===snapshotDate);
+  const byCompany = {};
+  rows.forEach(r => {
+    const co = r.company_name || 'Unknown';
+    if(!byCompany[co]) byCompany[co]={company:co, current:0, b30:0, b60:0, b90:0, b120:0, b150:0};
+    byCompany[co].current += (r.current_bal||0);
+    byCompany[co].b30    += (r.over_30||0);
+    byCompany[co].b60    += (r.over_60||0);
+    byCompany[co].b90    += (r.over_90||0);
+    byCompany[co].b120   += (r.over_120||0);
+    byCompany[co].b150   += (r.over_150||0);
+  });
+  return Object.values(byCompany).map(c=>({...c, total:c.current+c.b30+c.b60+c.b90+c.b120+c.b150})).filter(c=>c.total!==0).sort((a,b)=>b.total-a.total);
+}
+
+function arActivityAgingHtml(companies){
+  if(!companies.length) return empty('No AR data','Upload AR Activity report');
+  return `<div class="aging-grid">${companies.map(c=>{
+    const tot=c.total, over90=c.b90+c.b120+c.b150;
+    return `<div class="aging-cell">
+      <div class="aging-co">${c.company}</div>
+      <div class="aging-tot">${fmt$(tot)}</div>
+      ${[['Current',c.current,'fill-cur'],['31–60',c.b30,'fill-30'],['61–90',c.b60,'fill-60'],['91–120',c.b90,'fill-90'],['121–150',c.b120,'fill-120'],['Over 150',c.b150,'fill-150']].map(([lbl,val,cls])=>
+        `<div class="aging-row"><div class="aging-lbl">${lbl}</div><div class="aging-track"><div class="aging-fill ${cls}" style="width:${tot>0?Math.min(100,Math.round(Math.abs(val)/tot*100)):0}%"></div></div><div class="aging-val">${fmt$(val)}</div></div>`
+      ).join('')}
+      ${over90>0?`<div style="margin-top:.5rem;font-family:var(--mono);font-size:.57rem;color:var(--red)">90+ days: ${fmt$(over90)}</div>`:''}
+    </div>`;
+  }).join('')}</div>`;
+}
+
 function buildAR(){
-  const prop=S.mode, propAR=S.ar.filter(r=>r.property===prop), latest=propAR[0]?.date;
-  const latestRows=latest?propAR.filter(r=>r.date===latest):[], total=latestRows.reduce((s,r)=>s+(r.total||0),0);
+  const prop=S.mode;
+  // ar_activity — full ledger (prefer this)
+  const actDates=[...new Set(S.arActivity.filter(r=>r.property===prop).map(r=>r.snapshot_date))].sort().reverse();
+  const latActDate=actDates[0]||null;
+  const actCompanies=latActDate?arActivitySummary(prop,latActDate):[];
+  const actTotal=actCompanies.reduce((s,c)=>s+c.total,0);
+  const act90=actCompanies.reduce((s,c)=>s+c.b90+c.b120+c.b150,0);
+
   const propIH=S.inhouse.filter(r=>r.property===prop), latestIH=propIH[0]?.date;
   const ihRows=latestIH?propIH.filter(r=>r.date===latestIH):[];
-  return `<div class="page-header"><div class="page-title">AR &amp; Aging</div><div class="page-sub">${PROPS[prop]?.name} · CLC · IHG · In-House</div></div>
+
+  return `<div class="page-header"><div class="page-title">AR &amp; Aging</div><div class="page-sub">${PROPS[prop]?.name} · Full Ledger · In-House</div></div>
   <div class="content">
-    <div class="section-card"><div class="section-head"><div class="section-title">Direct Bill Aging — Latest</div><div class="section-badge badge-alert">${fmt$(total)}</div></div>${latestRows.length?`<div class="aging-grid">${latestRows.map(r=>agingCellHtml(r)).join('')}</div><div style="padding:.6rem 1.4rem;font-family:var(--mono);font-size:.58rem;color:var(--fog)">As of ${fmtDate(latest)}</div>`:empty('No AR data','Upload Direct Bill Aging report')}</div>
-    <div class="section-card"><div class="section-head"><div class="section-title">AR Trend</div></div><div style="padding:1.4rem">${buildARTrendTable(prop)}</div></div>
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-title">Account Receivable — Full Ledger</div>
+        <div class="section-badge ${act90>50000?'badge-alert':act90>20000?'badge-warn':'badge-ok'}">${fmt$(actTotal)}</div>
+      </div>
+      ${latActDate?`<div style="padding:.4rem 1.4rem .2rem;font-family:var(--mono);font-size:.58rem;color:var(--fog)">Snapshot: ${fmtDate(latActDate)} · ${S.arActivity.filter(r=>r.property===prop&&r.snapshot_date===latActDate).length} transactions · 90+ days: <span style="color:var(--red);font-weight:600">${fmt$(act90)}</span>${actDates.length>1?` · ${actDates.length} snapshots on file`:''}</div>`:''}
+      ${actCompanies.length?arActivityAgingHtml(actCompanies):empty('No AR Activity data','Upload Accounts Receivable Activity report')}
+    </div>
+    <div class="section-card">
+      <div class="section-head"><div class="section-title">Transaction Detail — Latest Snapshot</div><div class="section-badge badge-info">${S.arActivity.filter(r=>r.property===prop&&r.snapshot_date===latActDate).length} rows</div></div>
+      ${latActDate?`<div class="tbl-wrap"><table class="data-table sticky-head" style="font-size:.78rem"><thead><tr><th>#</th><th>Date</th><th>Company</th><th>Guest</th><th>Type</th><th class="r">Current</th><th class="r">31–60</th><th class="r">61–90</th><th class="r">91–120</th><th class="r">121–150</th><th class="r">Over 150</th><th class="r">Total</th><th>Status</th></tr></thead><tbody>${S.arActivity.filter(r=>r.property===prop&&r.snapshot_date===latActDate).slice(0,200).map(r=>{const tot=(r.current_bal||0)+(r.over_30||0)+(r.over_60||0)+(r.over_90||0)+(r.over_120||0)+(r.over_150||0); const aged=(r.over_90||0)+(r.over_120||0)+(r.over_150||0); return `<tr${aged>0?' style="background:rgba(185,28,28,.03)"':''}><td class="mono">${r.row_number}</td><td class="mono">${r.transaction_date||'—'}</td><td style="font-weight:500">${r.company_name||'—'}</td><td style="font-size:.75rem">${r.guest_name||'—'}</td><td class="mono" style="font-size:.68rem">${r.transaction_type||'—'}</td><td class="r mono">${r.current_bal?fmt$(r.current_bal):'—'}</td><td class="r mono">${r.over_30?fmt$(r.over_30):'—'}</td><td class="r mono">${r.over_60?fmt$(r.over_60):'—'}</td><td class="r mono ${r.over_90?'':''}"><span style="${r.over_90?'color:var(--amber)':''}">${r.over_90?fmt$(r.over_90):'—'}</span></td><td class="r mono"><span style="${r.over_120?'color:var(--red)':''}">${r.over_120?fmt$(r.over_120):'—'}</span></td><td class="r mono"><span style="${r.over_150?'color:var(--red);font-weight:600':''}">${r.over_150?fmt$(r.over_150):'—'}</span></td><td class="r mono" style="font-weight:500">${fmt$(tot)}</td><td class="mono" style="font-size:.65rem">${r.transaction_status||'—'}</td></tr>`; }).join('')}</tbody></table></div>`:empty('No transactions','Upload AR Activity report')}
+    </div>
     <div class="section-card"><div class="section-head"><div class="section-title">In-House Guest Balances</div><div class="section-badge badge-info">${ihRows.length} guests</div></div>${ihRows.length?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Room</th><th>Guest</th><th>Company</th><th class="r">Rate</th><th class="r">Balance</th><th>Payment</th></tr></thead><tbody>${ihRows.map(r=>`<tr><td class="mono">${r.room_number||'—'}</td><td>${r.guest_name||'—'}</td><td>${r.company?`<span class="pill pill-blue">${r.company}</span>`:'—'}</td><td class="r">${fmt$(r.room_rate)}</td><td class="r" style="font-weight:500">${fmt$(r.folio_balance)}</td><td class="mono" style="font-size:.7rem">${r.payment_method||'—'}</td></tr>`).join('')}</tbody><tfoot><tr class="tot"><td colspan="4">Total</td><td class="r">${fmt$(ihRows.reduce((s,r)=>s+(r.folio_balance||0),0))}</td><td></td></tr></tfoot></table></div>`:empty('No in-house data','Upload In-House Guest Balances report')}</div>
   </div>`;
 }
 function buildARTrendTable(prop){
+  // Use ar_activity snapshots if available, fall back to ar_aging
+  const actRows=S.arActivity.filter(r=>!prop||r.property===prop);
+  const actDates=[...new Set(actRows.map(r=>r.snapshot_date))].sort().slice(-7);
+  if(actDates.length>=1){
+    return `<table class="data-table"><thead><tr><th>Snapshot Date</th><th class="r">CLC</th><th class="r">IHG Rewards</th><th class="r">Other</th><th class="r">Total</th></tr></thead><tbody>${actDates.map(dt=>{
+      const summary=arActivitySummary(prop||S.mode, dt);
+      const clc=summary.find(c=>c.company==='CLC'), ihg=summary.find(c=>c.company==='IHG REWARD NIGHT REIMBURSEMENTS');
+      const other=summary.filter(c=>c.company!=='CLC'&&c.company!=='IHG REWARD NIGHT REIMBURSEMENTS').reduce((s,c)=>s+c.total,0);
+      const tot=summary.reduce((s,c)=>s+c.total,0);
+      return `<tr><td class="mono">${fmtDate(dt)}</td><td class="r mono">${clc?fmt$(clc.total):'—'}</td><td class="r mono">${ihg?fmt$(ihg.total):'—'}</td><td class="r mono">${other?fmt$(other):'—'}</td><td class="r mono" style="font-weight:600">${fmt$(tot)}</td></tr>`;
+    }).join('')}</tbody></table>`;
+  }
   const propAR=S.ar.filter(r=>!prop||r.property===prop);
   const dates=[...new Set(propAR.map(r=>r.date))].sort().slice(-7);
-  if(dates.length<2) return empty('Not enough data','Upload more AR reports');
-  return `<table class="data-table"><thead><tr><th>Date</th><th class="r">CLC</th><th class="r">IHG Rewards</th><th class="r">Total</th><th class="r">Change</th></tr></thead><tbody>${dates.map((dt,i)=>{
+  if(!dates.length) return empty('Not enough data','Upload AR Activity report');
+  return `<table class="data-table"><thead><tr><th>Date</th><th class="r">CLC</th><th class="r">IHG Rewards</th><th class="r">Total</th></tr></thead><tbody>${dates.map(dt=>{
     const rows=propAR.filter(r=>r.date===dt), tot=rows.reduce((s,r)=>s+(r.total||0),0);
-    let chg='';
-    if(i>0){ const prev=propAR.filter(r=>r.date===dates[i-1]).reduce((s,r)=>s+(r.total||0),0); const diff=tot-prev; chg=`<span style="color:${diff>0?'var(--red)':'var(--green)'};font-family:var(--mono);font-size:.68rem">${diff>0?'+':''}${fmt$(diff)}</span>`; }
     const clc=rows.find(r=>r.company==='CLC'), ihg=rows.find(r=>r.company==='IHG_REWARDS');
-    return `<tr><td class="mono">${fmtDate(dt)}</td><td class="r">${fmt$(clc?.total)}</td><td class="r">${fmt$(ihg?.total)}</td><td class="r" style="font-weight:500">${fmt$(tot)}</td><td class="r">${chg}</td></tr>`;
+    return `<tr><td class="mono">${fmtDate(dt)}</td><td class="r">${fmt$(clc?.total)}</td><td class="r">${fmt$(ihg?.total)}</td><td class="r" style="font-weight:500">${fmt$(tot)}</td></tr>`;
   }).join('')}</tbody></table>`;
 }
 
