@@ -111,6 +111,9 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .date-display{font-family:var(--mono);font-size:.72rem;color:var(--ink);letter-spacing:.05em;min-width:130px}
 .date-today-btn{padding:0 .7rem;height:26px;border-radius:6px;border:1px solid var(--border);background:var(--white);color:var(--fog);font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s}
 .date-today-btn:hover{border-color:var(--gold);color:var(--gold)}
+.drill-tab{padding:.3rem .85rem;border-radius:6px;border:1px solid var(--border);background:var(--white);color:var(--ink3);font-family:var(--mono);font-size:.65rem;letter-spacing:.05em;cursor:pointer;transition:all .15s}
+.drill-tab:hover{border-color:var(--gold);color:var(--gold)}
+.drill-tab-active{background:var(--gold);color:#fff;border-color:var(--gold);font-weight:600}
 .spacer{flex:1}
 .data-table{width:100%;border-collapse:collapse}
 .data-table th{font-family:var(--mono);font-size:.57rem;letter-spacing:.11em;text-transform:uppercase;color:var(--fog);padding:.7rem 1rem;text-align:left;border-bottom:1px solid var(--border);background:var(--cream);white-space:nowrap}
@@ -291,7 +294,9 @@ const localISODate=d=>{ const dt=d||new Date(); return dt.getFullYear()+'-'+Stri
 // STATE
 // ═══════════════════════════════════
 const localYesterday=()=>localISODate(new Date(Date.now()-864e5));
-let S ={ mode:null, currentDate:localYesterday(), daily:{}, ar:[], arActivity:[], overrides:[], adjs:[], inhouse:[], monthly:[], clerkActivity:[], userActivity:[], adjActivity:[], pending:[], charts:{}, drillProp:null };
+let S ={ mode:null, currentDate:localYesterday(), daily:{}, ar:[], arActivity:[], overrides:[], adjs:[], inhouse:[], monthly:[], clerkActivity:[], userActivity:[], adjActivity:[], pending:[], charts:{}, drillProp:null, drillView:'revenue' };
+// Returns the property to use for building any view — drillProp overrides mode when set
+function vp(){ return S.drillProp||S.mode; }
 
 // ═══════════════════════════════════
 // SUPABASE
@@ -401,13 +406,14 @@ function buildAppShell(){
     const btn=e.target.closest('.nav-btn'); if(!btn) return;
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
+    S.drillProp=null; S.drillView='revenue'; // exit drill mode when using main nav
     renderView(btn.dataset.view);
   });
   document.getElementById('lock-btn').addEventListener('click', lockApp);
   document.getElementById('switch-prop-btn').addEventListener('click', lockApp);
 }
 function lockApp(){
-  S={mode:null,currentDate:localYesterday(),daily:{},ar:[],arActivity:[],overrides:[],adjs:[],inhouse:[],monthly:[],clerkActivity:[],userActivity:[],adjActivity:[],pending:[],charts:{},drillProp:null};
+  S={mode:null,currentDate:localYesterday(),daily:{},ar:[],arActivity:[],overrides:[],adjs:[],inhouse:[],monthly:[],clerkActivity:[],userActivity:[],adjActivity:[],pending:[],charts:{},drillProp:null,drillView:'revenue'};
   pinEntry=''; pinTarget=null;
   document.getElementById('entry-screen').style.display='flex';
   document.getElementById('entry-screen').classList.remove('hidden');
@@ -432,11 +438,19 @@ function renderView(view){
   else if(view==='owner-upload'){ body.innerHTML=buildUploadView('OWNER'); wireUploadView('ou'); }
   else if(view==='owner-drill') { body.innerHTML=buildOwnerDrill(); wireOwnerDrill(); }
   else if(view==='owner-accountability') { body.innerHTML=buildOwnerAccountability(); }
+  else if(view==='drill-daily') {
+    const yesterday=localYesterday();
+    const avail=Object.keys(S.daily).filter(k=>k.startsWith(vp()+'_')).map(k=>k.split('_')[1]).filter(d=>d<=yesterday).sort();
+    S.currentDate=avail.length?avail[avail.length-1]:yesterday;
+    S.drillView='daily';
+    body.innerHTML=buildOwnerDrill(); wireOwnerDrill();
+    // daily content rendered inside buildOwnerDrill via buildDaily/wireDaily/renderDailyContent
+  }
   else if(view==='daily')       {
     // Always open on the most recent night-audit date available (≤ yesterday).
     // Never show today — night audits cover the prior business day.
     const yesterday=localYesterday();
-    const avail=Object.keys(S.daily).filter(k=>k.startsWith(S.mode+'_')).map(k=>k.split('_')[1]).filter(d=>d<=yesterday).sort();
+    const avail=Object.keys(S.daily).filter(k=>k.startsWith(vp()+'_')).map(k=>k.split('_')[1]).filter(d=>d<=yesterday).sort();
     S.currentDate=avail.length?avail[avail.length-1]:yesterday;
     body.innerHTML=buildDaily(); wireDaily(); renderDailyContent();
   }
@@ -573,7 +587,7 @@ function buildOwnerSummary(){
 function wireOwnerSummary(){
   document.querySelectorAll('.prop-summary-card[data-prop]').forEach(card=>{
     const code=card.dataset.prop;
-    if(PROPS[code]?.active) card.addEventListener('click',()=>{ S.drillProp=code; renderView('owner-drill'); });
+    if(PROPS[code]?.active) card.addEventListener('click',()=>{ S.drillProp=code; S.drillView='revenue'; renderView('owner-drill'); });
   });
 }
 function buildOwnerAR(){
@@ -617,43 +631,75 @@ function renderOwnerPerfChart(){
 }
 function buildOwnerDrill(){
   const code=S.drillProp, p=PROPS[code];
-  const rows=Object.values(S.daily).filter(r=>r.property===code).sort((a,b)=>a.date.localeCompare(b.date));
-  const lat=rows[rows.length-1], mo=lat?.date.slice(0,7)||'';
-  const mtd=rows.filter(r=>r.date.startsWith(mo));
-  const mtdRev=mtd.reduce((s,r)=>s+(r.room_revenue||0),0);
-  const mtdOcc=mtd.length?mtd.reduce((s,r)=>s+(r.occ_pct||0),0)/mtd.length:null;
-  const mtdADR=mtd.length?mtd.reduce((s,r)=>s+(r.adr||0),0)/mtd.length:null;
-  const drillARrows=S.ar.filter(r=>r.property===code&&r.category==='Accounts Receivables');
-  const latAR=[...new Set(drillARrows.map(r=>r.date))].sort().reverse()[0]||null;
-  const drillCos=latAR?arAgingSummary(code,latAR,'Accounts Receivables'):[];
-  const arTotal=drillCos.reduce((s,c)=>s+c.total,0);
-  const ar90drill=drillCos.reduce((s,c)=>s+c.b90+c.b120+c.b150,0);
-  return `<div class="page-header" style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
-    <div><div class="page-title">${p?.name}</div><div class="page-sub">${code} · Owner drill-in</div></div>
-    <button class="btn-sec" id="drill-back" style="margin-left:auto">← Back to Overview</button>
-  </div>
-  <div class="content">
-    <div class="kpi-grid">
-      <div class="kpi-card gold"><div class="kpi-label">Latest Occ%</div><div class="kpi-value">${lat?fmtPct(lat.occ_pct):'—'}</div><div class="kpi-meta">${lat?fmtDate(lat.date):'No data'}</div></div>
-      <div class="kpi-card green"><div class="kpi-label">Latest ADR</div><div class="kpi-value">${lat?fmt$(lat.adr):'—'}</div><div class="kpi-meta">LY: ${fmt$(lat?.ly_adr)}</div></div>
-      <div class="kpi-card blue"><div class="kpi-label">MTD Room Revenue</div><div class="kpi-value">${fmt$(mtdRev||null)}</div><div class="kpi-meta">${mtd.length} days</div></div>
-      <div class="kpi-card gold"><div class="kpi-label">MTD Avg Occ%</div><div class="kpi-value">${fmtPct(mtdOcc)}</div><div class="kpi-meta">MTD Avg ADR: ${fmt$(mtdADR)}</div></div>
-      <div class="kpi-card ${ar90drill>50000?'red':'amber'}"><div class="kpi-label">Total AR · 90+ Days</div><div class="kpi-value">${fmt$(arTotal||null)}</div><div class="kpi-meta">90+ days: ${fmt$(ar90drill)} · ${fmtDate(latAR)}</div></div>
-    </div>
-    ${drillCos.length?`<div class="section-card"><div class="section-head"><div class="section-title">AR Aging — ${fmtDate(latAR)}</div></div>${arAgingHtml(drillCos)}</div>`:''}
-    <div class="section-card"><div class="section-head"><div class="section-title">Recent Daily Revenue</div></div>
-      <div class="tbl-wrap"><table class="data-table">
-        <thead><tr><th>Date</th><th class="r">Occ%</th><th class="r">ADR</th><th class="r">RevPAR</th><th class="r">Room Revenue</th><th class="r">LY Room Rev</th></tr></thead>
-        <tbody>${rows.slice(-14).reverse().map(r=>`<tr><td class="mono">${fmtDate(r.date)}</td><td class="r">${fmtPct(r.occ_pct)}</td><td class="r">${fmt$(r.adr)}</td><td class="r">${fmt$(r.revpar)}</td><td class="r" style="font-weight:500">${fmt$(r.room_revenue)}</td><td class="r" style="color:var(--fog)">${fmt$(r.ly_room_revenue)}</td></tr>`).join('')}</tbody>
-      </table></div>
-    </div>
+  if(!code||!p) return empty('No property selected','');
+  const tabs=[
+    {v:'revenue',lbl:'Revenue'},
+    {v:'daily',  lbl:'Daily Ops'},
+    {v:'ar',     lbl:'AR / Aging'},
+    {v:'accountability',lbl:'Accountability'},
+  ];
+  const subNav=`<div style="background:var(--white);border-bottom:1px solid var(--border);padding:.6rem 1.5rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+    <button id="drill-back" class="btn-sec" style="font-size:.72rem;padding:.3rem .75rem">← Portfolio</button>
+    <div style="font-weight:700;font-size:.88rem;color:var(--ink1)">${p.name}</div>
+    <div style="display:flex;gap:.25rem;margin-left:.5rem">${tabs.map(t=>`<button class="drill-tab${S.drillView===t.v?' drill-tab-active':''}" data-dview="${t.v}">${t.lbl}</button>`).join('')}</div>
   </div>`;
+  let content='';
+  if(S.drillView==='revenue'){
+    const rows=Object.values(S.daily).filter(r=>r.property===code).sort((a,b)=>a.date.localeCompare(b.date));
+    const lat=rows[rows.length-1], mo=lat?.date.slice(0,7)||'';
+    const mtd=rows.filter(r=>r.date.startsWith(mo));
+    const mtdRev=mtd.reduce((s,r)=>s+(r.room_revenue||0),0);
+    const mtdOcc=mtd.length?mtd.reduce((s,r)=>s+(r.occ_pct||0),0)/mtd.length:null;
+    const mtdADR=mtd.length?mtd.reduce((s,r)=>s+(r.adr||0),0)/mtd.length:null;
+    const drillARrows=S.ar.filter(r=>r.property===code&&r.category==='Accounts Receivables');
+    const latAR=[...new Set(drillARrows.map(r=>r.date))].sort().reverse()[0]||null;
+    const drillCos=latAR?arAgingSummary(code,latAR,'Accounts Receivables'):[];
+    const arTotal=drillCos.reduce((s,c)=>s+c.total,0);
+    const ar90drill=drillCos.reduce((s,c)=>s+c.b90+c.b120+c.b150,0);
+    content=`<div class="content">
+      <div class="kpi-grid">
+        <div class="kpi-card gold"><div class="kpi-label">Latest Occ%</div><div class="kpi-value">${lat?fmtPct(lat.occ_pct):'—'}</div><div class="kpi-meta">${lat?fmtDate(lat.date):'No data'}</div></div>
+        <div class="kpi-card green"><div class="kpi-label">Latest ADR</div><div class="kpi-value">${lat?fmt$(lat.adr):'—'}</div><div class="kpi-meta">LY: ${fmt$(lat?.ly_adr)}</div></div>
+        <div class="kpi-card blue"><div class="kpi-label">MTD Room Revenue</div><div class="kpi-value">${fmt$(mtdRev||null)}</div><div class="kpi-meta">${mtd.length} days</div></div>
+        <div class="kpi-card gold"><div class="kpi-label">MTD Avg Occ% / ADR</div><div class="kpi-value">${fmtPct(mtdOcc)}</div><div class="kpi-meta">Avg ADR: ${fmt$(mtdADR)}</div></div>
+        <div class="kpi-card ${ar90drill>50000?'red':'amber'}"><div class="kpi-label">AR Outstanding</div><div class="kpi-value">${fmt$(arTotal||null)}</div><div class="kpi-meta">90+ days: ${fmt$(ar90drill)}</div></div>
+      </div>
+      ${drillCos.length?`<div class="section-card"><div class="section-head"><div class="section-title">AR Aging — ${fmtDate(latAR)}</div></div>${arAgingHtml(drillCos)}</div>`:''}
+      <div class="section-card"><div class="section-head"><div class="section-title">Recent Daily Revenue</div></div>
+        <div class="tbl-wrap"><table class="data-table">
+          <thead><tr><th>Date</th><th class="r">Occ%</th><th class="r">ADR</th><th class="r">RevPAR</th><th class="r">Room Revenue</th><th class="r">LY Room Rev</th></tr></thead>
+          <tbody>${rows.slice(-14).reverse().map(r=>`<tr><td class="mono">${fmtDate(r.date)}</td><td class="r">${fmtPct(r.occ_pct)}</td><td class="r">${fmt$(r.adr)}</td><td class="r">${fmt$(r.revpar)}</td><td class="r" style="font-weight:500">${fmt$(r.room_revenue)}</td><td class="r" style="color:var(--fog)">${fmt$(r.ly_room_revenue)}</td></tr>`).join('')}</tbody>
+        </table></div>
+      </div>
+    </div>`;
+  } else if(S.drillView==='daily'){
+    content=buildDaily();
+  } else if(S.drillView==='ar'){
+    content=buildAR();
+  } else if(S.drillView==='accountability'){
+    content=buildAccountability();
+  }
+  return subNav+content;
 }
 function wireOwnerDrill(){
   document.getElementById('drill-back')?.addEventListener('click',()=>{
+    S.drillProp=null; S.drillView='revenue';
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
     document.querySelector('.nav-btn[data-view="owner-summary"]')?.classList.add('active');
     renderView('owner-summary');
+  });
+  document.querySelectorAll('.drill-tab').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const dv=btn.dataset.dview; S.drillView=dv;
+      if(dv==='daily'){
+        const yesterday=localYesterday();
+        const avail=Object.keys(S.daily).filter(k=>k.startsWith(S.drillProp+'_')).map(k=>k.split('_')[1]).filter(d=>d<=yesterday).sort();
+        S.currentDate=avail.length?avail[avail.length-1]:yesterday;
+      }
+      const body=document.getElementById('app-body');
+      body.innerHTML=buildOwnerDrill(); wireOwnerDrill();
+      if(dv==='daily'){ wireDaily(); renderDailyContent(); }
+    });
   });
 }
 
@@ -661,7 +707,7 @@ function wireOwnerDrill(){
 // DAILY VIEW
 // ═══════════════════════════════════
 function buildDaily(){
-  return `<div class="page-header"><div class="page-title">Daily Operations</div><div class="page-sub">${PROPS[S.mode]?.name} · Revenue · Flags</div></div>
+  return `<div class="page-header"><div class="page-title">Daily Operations</div><div class="page-sub">${PROPS[vp()]?.name} · Revenue · Flags</div></div>
   <div class="section-card" style="border-radius:0;border-left:none;border-right:none;border-top:none;margin-bottom:0">
     <div class="date-nav">
       <button class="date-btn" id="d-prev">‹</button>
@@ -681,7 +727,6 @@ function buildDaily(){
     </div>
     <div class="section-card"><div class="section-head"><div class="section-title">AR Snapshot</div><div class="section-badge badge-info" id="ar-snap-badge">—</div></div><div id="ar-snap-body">${loading()}</div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">In-House Guest Balances</div><div class="section-badge badge-info" id="ih-badge">—</div></div><div id="ih-body">${loading()}</div></div>
-    <div class="section-card"><div class="section-head"><div class="section-title">Rate Overrides — This Day</div><div class="section-badge" id="ovr-badge">—</div></div><div id="ovr-body">${empty('No override data','Upload Rate Override report')}</div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">Adjustments &amp; Refunds — This Day</div><div class="section-badge" id="adj-badge">—</div></div><div id="adj-body">${empty('No adjustment data','Upload Adjustments & Refunds report')}</div></div>
   </div>`;
 }
@@ -689,13 +734,13 @@ function wireDaily(){
   document.getElementById('d-label').textContent=fmtDate(S.currentDate);
   document.getElementById('d-prev').addEventListener('click',()=>{ const d=new Date(S.currentDate+'T00:00:00'); d.setDate(d.getDate()-1); S.currentDate=localISODate(d); document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
   document.getElementById('d-next').addEventListener('click',()=>{ const d=new Date(S.currentDate+'T00:00:00'); d.setDate(d.getDate()+1); S.currentDate=localISODate(d); document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
-  document.getElementById('d-today').addEventListener('click',()=>{ const yesterday=localYesterday(); const avail=Object.keys(S.daily).filter(k=>k.startsWith(S.mode+'_')).map(k=>k.split('_')[1]).filter(d=>d<=yesterday).sort(); S.currentDate=avail.length?avail[avail.length-1]:yesterday; document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
+  document.getElementById('d-today').addEventListener('click',()=>{ const yesterday=localYesterday(); const avail=Object.keys(S.daily).filter(k=>k.startsWith(vp()+'_')).map(k=>k.split('_')[1]).filter(d=>d<=yesterday).sort(); S.currentDate=avail.length?avail[avail.length-1]:yesterday; document.getElementById('d-label').textContent=fmtDate(S.currentDate); renderDailyContent(); });
 }
 function renderDailyContent(){
-  const d=S.currentDate, prop=S.mode, row=dailyRow(d,prop);
+  const d=S.currentDate, prop=vp(), row=dailyRow(d,prop);
   const dayOvr=S.overrides.filter(r=>r.stay_date===d&&r.property===prop);
-  const dayAdj=S.adjs.filter(r=>r.date===d&&r.property===prop);
-  const refunds=dayAdj.filter(r=>r.transaction_type==='REFUND');
+  const dayAdj=S.adjActivity.filter(r=>r.date===d&&r.property===prop);
+  const refunds=dayAdj.filter(r=>r.section==='Refunds'||r.section==='Manager Refund');
   const ovrNet=dayOvr.reduce((s,r)=>s+(r.override_amount||0),0);
   const propAR=S.ar.filter(r=>r.property===prop);
   const arTotal=propAR.length?propAR.slice(0,2).reduce((s,r)=>s+(r.total||0),0):0;
@@ -763,10 +808,12 @@ function renderDailyContent(){
   document.getElementById('ih-body').innerHTML=ihRows.length
     ?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Room</th><th>Guest</th><th>Company</th><th>Arrival</th><th>Departure</th><th class="r">Rate</th><th class="r">Balance</th><th>Payment</th></tr></thead><tbody>${ihRows.sort((a,b)=>(a.room_number||'').localeCompare(b.room_number||'')).map(r=>`<tr><td class="mono" style="font-weight:600">${r.room_number||'—'}</td><td>${r.guest_name||'—'}</td><td>${r.company?`<span class="pill pill-blue">${r.company}</span>`:'—'}</td><td class="mono" style="font-size:.72rem">${r.arrival_date?fmtDate(r.arrival_date):'—'}</td><td class="mono" style="font-size:.72rem">${r.departure_date?fmtDate(r.departure_date):'—'}</td><td class="r">${fmt$(r.room_rate)}</td><td class="r" style="font-weight:500">${fmt$(r.folio_balance)}</td><td class="mono" style="font-size:.7rem">${r.payment_method||'—'}</td></tr>`).join('')}</tbody><tfoot><tr class="tot"><td colspan="6">Total Balance</td><td class="r">${fmt$(ihRows.reduce((s,r)=>s+(r.folio_balance||0),0))}</td><td></td></tr></tfoot></table></div>`
     :empty('No in-house data','Upload In-House Guest Balances report');
-  if(dayOvr.length){ const net=dayOvr.reduce((s,r)=>s+(r.override_amount||0),0); document.getElementById('ovr-badge').textContent=`${dayOvr.length} — net ${fmt$(net)}`; document.getElementById('ovr-badge').className=`section-badge ${net<-50?'badge-alert':'badge-warn'}`; document.getElementById('ovr-body').innerHTML=`<div class="tbl-wrap">${overrideTableHtml(dayOvr)}</div>`; }
-  else { document.getElementById('ovr-badge').textContent='None'; document.getElementById('ovr-badge').className='section-badge badge-ok'; document.getElementById('ovr-body').innerHTML=empty('No overrides',''); }
-  if(dayAdj.length){ document.getElementById('adj-badge').textContent=`${dayAdj.length} events`; document.getElementById('adj-badge').className=`section-badge ${refunds.length?'badge-alert':'badge-warn'}`; document.getElementById('adj-body').innerHTML=`<div class="tbl-wrap">${adjTableHtml(dayAdj)}</div>`; }
-  else { document.getElementById('adj-badge').textContent='None'; document.getElementById('adj-badge').className='section-badge badge-ok'; document.getElementById('adj-body').innerHTML=empty('No adjustments',''); }
+  if(dayAdj.length){
+    const adjOnly=dayAdj.filter(r=>r.section==='Adjustments'||r.section==='Manager Charge Adjustments');
+    document.getElementById('adj-badge').textContent=`${dayAdj.length} events${refunds.length?' · '+refunds.length+' refund'+(refunds.length>1?'s':''):''}`;
+    document.getElementById('adj-badge').className=`section-badge ${refunds.length?'badge-alert':'badge-warn'}`;
+    document.getElementById('adj-body').innerHTML=`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Type</th><th>Guest</th><th>Room</th><th>Reason</th><th class="r">Amount</th><th>User</th></tr></thead><tbody>${dayAdj.map(r=>`<tr><td><span class="pill ${r.section==='Refunds'||r.section==='Manager Refund'?'pill-red':r.section==='Manager Charge Adjustments'?'pill-amber':'pill-blue'}">${r.section==='Manager Charge Adjustments'?'Mgr Adj':r.section==='Manager Refund'?'Mgr Refund':r.section}</span></td><td style="font-weight:500">${r.guest_name||'—'}</td><td class="mono">${r.room_number||'—'}</td><td style="font-size:.78rem;color:var(--ink3)">${r.adjustment_reason||'—'}</td><td class="r mono" style="${r.section==='Refunds'||r.section==='Manager Refund'?'color:var(--red);font-weight:600':''}">${fmt$(Math.abs(r.adjusted_amount))}</td><td class="mono" style="font-size:.68rem">${r.username||'—'}</td></tr>`).join('')}</tbody></table></div>`;
+  } else { document.getElementById('adj-badge').textContent='None'; document.getElementById('adj-badge').className='section-badge badge-ok'; document.getElementById('adj-body').innerHTML=empty('No adjustments or refunds',''); }
 }
 
 // ═══════════════════════════════════
@@ -865,7 +912,7 @@ function arAgingHtml(companies){
 }
 
 function buildAR(){
-  const prop=S.mode;
+  const prop=vp();
   const propAR=S.ar.filter(r=>r.property===prop);
   const latDate=propAR[0]?.date||null;
   const arCos=latDate?arAgingSummary(prop,latDate,'Accounts Receivables'):[];
@@ -917,7 +964,7 @@ function buildARTrendTable(prop){
 // ACCOUNTABILITY VIEW
 // ═══════════════════════════════════
 function buildAccountability(){
-  const prop=S.mode, curMonth=localISODate().slice(0,7);
+  const prop=vp(), curMonth=localISODate().slice(0,7);
 
   // ── Rate Overrides ─────────────────
   const propOvr=S.overrides.filter(r=>r.property===prop);
