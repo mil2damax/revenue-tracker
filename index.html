@@ -752,11 +752,14 @@ function renderDailyContent(){
   const ovrNet=dayOvr.reduce((s,r)=>s+(r.override_amount||0),0);
   const propAR=S.ar.filter(r=>r.property===prop); // all categories
   const latArAlert=[...new Set(propAR.map(r=>r.date))].sort().reverse()[0]||null;
-  const arTotal=latArAlert?arNetTotal(propAR.filter(r=>r.date===latArAlert)):0;
+  const latArRows=latArAlert?propAR.filter(r=>r.date===latArAlert):[];
+  const arTotal=arNetTotal(latArRows);
+  const arSettle=arSettlementsTotal(latArRows);
   const alerts=[];
   if(dayOvr.length) alerts.push(`<div class="alert-chip ${ovrNet<-100?'alert':'warn'}">⚡ ${dayOvr.length} override${dayOvr.length>1?'s':''} — net ${fmt$(ovrNet)}</div>`);
   if(refunds.length) alerts.push(`<div class="alert-chip alert">↩ ${refunds.length} refund${refunds.length>1?'s':''}</div>`);
   if(arTotal>160000) alerts.push(`<div class="alert-chip alert">🏦 AR Total ${fmt$(arTotal)}</div>`);
+  if(arSettle>0) alerts.push(`<div class="alert-chip warn">⚠ ${fmt$(arSettle)} Payments Not Applied</div>`);
   if(!alerts.length) alerts.push(`<div class="alert-chip ok">✓ No flags for this date</div>`);
   document.getElementById('d-alerts').innerHTML=alerts.join('');
   document.getElementById('d-src').textContent=row?'Source: HotelKey Daily':'';
@@ -931,11 +934,15 @@ function arAgingSummary(prop, date, category){
     .sort((a,b)=>b.total-a.total);
 }
 
-// Net AR total matching the report's "Totals" grand total row:
-// Settlements are payments-in-clearing that REDUCE net AR (subtracted).
-// AR + Invoices (already negative for KFLEX) - Settlements = net outstanding.
+// AR total = AR + Invoices only. Settlements are excluded — they are unapplied
+// payments that don't yet change the outstanding balance until posted in the PMS.
+// They are flagged separately as "Payments Not Applied."
 function arNetTotal(rows){
-  return rows.reduce((s,r)=>s+(r.category==='Settlements'?-(r.total||0):(r.total||0)),0);
+  return rows.filter(r=>r.category!=='Settlements').reduce((s,r)=>s+(r.total||0),0);
+}
+// Returns unapplied settlement total for a row set (for callout display).
+function arSettlementsTotal(rows){
+  return rows.filter(r=>r.category==='Settlements').reduce((s,r)=>s+(r.total||0),0);
 }
 
 // Also keep ar_activity summary for transaction drill-down
@@ -954,21 +961,20 @@ function arActivitySummary(prop, snapshotDate){
 
 function arAgingHtml(companies){
   if(!companies.length) return empty('No AR data','Upload Direct Bill Aging report');
-  const netTot=arNetTotal(companies);
-  const hasSettle=companies.some(c=>c.category==='Settlements');
-  return `<div class="aging-grid">${companies.map(c=>{
+  const settleTotal=arSettlementsTotal(companies);
+  const arOnly=companies.filter(c=>c.category!=='Settlements');
+  return `<div class="aging-grid">${arOnly.map(c=>{
     const tot=c.total, over90=c.b90+c.b120+c.b150;
-    const isSettle=c.category==='Settlements';
-    return `<div class="aging-cell" style="${isSettle?'opacity:.65':''}">
-      <div class="aging-co">${c.company}${c.category&&c.category!=='Accounts Receivables'?` <span style="font-size:.5rem;color:var(--fog)">(${c.category}${isSettle?' · pending':''})</span>`:''}</div>
-      <div class="aging-tot" style="${isSettle?'color:var(--fog)':''}">${isSettle?'–':''} ${fmt$(Math.abs(tot))}</div>
+    return `<div class="aging-cell">
+      <div class="aging-co">${c.company}${c.category&&c.category!=='Accounts Receivables'?` <span style="font-size:.5rem;color:var(--fog)">(${c.category})</span>`:''}</div>
+      <div class="aging-tot">${fmt$(tot)}</div>
       ${[['Current',c.current,'fill-cur'],['31–60',c.b30,'fill-30'],['61–90',c.b60,'fill-60'],['91–120',c.b90,'fill-90'],['121–150',c.b120,'fill-120'],['Over 150',c.b150,'fill-150']].map(([lbl,val,cls])=>
-        `<div class="aging-row"><div class="aging-lbl">${lbl}</div><div class="aging-track"><div class="aging-fill ${cls}" style="width:${Math.abs(tot)>0?Math.min(100,Math.round(Math.abs(val)/Math.abs(tot)*100)):0}%"></div></div><div class="aging-val">${fmt$(val)}</div></div>`
+        `<div class="aging-row"><div class="aging-lbl">${lbl}</div><div class="aging-track"><div class="aging-fill ${cls}" style="width:${tot>0?Math.min(100,Math.round(Math.abs(val)/tot*100)):0}%"></div></div><div class="aging-val">${fmt$(val)}</div></div>`
       ).join('')}
       ${over90>0?`<div style="margin-top:.5rem;font-family:var(--mono);font-size:.57rem;color:var(--red)">90+ days: ${fmt$(over90)}</div>`:''}
     </div>`;
   }).join('')}</div>
-  ${hasSettle?`<div style="padding:.5rem 1.4rem;font-family:var(--mono);font-size:.58rem;color:var(--fog);border-top:1px solid var(--border)">Net outstanding (AR + Invoices − Settlements in-clearing): <strong style="color:var(--ink2)">${fmt$(netTot)}</strong></div>`:''}`;
+  ${settleTotal>0?`<div style="padding:.6rem 1.4rem;background:var(--amber-lt);border-top:2px solid var(--amber);display:flex;align-items:center;gap:.6rem"><span style="font-size:.88rem">⚠</span><span style="font-family:var(--mono);font-size:.68rem;color:var(--amber)"><strong>${fmt$(settleTotal)}</strong> Payments Not Applied — settlements recorded in PMS but not yet posted to accounts</span></div>`:''}`;
 }
 
 function buildAR(){
@@ -1006,9 +1012,9 @@ function buildARTrendTable(prop){
   const propAR=S.ar.filter(r=>(!prop||r.property===prop));
   const dates=[...new Set(propAR.map(r=>r.date))].sort().slice(-7);
   if(!dates.length) return empty('Not enough data','Upload Direct Bill Aging reports');
-  return `<table class="data-table"><thead><tr><th>Date</th><th class="r">CLC AR</th><th class="r">IHG Rewards</th><th class="r">Settlements</th><th class="r">KFLEX</th><th class="r">Grand Total</th><th class="r">90+ Days</th><th class="r">Change</th></tr></thead><tbody>${dates.map((dt,i)=>{
+  return `<table class="data-table"><thead><tr><th>Date</th><th class="r">CLC AR</th><th class="r">IHG Rewards</th><th class="r">KFLEX</th><th class="r">AR Total</th><th class="r">Pmts Not Applied</th><th class="r">90+ Days</th><th class="r">Change</th></tr></thead><tbody>${dates.map((dt,i)=>{
     const rows=propAR.filter(r=>r.date===dt);
-    const tot=arNetTotal(rows); // AR + Invoices - Settlements = net outstanding
+    const tot=arNetTotal(rows); // AR + Invoices only (Settlements excluded)
     const arRows=rows.filter(r=>r.category==='Accounts Receivables');
     const over90=arRows.reduce((s,r)=>s+(r.over_90||0)+(r.over_120||0)+(r.over_150||0),0);
     const clc=rows.find(r=>r.company==='CLC'&&r.category==='Accounts Receivables');
@@ -1017,7 +1023,7 @@ function buildARTrendTable(prop){
     const kflex=rows.find(r=>r.category==='Invoices');
     let chg='';
     if(i>0){const prevTot=arNetTotal(propAR.filter(r=>r.date===dates[i-1])); const diff=tot-prevTot; chg=`<span style="color:${diff>0?'var(--red)':'var(--green)'};">${diff>0?'+':''}${fmt$(diff)}</span>`;}
-    return `<tr><td class="mono">${fmtDate(dt)}</td><td class="r mono">${fmt$(clc?.total)}</td><td class="r mono">${fmt$(ihg?.total)}</td><td class="r mono" style="color:var(--fog)">${settle?fmt$(settle.total):'—'}</td><td class="r mono" style="color:${kflex&&kflex.total<0?'var(--green)':'var(--ink3)'}">${kflex?fmt$(kflex.total):'—'}</td><td class="r mono" style="font-weight:600">${fmt$(tot)}</td><td class="r mono" style="color:var(--red)">${fmt$(over90)}</td><td class="r mono">${chg}</td></tr>`;
+    return `<tr><td class="mono">${fmtDate(dt)}</td><td class="r mono">${fmt$(clc?.total)}</td><td class="r mono">${fmt$(ihg?.total)}</td><td class="r mono" style="color:${kflex&&kflex.total<0?'var(--green)':'var(--ink3)'}">${kflex?fmt$(kflex.total):'—'}</td><td class="r mono" style="font-weight:600">${fmt$(tot)}</td><td class="r mono" style="${settle?'color:var(--amber);font-weight:500':'color:var(--fog)'}">${settle?fmt$(settle.total):'—'}</td><td class="r mono" style="color:var(--red)">${fmt$(over90)}</td><td class="r mono">${chg}</td></tr>`;
   }).join('')}</tbody></table>`;
 }
 
