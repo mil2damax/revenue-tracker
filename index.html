@@ -71,10 +71,18 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .tag-wkfcw{background:rgba(29,78,216,.15);color:#93c5fd}
 .tag-rdurm{background:rgba(21,128,61,.15);color:#86efac}
 .tag-rdutt{background:rgba(180,83,9,.15);color:#fcd34d}
-.topbar-nav{display:flex;gap:0;margin-left:auto}
+.topbar-nav{display:flex;gap:0;margin-left:auto;align-items:center}
 .nav-btn{padding:0 .9rem;height:52px;border:none;background:none;color:var(--fog);font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s;border-bottom:2px solid transparent;white-space:nowrap}
 .nav-btn:hover{color:var(--mist)}
 .nav-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+.admin-wrap{position:relative;margin-left:.25rem}
+.admin-btn{padding:0 .75rem;height:30px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:transparent;color:var(--fog);font-family:var(--mono);font-size:.58rem;letter-spacing:.08em;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:.35rem}
+.admin-btn:hover{border-color:rgba(255,255,255,.25);color:var(--mist)}
+.admin-menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--ink2);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:.35rem;min-width:160px;z-index:200;display:none;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.admin-menu.open{display:block}
+.admin-item{display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;border-radius:5px;color:var(--fog);font-family:var(--mono);font-size:.62rem;letter-spacing:.08em;cursor:pointer;transition:background .12s;text-transform:uppercase;border:none;background:none;width:100%;text-align:left}
+.admin-item:hover{background:rgba(255,255,255,.07);color:var(--mist)}
+.admin-item.active-item{color:var(--gold)}
 .topbar-actions{display:flex;gap:.5rem;margin-left:.75rem}
 .topbar-action-btn{padding:0 .75rem;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:transparent;color:var(--fog);font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s}
 .topbar-action-btn:hover{border-color:var(--gold);color:var(--gold)}
@@ -294,7 +302,7 @@ const localISODate=d=>{ const dt=d||new Date(); return dt.getFullYear()+'-'+Stri
 // STATE
 // ═══════════════════════════════════
 const localYesterday=()=>localISODate(new Date(Date.now()-864e5));
-let S ={ mode:null, currentDate:localYesterday(), daily:{}, ar:[], arActivity:[], overrides:[], adjs:[], inhouse:[], monthly:[], clerkActivity:[], userActivity:[], adjActivity:[], lineItems:[], pending:[], charts:{}, drillProp:null, drillView:'revenue' };
+let S ={ mode:null, currentDate:localYesterday(), daily:{}, ar:[], arActivity:[], overrides:[], adjs:[], inhouse:[], monthly:[], clerkActivity:[], userActivity:[], adjActivity:[], lineItems:[], pending:[], charts:{}, drillProp:null, drillView:'summary' };
 // Returns the property to use for building any view — drillProp overrides mode when set
 function vp(){ return S.drillProp||S.mode; }
 
@@ -403,17 +411,40 @@ function buildAppShell(){
   else { tag.textContent=S.mode; tag.className='topbar-prop-tag tag-'+S.mode.toLowerCase(); }
   const isOwner=S.mode==='OWNER', propActive=S.mode!=='OWNER'&&PROPS[S.mode]?.active;
   let nav='';
-  if(isOwner) nav=`<button class="nav-btn active" data-view="owner-summary">Overview</button><button class="nav-btn" data-view="owner-ar">AR / Aging</button><button class="nav-btn" data-view="owner-performance">Performance</button><button class="nav-btn" data-view="owner-accountability">Accountability</button><button class="nav-btn" data-view="owner-upload">Upload</button><button class="nav-btn" data-view="history">History</button>`;
-  else if(propActive) nav=`<button class="nav-btn active" data-view="daily">Daily</button><button class="nav-btn" data-view="performance">Performance</button><button class="nav-btn" data-view="ar">AR / Aging</button><button class="nav-btn" data-view="accountability">Accountability</button><button class="nav-btn" data-view="history">History</button><button class="nav-btn" data-view="upload">Upload</button>`;
+  const adminItems = isOwner
+    ? [['owner-upload','⬆ Upload'],['history','🕐 History']]
+    : [['upload','⬆ Upload'],['history','🕐 History']];
+  const adminHtml=`<div class="admin-wrap" id="admin-wrap">
+    <button class="admin-btn" id="admin-btn">⚙ Admin ▾</button>
+    <div class="admin-menu" id="admin-menu">${adminItems.map(([v,l])=>`<button class="admin-item" data-aview="${v}">${l}</button>`).join('')}</div>
+  </div>`;
+  if(isOwner) nav=`<button class="nav-btn active" data-view="owner-summary">Overview</button><button class="nav-btn" data-view="owner-ar">AR / Aging</button><button class="nav-btn" data-view="owner-performance">Performance</button><button class="nav-btn" data-view="owner-accountability">Accountability</button>${adminHtml}`;
+  else if(propActive) nav=`<button class="nav-btn active" data-view="daily">Daily</button><button class="nav-btn" data-view="performance">Performance</button><button class="nav-btn" data-view="ar">AR / Aging</button><button class="nav-btn" data-view="accountability">Accountability</button>${adminHtml}`;
   else nav=`<button class="nav-btn active" data-view="coming-soon">Overview</button>`;
   document.getElementById('topbar-nav').innerHTML=nav;
+  // Main nav clicks
   document.getElementById('topbar-nav').addEventListener('click', e=>{
     const btn=e.target.closest('.nav-btn'); if(!btn) return;
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    S.drillProp=null; S.drillView='revenue'; // exit drill mode when using main nav
+    S.drillProp=null; S.drillView='summary'; // exit drill mode when using main nav
     renderView(btn.dataset.view);
   });
+  // Admin button toggle
+  document.getElementById('admin-btn')?.addEventListener('click', e=>{
+    e.stopPropagation();
+    document.getElementById('admin-menu').classList.toggle('open');
+  });
+  // Admin menu item clicks
+  document.getElementById('admin-menu')?.addEventListener('click', e=>{
+    const item=e.target.closest('.admin-item'); if(!item) return;
+    document.getElementById('admin-menu').classList.remove('open');
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    S.drillProp=null; S.drillView='summary';
+    renderView(item.dataset.aview);
+  });
+  // Close admin menu when clicking elsewhere
+  document.addEventListener('click', ()=>document.getElementById('admin-menu')?.classList.remove('open'), {once:false});
   document.getElementById('lock-btn').addEventListener('click', lockApp);
   document.getElementById('switch-prop-btn').addEventListener('click', lockApp);
 }
@@ -639,10 +670,10 @@ function buildOwnerDrill(){
   const code=S.drillProp, p=PROPS[code];
   if(!code||!p) return empty('No property selected','');
   const tabs=[
-    {v:'revenue',lbl:'Revenue'},
-    {v:'daily',  lbl:'Daily Ops'},
-    {v:'ar',     lbl:'AR / Aging'},
-    {v:'accountability',lbl:'Accountability'},
+    {v:'summary',        lbl:'Summary'},
+    {v:'daily',          lbl:'Daily Ops'},
+    {v:'ar',             lbl:'AR / Aging'},
+    {v:'accountability', lbl:'Accountability'},
   ];
   const subNav=`<div style="background:var(--white);border-bottom:1px solid var(--border);padding:.6rem 1.5rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
     <button id="drill-back" class="btn-sec" style="font-size:.72rem;padding:.3rem .75rem">← Portfolio</button>
@@ -650,32 +681,52 @@ function buildOwnerDrill(){
     <div style="display:flex;gap:.25rem;margin-left:.5rem">${tabs.map(t=>`<button class="drill-tab${S.drillView===t.v?' drill-tab-active':''}" data-dview="${t.v}">${t.lbl}</button>`).join('')}</div>
   </div>`;
   let content='';
-  if(S.drillView==='revenue'){
-    const rows=Object.values(S.daily).filter(r=>r.property===code).sort((a,b)=>a.date.localeCompare(b.date));
-    const lat=rows[rows.length-1], mo=lat?.date.slice(0,7)||'';
-    const mtd=rows.filter(r=>r.date.startsWith(mo));
-    const mtdRev=mtd.reduce((s,r)=>s+(r.room_revenue||0),0);
+  if(S.drillView==='summary'){
+    // Revenue trend chart + MTD/YTD table — no KPI cards (those live in Daily Ops)
+    const allRows=Object.values(S.daily).filter(r=>r.property===code).sort((a,b)=>a.date.localeCompare(b.date));
+    const lat=allRows[allRows.length-1];
+    const mo=lat?.date.slice(0,7)||'', yr=mo.slice(0,4);
+    const mtd=allRows.filter(r=>r.date.startsWith(mo));
+    const mtdRoomRev=mtd.reduce((s,r)=>s+(r.room_revenue||0),0);
+    const mtdMiscRev=mtd.reduce((s,r)=>s+(r.misc_revenue||0),0);
+    const mtdTotRev=mtd.reduce((s,r)=>s+(r.total_revenue||0),0);
     const mtdOcc=mtd.length?mtd.reduce((s,r)=>s+(r.occ_pct||0),0)/mtd.length:null;
     const mtdADR=mtd.length?mtd.reduce((s,r)=>s+(r.adr||0),0)/mtd.length:null;
-    const drillARrows=S.ar.filter(r=>r.property===code); // all categories
-    const latAR=[...new Set(drillARrows.map(r=>r.date))].sort().reverse()[0]||null;
-    const drillCos=latAR?arAgingSummary(code,latAR):[];  // all categories
-    const arTotal=arNetTotal(drillCos);
-    const ar90drill=drillCos.reduce((s,c)=>s+c.b90+c.b120+c.b150,0);
+    const curMonthRow=S.monthly.find(r=>r.property===code&&r.period_start===`${mo}-01`);
+    const lyMonthRow=S.monthly.find(r=>r.property===code&&r.period_start===`${Number(yr)-1}-${mo.slice(5)}-01`);
+    const ytdMonthly=S.monthly.filter(r=>{ if(r.property!==code) return false; const [y,m]=r.period_start.split('-').map(Number); return y===Number(yr)&&m<=Number(mo.slice(5)); });
+    const ytdRev=ytdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0);
+    const ytdTot=ytdMonthly.reduce((s,r)=>s+(r.total_revenue||0),0);
+    const trailing30=allRows.slice(-30);
     content=`<div class="content">
-      <div class="kpi-grid">
-        <div class="kpi-card gold"><div class="kpi-label">Latest Occ%</div><div class="kpi-value">${lat?fmtPct(lat.occ_pct):'—'}</div><div class="kpi-meta">${lat?fmtDate(lat.date):'No data'}</div></div>
-        <div class="kpi-card green"><div class="kpi-label">Latest ADR</div><div class="kpi-value">${lat?fmt$(lat.adr):'—'}</div><div class="kpi-meta">LY: ${fmt$(lat?.ly_adr)}</div></div>
-        <div class="kpi-card blue"><div class="kpi-label">MTD Room Revenue</div><div class="kpi-value">${fmt$(mtdRev||null)}</div><div class="kpi-meta">${mtd.length} days</div></div>
-        <div class="kpi-card gold"><div class="kpi-label">MTD Avg Occ% / ADR</div><div class="kpi-value">${fmtPct(mtdOcc)}</div><div class="kpi-meta">Avg ADR: ${fmt$(mtdADR)}</div></div>
-        <div class="kpi-card ${ar90drill>50000?'red':'amber'}"><div class="kpi-label">AR Outstanding</div><div class="kpi-value">${fmt$(arTotal||null)}</div><div class="kpi-meta">90+ days: ${fmt$(ar90drill)}</div></div>
+      <div class="two-col">
+        <div class="section-card">
+          <div class="section-head"><div class="section-title">Month to Date — ${fmtMonth(mo+'-01')}</div><div class="section-badge badge-info">${mtd.length} days</div></div>
+          <table class="data-table" style="margin:.5rem 0">
+            <tr><td>Room Revenue</td><td class="r" style="font-weight:600">${fmt$(mtdRoomRev)}</td></tr>
+            <tr><td>Misc Revenue</td><td class="r">${fmt$(mtdMiscRev)}</td></tr>
+            <tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(mtdTotRev)}</td></tr>
+            <tr><td>Avg Occupancy</td><td class="r">${fmtPct(mtdOcc)}</td></tr>
+            <tr><td>Avg ADR</td><td class="r">${fmt$(mtdADR)}</td></tr>
+            ${lyMonthRow?`<tr><td style="color:var(--fog);font-size:.78rem">LY Same Month</td><td class="r" style="color:var(--fog);font-size:.78rem">${fmt$(lyMonthRow.room_revenue)} ${deltaChip(mtdRoomRev,lyMonthRow.room_revenue)}</td></tr>`:''}
+          </table>
+        </div>
+        <div class="section-card">
+          <div class="section-head"><div class="section-title">Year to Date — ${yr}</div><div class="section-badge badge-info">${ytdMonthly.length} months</div></div>
+          <table class="data-table" style="margin:.5rem 0">
+            <tr><td>Room Revenue</td><td class="r" style="font-weight:600">${fmt$(ytdRev)}</td></tr>
+            <tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdTot)}</td></tr>
+            ${curMonthRow?`<tr><td style="color:var(--fog);font-size:.78rem">This Month (report)</td><td class="r" style="color:var(--fog);font-size:.78rem">${fmt$(curMonthRow.room_revenue)}</td></tr>`:''}
+          </table>
+        </div>
       </div>
-      ${drillCos.length?`<div class="section-card"><div class="section-head"><div class="section-title">AR Aging — ${fmtDate(latAR)}</div></div>${arAgingHtml(drillCos)}</div>`:''}
-      <div class="section-card"><div class="section-head"><div class="section-title">Recent Daily Revenue</div></div>
-        <div class="tbl-wrap"><table class="data-table">
-          <thead><tr><th>Date</th><th class="r">Occ%</th><th class="r">ADR</th><th class="r">RevPAR</th><th class="r">Room Revenue</th><th class="r">LY Room Rev</th></tr></thead>
-          <tbody>${rows.slice(-14).reverse().map(r=>`<tr><td class="mono">${fmtDate(r.date)}</td><td class="r">${fmtPct(r.occ_pct)}</td><td class="r">${fmt$(r.adr)}</td><td class="r">${fmt$(r.revpar)}</td><td class="r" style="font-weight:500">${fmt$(r.room_revenue)}</td><td class="r" style="color:var(--fog)">${fmt$(r.ly_room_revenue)}</td></tr>`).join('')}</tbody>
-        </table></div>
+      <div class="section-card">
+        <div class="section-head"><div class="section-title">Revenue Trend — Trailing 30 Days</div></div>
+        <div style="padding:1.4rem;height:240px;position:relative"><canvas id="chart-drill-trend-${code}"></canvas></div>
+      </div>
+      <div class="section-card">
+        <div class="section-head"><div class="section-title">Monthly History</div></div>
+        <div style="padding:1.4rem">${buildMonthlyTableHtml(code)}</div>
       </div>
     </div>`;
   } else if(S.drillView==='daily'){
@@ -689,11 +740,13 @@ function buildOwnerDrill(){
 }
 function wireOwnerDrill(){
   document.getElementById('drill-back')?.addEventListener('click',()=>{
-    S.drillProp=null; S.drillView='revenue';
+    S.drillProp=null; S.drillView='summary';
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
     document.querySelector('.nav-btn[data-view="owner-summary"]')?.classList.add('active');
     renderView('owner-summary');
   });
+  // Render summary chart if on summary tab
+  if(S.drillView==='summary') setTimeout(()=>renderDrillSummaryChart(S.drillProp),100);
   document.querySelectorAll('.drill-tab').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const dv=btn.dataset.dview; S.drillView=dv;
@@ -707,6 +760,19 @@ function wireOwnerDrill(){
       if(dv==='daily'){ wireDaily(); renderDailyContent(); }
     });
   });
+}
+function renderDrillSummaryChart(code){
+  const ctx=document.getElementById('chart-drill-trend-'+code); if(!ctx) return;
+  const rows=Object.values(S.daily).filter(r=>r.property===code).sort((a,b)=>a.date.localeCompare(b.date)).slice(-30);
+  if(!rows.length) return;
+  const labels=rows.map(r=>{ const d=new Date(r.date+'T00:00:00'); return (d.getMonth()+1)+'/'+(d.getDate()); });
+  new Chart(ctx,{type:'bar',data:{
+    labels,
+    datasets:[
+      {label:'Room Revenue',data:rows.map(r=>r.room_revenue||0),backgroundColor:'rgba(201,151,58,0.75)',borderRadius:3},
+      {label:'LY Room Rev',data:rows.map(r=>r.ly_room_revenue||0),backgroundColor:'rgba(200,208,220,0.4)',borderRadius:3}
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{family:'DM Mono',size:10}}}},scales:{y:{ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k',font:{family:'DM Mono',size:9}},grid:{color:'#e2e0db'}},x:{ticks:{font:{family:'DM Mono',size:9},maxRotation:45},grid:{display:false}}}}});
 }
 
 // ═══════════════════════════════════
@@ -905,12 +971,14 @@ function renderMonthlyChart(){
   if(S.charts.monthly) S.charts.monthly.destroy();
   S.charts.monthly=new Chart(ctx,{type:'bar',data:{labels:data.map(r=>fmtMonth(r.period_start)),datasets:[{label:'Room Revenue',data:data.map(r=>r.room_revenue||0),backgroundColor:'rgba(201,151,58,.75)',borderColor:'rgba(201,151,58,1)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k',font:{family:'DM Mono',size:9}},grid:{color:'#e2e0db'}},x:{ticks:{font:{family:'DM Mono',size:9},maxRotation:45},grid:{display:false}}}}});
 }
-function buildMonthlyTableHtml(){
-  const data=S.monthly.filter(r=>!S.mode||S.mode==='OWNER'||r.property===S.mode).slice().sort((a,b)=>b.period_start.localeCompare(a.period_start));
+function buildMonthlyTableHtml(propOverride){
+  const filterProp=propOverride||(S.mode!=='OWNER'?S.mode:null);
+  const data=S.monthly.filter(r=>!filterProp||r.property===filterProp).slice().sort((a,b)=>b.period_start.localeCompare(a.period_start));
   if(!data.length) return empty('No historical data','Add monthly records in the History tab');
   const maxRev=Math.max(...data.map(r=>r.room_revenue||0));
-  return `<div class="tbl-wrap" style="max-height:560px;overflow-y:auto"><table class="data-table sticky-head"><thead><tr>${S.mode==='OWNER'?'<th>Property</th>':''}<th>Month</th><th class="r">Occ%</th><th class="r">ADR</th><th class="r">RevPAR</th><th class="r">Room Revenue</th><th class="r">Misc Revenue</th><th class="r">Total Revenue</th><th>Source</th><th style="width:100px"></th></tr></thead>
-  <tbody>${data.map(r=>`<tr>${S.mode==='OWNER'?`<td class="mono">${r.property}</td>`:''}<td class="mono">${fmtMonth(r.period_start)}</td><td class="r">${fmtPct(r.occ_pct)}</td><td class="r">${fmt$(r.adr)}</td><td class="r">${fmt$(r.revpar)}</td><td class="r" style="font-weight:500">${fmt$(r.room_revenue)}</td><td class="r">${fmt$(r.misc_revenue)}</td><td class="r">${fmt$(r.total_revenue)}</td><td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source||'—'}</span></td><td><div class="month-bar" style="width:${maxRev>0?Math.round((r.room_revenue||0)/maxRev*90):0}px"></div></td></tr>`).join('')}</tbody></table></div>`;
+  const showPropCol=!filterProp;
+  return `<div class="tbl-wrap" style="max-height:560px;overflow-y:auto"><table class="data-table sticky-head"><thead><tr>${showPropCol?'<th>Property</th>':''}<th>Month</th><th class="r">Occ%</th><th class="r">ADR</th><th class="r">RevPAR</th><th class="r">Room Revenue</th><th class="r">Misc Revenue</th><th class="r">Total Revenue</th><th>Source</th><th style="width:100px"></th></tr></thead>
+  <tbody>${data.map(r=>`<tr>${showPropCol?`<td class="mono">${r.property}</td>`:''}<td class="mono">${fmtMonth(r.period_start)}</td><td class="r">${fmtPct(r.occ_pct)}</td><td class="r">${fmt$(r.adr)}</td><td class="r">${fmt$(r.revpar)}</td><td class="r" style="font-weight:500">${fmt$(r.room_revenue)}</td><td class="r">${fmt$(r.misc_revenue)}</td><td class="r">${fmt$(r.total_revenue)}</td><td><span class="pill ${r.source==='opera_flash'?'pill-blue':r.source==='combined'?'pill-amber':'pill-green'}">${r.source||'—'}</span></td><td><div class="month-bar" style="width:${maxRev>0?Math.round((r.room_revenue||0)/maxRev*90):0}px"></div></td></tr>`).join('')}</tbody></table></div>`;
 }
 
 // ═══════════════════════════════════
