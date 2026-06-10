@@ -413,8 +413,8 @@ function buildAppShell(){
   const isOwner=S.mode==='OWNER', propActive=S.mode!=='OWNER'&&PROPS[S.mode]?.active;
   let nav='';
   const adminItems = isOwner
-    ? [['owner-upload','⬆ Upload'],['history','🕐 History']]
-    : [['upload','⬆ Upload'],['history','🕐 History']];
+    ? [['owner-upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status']]
+    : [['upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status']];
   const adminHtml=`<div class="admin-wrap" id="admin-wrap">
     <button class="admin-btn" id="admin-btn">⚙ Admin ▾</button>
     <div class="admin-menu" id="admin-menu">${adminItems.map(([v,l])=>`<button class="admin-item" data-aview="${v}">${l}</button>`).join('')}</div>
@@ -496,6 +496,7 @@ function renderView(view){
   else if(view==='accountability') { body.innerHTML=buildAccountability(); }
   else if(view==='history')     { body.innerHTML=buildHistory(); wireHistory(); }
   else if(view==='upload')      { body.innerHTML=buildUploadView('PROP'); wireUploadView('u'); }
+  else if(view==='sync-status') { body.innerHTML=buildSyncStatus(); wireSyncStatus(); }
   else if(view==='coming-soon') { body.innerHTML=buildComingSoon(); }
 }
 
@@ -1430,6 +1431,43 @@ async function commitFiles(id){
 // ═══════════════════════════════════
 // COMING SOON
 // ═══════════════════════════════════
+function buildSyncStatus(){
+  return `<div class="page-header"><div class="page-title">Sync Status</div><div class="page-sub">Automated SharePoint → Catbird ingestion log</div></div>
+  <div class="content">
+    <div class="section-card">
+      <div class="section-head"><div class="section-title">Last 14 Days</div><div class="section-badge badge-info" id="sync-badge">Loading…</div></div>
+      <div id="sync-body">${loading()}</div>
+    </div>
+  </div>`;
+}
+async function wireSyncStatus(){
+  const body=document.getElementById('sync-body');
+  const badge=document.getElementById('sync-badge');
+  try {
+    const rows=await sbGet('sync_log','?order=ran_at.desc&limit=14');
+    if(!rows||!rows.length){ badge.textContent='No syncs yet'; body.innerHTML=empty('No sync history','The automated sync will appear here after the first run'); return; }
+    const last=rows[0];
+    const lastStatus=last.status==='OK'?'badge-ok':last.status==='PARTIAL'?'badge-warn':'badge-alert';
+    badge.textContent=`Last: ${fmtDate(last.ran_at?.slice(0,10))} ${last.ran_at?.slice(11,16)} UTC`;
+    badge.className=`section-badge ${lastStatus}`;
+    body.innerHTML=`<div class="tbl-wrap"><table class="data-table">
+      <thead><tr><th>Date</th><th>Time (UTC)</th><th>Status</th><th class="r">Found</th><th class="r">Processed</th><th>Details</th></tr></thead>
+      <tbody>${rows.map(r=>{
+        const statusPill=r.status==='OK'?'pill-green':r.status==='PARTIAL'?'pill-amber':r.status==='NO_FILES'?'pill-blue':'pill-red';
+        const detail=r.status==='NO_FILES'?'Files not ready yet':r.status==='ERROR'?(r.message||'Error'):`${r.files_processed}/${r.files_found} files OK`;
+        return `<tr>
+          <td class="mono">${fmtDate(r.date||r.ran_at?.slice(0,10))}</td>
+          <td class="mono" style="font-size:.72rem">${r.ran_at?.slice(11,19)||'—'}</td>
+          <td><span class="pill ${statusPill}">${r.status||'—'}</span></td>
+          <td class="r">${r.files_found??'—'}</td>
+          <td class="r">${r.files_processed??'—'}</td>
+          <td style="font-size:.75rem;color:var(--fog)">${detail}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+  } catch(e){ badge.textContent='Error'; body.innerHTML=empty('Could not load sync log',String(e)); }
+}
+
 function buildComingSoon(){
   const prop=S.mode, p=PROPS[prop];
   return `<div class="page-header"><div class="page-title">${p?.name||prop}</div><div class="page-sub">${p?.pms} · ${prop}</div></div>
