@@ -394,6 +394,7 @@ function pinError(){
   setTimeout(()=>{ pinEntry=''; pinChecking=false; updateDots(); document.getElementById('pin-err').classList.remove('show'); },800);
 }
 function enterApp(mode){
+  pinChecking=false; pinEntry=''; // reset before entering so switch works cleanly
   S.mode=mode;
   document.getElementById('entry-screen').classList.add('hidden');
   setTimeout(()=>document.getElementById('entry-screen').style.display='none',450);
@@ -450,7 +451,7 @@ function buildAppShell(){
 }
 function lockApp(){
   S={mode:null,currentDate:localYesterday(),daily:{},ar:[],arActivity:[],overrides:[],adjs:[],inhouse:[],monthly:[],clerkActivity:[],userActivity:[],adjActivity:[],lineItems:[],pending:[],charts:{},drillProp:null,drillView:'revenue'};
-  pinEntry=''; pinTarget=null;
+  pinEntry=''; pinTarget=null; pinChecking=false;
   document.getElementById('entry-screen').style.display='flex';
   document.getElementById('entry-screen').classList.remove('hidden');
   document.getElementById('app').classList.remove('visible');
