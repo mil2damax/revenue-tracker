@@ -841,7 +841,18 @@ function renderDailyContent(){
       <div class="kpi-card green"><div class="kpi-label">ADR</div><div class="kpi-value">${fmt$(row.adr)}</div>${deltaChip(row.adr,row.ly_adr)}<div class="kpi-meta">LY: ${fmt$(row.ly_adr)}</div></div>
       <div class="kpi-card blue"><div class="kpi-label">RevPAR</div><div class="kpi-value">${fmt$(row.revpar)}</div><div class="kpi-meta">${fmtN(row.rooms_sold)} / ${fmtN(row.rooms_available)} rooms</div></div>
       <div class="kpi-card gold"><div class="kpi-label">Room Revenue</div><div class="kpi-value">${fmt$(row.room_revenue)}</div>${deltaChip(row.room_revenue,row.ly_room_revenue)}<div class="kpi-meta">LY: ${fmt$(row.ly_room_revenue)}</div></div>
-      <div class="kpi-card amber" id="misc-kpi" style="cursor:pointer" title="Click to expand detail"><div class="kpi-label">Misc Revenue <span style="font-size:.55rem;opacity:.6">▼ detail</span></div><div class="kpi-value">${fmt$(row.misc_revenue)}</div><div class="kpi-meta">Total: ${fmt$(row.total_revenue)}</div></div>`;
+      <div class="kpi-card amber" id="misc-kpi" style="cursor:pointer" title="Click to expand detail"><div class="kpi-label">Misc Revenue <span style="font-size:.55rem;opacity:.6">▼ detail</span></div><div class="kpi-value">${fmt$(row.misc_revenue)}</div><div class="kpi-meta">Total: ${fmt$(row.total_revenue)}</div></div>
+      ${(row.rooms_ooo!=null||row.no_shows!=null)?`
+      <div style="grid-column:1/-1;font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fog);padding:.25rem 0 0;border-top:1px solid var(--border)">Room Inventory &amp; Activity</div>
+      ${row.rooms_total!=null?`<div class="kpi-card blue"><div class="kpi-label">Total Rooms</div><div class="kpi-value">${fmtN(row.rooms_total)}</div><div class="kpi-meta">Sold: ${fmtN(row.rooms_sold)} · Avail: ${fmtN(row.rooms_available)}</div></div>`:''}
+      ${row.rooms_ooo!=null?`<div class="kpi-card red"><div class="kpi-label">Out of Order</div><div class="kpi-value">${fmtN(row.rooms_ooo)}</div><div class="kpi-meta">${row.rooms_comp!=null?`Comp: ${fmtN(row.rooms_comp)}`:''}${row.rooms_house!=null?` · House: ${fmtN(row.rooms_house)}`:''}
+</div></div>`:''}
+      ${row.no_shows!=null?`<div class="kpi-card amber"><div class="kpi-label">No Shows</div><div class="kpi-value">${fmtN(row.no_shows)}</div><div class="kpi-meta">${row.walk_ins!=null?`Walk-ins: ${fmtN(row.walk_ins)}`:''}${row.cancellations!=null?` · Cancels: ${fmtN(row.cancellations)}`:''}
+</div></div>`:''}
+      ${row.tomorrow_arrivals!=null?`<div class="kpi-card green"><div class="kpi-label">Tomorrow Arrivals</div><div class="kpi-value">${fmtN(row.tomorrow_arrivals)}</div><div class="kpi-meta">${row.tomorrow_departures!=null?`Departures: ${fmtN(row.tomorrow_departures)}`:''}
+</div></div>`:''}
+      `:''}
+`;
   } else {
     document.getElementById('d-kpis').innerHTML=`<div style="grid-column:1/-1">${empty('No data for '+fmtDate(d),'Upload the Hotel Statistics report for this date')}</div>`;
   }
