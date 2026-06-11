@@ -710,7 +710,11 @@ function buildOwnerDrill(){
     const ytdRev=ytdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0);
     const ytdTot=ytdMonthly.reduce((s,r)=>s+(r.total_revenue||0),0);
     const trailing30=allRows.slice(-30);
-    content=`<div class="content">
+    content=`<div class="page-header">
+      <div class="page-title">Summary</div>
+      <div class="page-sub">${p.name} · ${lat?fmtDate(lat.date):'—'}</div>
+    </div>
+    <div class="content">
       <div class="two-col">
         <div class="section-card">
           <div class="section-head"><div class="section-title">Month to Date — ${fmtMonth(mo+'-01')}</div><div class="section-badge badge-info">${mtd.length} days</div></div>
@@ -724,7 +728,7 @@ function buildOwnerDrill(){
             ${lyMonthRow?`<tr><td style="color:var(--fog);font-size:.78rem">LY Full Month</td><td class="r" style="color:var(--fog);font-size:.78rem">${fmt$(lyMonthRow.room_revenue)}</td></tr>`:''}
           </table>
           ${lat&&(lat.no_shows!=null||lat.rooms_ooo!=null)?`
-          <div style="margin-top:.75rem;padding-top:.6rem;border-top:1px solid var(--border)">
+          <div style="margin-top:.75rem;padding:.6rem 1.4rem .75rem;border-top:1px solid var(--border)">
             <div style="font-family:var(--mono);font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fog);margin-bottom:.4rem">Latest Day Ops — ${fmtDate(lat.date)}</div>
             <div style="display:flex;gap:1.25rem;flex-wrap:wrap">
               ${lat.rooms_ooo!=null?`<span style="font-family:var(--mono);font-size:.68rem">OOO <b style="color:${lat.rooms_ooo>0?'var(--red)':'var(--ink1)'}">${fmtN(lat.rooms_ooo)}</b></span>`:''}
@@ -754,7 +758,7 @@ function buildOwnerDrill(){
         <div class="section-head"><div class="section-title">Monthly History</div></div>
         <div style="padding:1.4rem">${buildMonthlyTableHtml(code)}</div>
       </div>
-    </div>`;
+    </div></div>`;
   } else if(S.drillView==='daily'){
     content=buildDaily();
   } else if(S.drillView==='hk'){
@@ -1154,33 +1158,42 @@ async function renderHKContent(prop){
     const pendingDates = [...new Set(safePending.map(r=>r.date))].sort((a,b)=>b.localeCompare(a));
     const allReviewed  = !noData && pendingCount===0 && latestHK.length>0;
 
-    // ── KPI stat strip (flat — no colored border stripe) ─────────────
-    const statBox = (label, value, meta, valueColor) =>
-      `<div style="padding:.7rem 1rem;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);min-width:100px">
-        <div style="font-family:var(--mono);font-size:.65rem;text-transform:uppercase;letter-spacing:.09em;color:var(--fog);margin-bottom:.3rem">${label}</div>
-        <div style="font-family:var(--serif);font-size:1.7rem;line-height:1;color:${valueColor||'var(--ink)'}">${value}</div>
-        ${meta?`<div style="font-family:var(--mono);font-size:.64rem;color:var(--fog);margin-top:.25rem">${meta}</div>`:''}
-      </div>`;
-
+    // ── KPI cards ────────────────────────────────────────────────────
     const highlightKpis = noData ? `
-      <div style="padding:.5rem 0 .75rem;font-family:var(--mono);font-size:.78rem;color:var(--amber)">
+      <div style="font-family:var(--mono);font-size:.78rem;color:var(--amber)">
         No housekeeping data entered in Tack for ${fmtDate(displayDate)}.
       </div>` : `
-      <div style="display:flex;flex-wrap:wrap;gap:.75rem;margin-bottom:1.25rem">
-        ${statBox('Rooms Cleaned', totalRooms,
-            `${latestTot?.cosolc??'—'} checkouts · ${latestTot?.stayover??'—'} stay-overs`)}
-        ${statBox('Attendants On', latestHK.length,
-            totalRooms>0&&latestHK.length>0?(totalRooms/latestHK.length).toFixed(1)+' rooms / person':'')}
-        ${statBox('Bad Rooms', totalBad,
-            totalBad===0?'All clear':'Needs follow-up',
-            totalBad>0?'var(--red)':null)}
-        ${statBox('Deep Cleans', totalDeep,
-            totalPet>0?`${totalPet} pet room${totalPet>1?'s':''}`:'')}
-        ${totalPA>0?statBox('Public Area', totalPA, 'Tasks completed'):''}
-        ${statBox('GM Pending Review',
-            allReviewed?'✓':pendingCount,
-            allReviewed?'All reviewed':pendingCount>0?`Across ${pendingDates.length} day${pendingDates.length>1?'s':''}`:'' ,
-            allReviewed?'var(--green)':pendingCount>0?'var(--amber)':null)}
+      <div class="kpi-grid">
+        <div class="kpi-card ${totalBad>0?'red':'green'}">
+          <div class="kpi-label">Rooms Cleaned</div>
+          <div class="kpi-value">${totalRooms}</div>
+          <div class="kpi-meta">${latestTot?.cosolc??'—'} checkouts · ${latestTot?.stayover??'—'} stay-overs</div>
+        </div>
+        <div class="kpi-card blue">
+          <div class="kpi-label">Attendants On</div>
+          <div class="kpi-value">${latestHK.length}</div>
+          <div class="kpi-meta">${totalRooms>0&&latestHK.length>0?(totalRooms/latestHK.length).toFixed(1)+' rooms / person':''}</div>
+        </div>
+        <div class="kpi-card ${totalBad>0?'red':'green'}">
+          <div class="kpi-label">Bad Rooms</div>
+          <div class="kpi-value" style="color:${totalBad>0?'var(--red)':'inherit'}">${totalBad}</div>
+          <div class="kpi-meta">${totalBad===0?'All clear':'Needs follow-up'}</div>
+        </div>
+        <div class="kpi-card ${totalDeep>0?'blue':'green'}">
+          <div class="kpi-label">Deep Cleans</div>
+          <div class="kpi-value">${totalDeep}</div>
+          <div class="kpi-meta">${totalPet>0?`${totalPet} pet room${totalPet>1?'s':''}`:totalDeep===0?'None today':''}</div>
+        </div>
+        ${totalPA>0?`<div class="kpi-card amber">
+          <div class="kpi-label">Public Area</div>
+          <div class="kpi-value">${totalPA}</div>
+          <div class="kpi-meta">Tasks completed</div>
+        </div>`:''}
+        <div class="kpi-card ${allReviewed?'green':pendingCount>0?'amber':'blue'}">
+          <div class="kpi-label">GM Pending Review</div>
+          <div class="kpi-value" style="color:${allReviewed?'var(--green)':pendingCount>0?'var(--amber)':'inherit'}">${allReviewed?'✓':pendingCount}</div>
+          <div class="kpi-meta">${allReviewed?'All reviewed':pendingCount>0?`Across ${pendingDates.length} day${pendingDates.length>1?'s':''}`:''}</div>
+        </div>
       </div>`;
 
     // ── Attendant breakdown table ────────────────────────────────────
@@ -1263,10 +1276,12 @@ async function renderHKContent(prop){
           </a>
         </div>
       </div>
-      ${highlightKpis}
-      ${histHtml}
-      ${attendantHtml}
-      ${pendingHtml}`;
+      <div style="padding:1rem 1.4rem 1.4rem">
+        ${highlightKpis}
+        ${histHtml}
+        ${attendantHtml}
+        ${pendingHtml}
+      </div>`;
 
   } catch(e) {
     el.innerHTML=`<div style="font-family:var(--mono);font-size:.75rem;color:var(--red);padding:.5rem 0">Could not load Tack data: ${e.message}</div>
