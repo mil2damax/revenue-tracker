@@ -412,8 +412,8 @@ function buildAppShell(){
   const isOwner=S.mode==='OWNER', propActive=S.mode!=='OWNER'&&PROPS[S.mode]?.active;
   let nav='';
   const adminItems = isOwner
-    ? [['owner-upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status'],['switch','⇄ Switch Property'],['lock','🔒 Lock']]
-    : [['upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status'],['switch','⇄ Switch Property'],['lock','🔒 Lock']];
+    ? [['owner-upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status'],['switch','⇄ Switch Property']]
+    : [['upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status'],['switch','⇄ Switch Property']];
   const adminHtml=`<div class="admin-wrap" id="admin-wrap">
     <button class="admin-btn" id="admin-btn">⚙ Admin ▾</button>
     <div class="admin-menu" id="admin-menu">${adminItems.map(([v,l])=>`<button class="admin-item" data-aview="${v}">${l}</button>`).join('')}</div>
@@ -1253,26 +1253,43 @@ async function renderHKContent(prop){
       </table></div>` : '';
 
     // ── 7-day history ────────────────────────────────────────────────
-    const histDates = [...new Set(safeTotals.map(r=>r.date))].sort((a,b)=>a.localeCompare(b));
-    const histHtml = histDates.length>1 ? `
+    // HK rows use actual work date; daily_totals stores one day ahead (arrival date).
+    // Build history from HK work dates and look up totals via nextDay.
+    const histDates = [...new Set(safeHK.map(r=>r.date))].sort((a,b)=>a.localeCompare(b));
+    const histHtml = histDates.length ? `
       <div style="font-family:var(--mono);font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--fog);margin:1.25rem 0 .6rem">Last 7 Days</div>
       <div class="tbl-wrap"><table class="data-table">
-        <thead><tr><th>Date</th><th class="r">Checkouts</th><th class="r">Stay-Overs</th><th class="r">Attendants</th><th class="r">Rooms</th><th class="r">Bad</th><th class="r">Deep</th></tr></thead>
+        <thead><tr>
+          <th>Date</th>
+          <th class="r">C/O</th>
+          <th class="r">S/O</th>
+          <th class="r">Staff</th>
+          <th class="r">Rooms</th>
+          <th class="r">Bad</th>
+          <th class="r">Deep</th>
+          <th class="r" style="color:var(--amber)">Pet</th>
+          <th class="r">Pub Area</th>
+        </tr></thead>
         <tbody>${histDates.map(dt=>{
-          const tot = safeTotals.find(r=>r.date===dt)||{};
-          const day = safeHK.filter(r=>r.date===dt);
-          const dayBad  = day.reduce((s,r)=>s+(r.bad_rooms||0),0);
-          const dayDeep = day.reduce((s,r)=>s+(r.deep_cleans||0),0);
-          const dayRooms= day.reduce((s,r)=>s+roomCount(r),0);
+          const nextDay = localISODate(new Date(new Date(dt+'T00:00:00').getTime()+86400000));
+          const tot  = safeTotals.find(r=>r.date===nextDay) || safeTotals.find(r=>r.date===dt) || {};
+          const day  = safeHK.filter(r=>r.date===dt);
+          const dayRooms = day.reduce((s,r)=>s+roomCount(r),0);
+          const dayBad   = day.reduce((s,r)=>s+(r.bad_rooms||0),0);
+          const dayDeep  = day.reduce((s,r)=>s+(r.deep_cleans||0),0);
+          const dayPet   = day.reduce((s,r)=>s+(r.pet||0),0);
+          const dayPA    = day.reduce((s,r)=>s+(r.public_area||0),0);
           const isLatest = dt===displayDate;
-          return `<tr style="${isLatest?'font-weight:600':''}">
-            <td style="font-size:.78rem">${fmtDate(dt)}${isLatest?' <span style="font-family:var(--mono);font-size:.58rem;color:var(--blue)"> latest</span>':''}</td>
+          return `<tr style="${isLatest?'background:var(--cream);font-weight:600':''}">
+            <td style="font-size:.8rem;white-space:nowrap">${fmtDate(dt)}${isLatest?` <span class="pill pill-blue" style="font-size:.5rem;vertical-align:middle">latest</span>`:''}</td>
             <td class="r mono">${tot.cosolc??'—'}</td>
             <td class="r mono">${tot.stayover??'—'}</td>
             <td class="r mono">${day.length||'—'}</td>
-            <td class="r mono">${dayRooms||'—'}</td>
-            <td class="r mono" style="${dayBad>0?'color:var(--red);font-weight:700':''}">${dayBad||'—'}</td>
+            <td class="r mono" style="font-weight:${isLatest?700:400}">${dayRooms||'—'}</td>
+            <td class="r mono" style="${dayBad>0?'color:var(--amber);font-weight:700':''}">${dayBad||'—'}</td>
             <td class="r mono" style="${dayDeep>0?'color:var(--blue)':''}">${dayDeep||'—'}</td>
+            <td class="r mono" style="${dayPet>0?'color:var(--amber);font-weight:600':''}">${dayPet||'—'}</td>
+            <td class="r mono" style="${dayPA>0?'color:var(--fog)':''}">${dayPA||'—'}</td>
           </tr>`;
         }).join('')}</tbody>
       </table></div>` : '';
