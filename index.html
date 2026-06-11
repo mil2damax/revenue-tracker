@@ -1121,13 +1121,14 @@ async function renderHKContent(prop){
     const safeTotals  = Array.isArray(totals)     ? totals    : [];
     const safePending = Array.isArray(pendingAll) ? pendingAll: [];
 
-    // Display date = yesterday, matching Daily Ops convention.
-    // housekeeping rows use the actual work date (yesterday).
-    // daily_totals in Tack uses the arrival date (today = one day ahead of work done).
-    const displayDate = yesterday;
+    // displayDate = most recent date ≤ yesterday that has actual HK rows.
+    // HK records use the actual work date; daily_totals uses the NEXT day (arrival date).
+    const hkDatesDesc = [...new Set(safeHK.map(r=>r.date))].sort((a,b)=>b.localeCompare(a));
+    const displayDate = hkDatesDesc.find(d => d <= yesterday) || yesterday;
     const latestHK    = safeHK.filter(r => r.date === displayDate);
-    // For daily_totals: Tack stores work done on yesterday under today's date (arrival date)
-    const latestTot   = safeTotals.find(r => r.date === today)
+    // daily_totals for work done on displayDate is stored one day ahead
+    const totDate     = localISODate(new Date(new Date(displayDate+'T00:00:00').getTime()+86400000));
+    const latestTot   = safeTotals.find(r => r.date === totDate)
                      || safeTotals.find(r => r.date === displayDate)
                      || (safeTotals.length ? safeTotals[0] : null);
     const noData      = !latestTot && !latestHK.length;
