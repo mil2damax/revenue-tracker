@@ -608,7 +608,9 @@ function buildOwnerSummary(){
     const avgOcc=mtd.length?mtd.reduce((s,r)=>s+(r.occ_pct||0),0)/mtd.length:null;
     const avgADR=mtd.length?mtd.reduce((s,r)=>s+(r.adr||0),0)/mtd.length:null;
     const chg=mtdR&&lyR?((mtdR-lyR)/lyR*100).toFixed(1):null;
-    return `<div class="prop-summary-card" data-prop="${code}"><div class="psc-header"><div class="psc-dot dot-${code.toLowerCase()}"></div><div><div class="psc-name">${p.short}</div><div class="psc-code">${code} · ${p.pms}</div></div></div><div class="psc-body"><div class="psc-kpi-row"><div class="psc-kpi"><div class="psc-kpi-val">${lat?fmtPct(lat.occ_pct):'—'}</div><div class="psc-kpi-lbl">Today Occ</div></div><div class="psc-kpi"><div class="psc-kpi-val">${lat?fmt$(lat.adr):'—'}</div><div class="psc-kpi-lbl">Today ADR</div></div><div class="psc-kpi"><div class="psc-kpi-val">${fmt$(mtdR||null)}</div><div class="psc-kpi-lbl">MTD Rev</div></div></div>${chg?`<div style="font-family:var(--mono);font-size:.6rem;color:${chg>0?'var(--green)':'var(--red)'}">MTD Rev vs LY: ${chg>0?'+':''}${chg}%</div>`:''}</div><div class="psc-footer"><span class="psc-foot-lbl">Avg Occ MTD</span><span class="psc-foot-val">${fmtPct(avgOcc)}</span><span class="psc-foot-lbl" style="margin-left:1rem">Avg ADR MTD</span><span class="psc-foot-val">${fmt$(avgADR)}</span></div></div>`;
+    const noShows=lat?.no_shows, ooo=lat?.rooms_ooo, walkIns=lat?.walk_ins;
+    const opsRow=(noShows!=null||ooo!=null)?`<div style="display:flex;gap:.75rem;font-family:var(--mono);font-size:.6rem;margin-top:.4rem;color:var(--fog)">${ooo!=null?`<span>OOO: <b style="color:${ooo>0?'var(--red)':'var(--ink)'}">${fmtN(ooo)}</b></span>`:''}${noShows!=null?`<span>No Shows: <b style="color:${noShows>0?'var(--amber)':'var(--ink)'}">${fmtN(noShows)}</b></span>`:''}${walkIns!=null?`<span>Walk-ins: <b>${fmtN(walkIns)}</b></span>`:''}</div>`:'';
+    return `<div class="prop-summary-card" data-prop="${code}"><div class="psc-header"><div class="psc-dot dot-${code.toLowerCase()}"></div><div><div class="psc-name">${p.short}</div><div class="psc-code">${code} · ${p.pms}</div></div></div><div class="psc-body"><div class="psc-kpi-row"><div class="psc-kpi"><div class="psc-kpi-val">${lat?fmtPct(lat.occ_pct):'—'}</div><div class="psc-kpi-lbl">Today Occ</div></div><div class="psc-kpi"><div class="psc-kpi-val">${lat?fmt$(lat.adr):'—'}</div><div class="psc-kpi-lbl">Today ADR</div></div><div class="psc-kpi"><div class="psc-kpi-val">${fmt$(mtdR||null)}</div><div class="psc-kpi-lbl">MTD Rev</div></div></div>${chg?`<div style="font-family:var(--mono);font-size:.6rem;color:${chg>0?'var(--green)':'var(--red)'}">MTD Rev vs LY: ${chg>0?'+':''}${chg}%</div>`:''} ${opsRow}</div><div class="psc-footer"><span class="psc-foot-lbl">Avg Occ MTD</span><span class="psc-foot-val">${fmtPct(avgOcc)}</span><span class="psc-foot-lbl" style="margin-left:1rem">Avg ADR MTD</span><span class="psc-foot-val">${fmt$(avgADR)}</span></div></div>`;
   }).join('');
 
   return `<div class="page-header"><div class="page-title">Owner Overview</div><div class="page-sub">All Properties · ${fmtDate(today)}${latestDataDate?` · Data current through ${fmtDate(latestDataDate)}`:''}</div></div>
@@ -716,6 +718,19 @@ function buildOwnerDrill(){
             ${lyMtdRoomRev>0?`<tr><td style="color:var(--fog);font-size:.78rem">LY Same ${mtd.length} Days</td><td class="r" style="color:var(--fog);font-size:.78rem">${fmt$(lyMtdRoomRev)} room${lyMtdTotRev>0?' / '+fmt$(lyMtdTotRev)+' total':''}</td></tr>`:''}
             ${lyMonthRow?`<tr><td style="color:var(--fog);font-size:.78rem">LY Full Month</td><td class="r" style="color:var(--fog);font-size:.78rem">${fmt$(lyMonthRow.room_revenue)}</td></tr>`:''}
           </table>
+          ${lat&&(lat.no_shows!=null||lat.rooms_ooo!=null)?`
+          <div style="margin-top:.75rem;padding-top:.6rem;border-top:1px solid var(--border)">
+            <div style="font-family:var(--mono);font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fog);margin-bottom:.4rem">Latest Day Ops — ${fmtDate(lat.date)}</div>
+            <div style="display:flex;gap:1.25rem;flex-wrap:wrap">
+              ${lat.rooms_ooo!=null?`<span style="font-family:var(--mono);font-size:.68rem">OOO <b style="color:${lat.rooms_ooo>0?'var(--red)':'var(--ink1)'}">${fmtN(lat.rooms_ooo)}</b></span>`:''}
+              ${lat.rooms_comp!=null?`<span style="font-family:var(--mono);font-size:.68rem">Comp <b>${fmtN(lat.rooms_comp)}</b></span>`:''}
+              ${lat.no_shows!=null?`<span style="font-family:var(--mono);font-size:.68rem">No Shows <b style="color:${lat.no_shows>0?'var(--amber)':'var(--ink1)'}">${fmtN(lat.no_shows)}</b></span>`:''}
+              ${lat.walk_ins!=null?`<span style="font-family:var(--mono);font-size:.68rem">Walk-ins <b>${fmtN(lat.walk_ins)}</b></span>`:''}
+              ${lat.cancellations!=null?`<span style="font-family:var(--mono);font-size:.68rem">Cancels <b>${fmtN(lat.cancellations)}</b></span>`:''}
+              ${lat.tomorrow_arrivals!=null?`<span style="font-family:var(--mono);font-size:.68rem">Tmrw Arr <b>${fmtN(lat.tomorrow_arrivals)}</b></span>`:''}
+              ${lat.tomorrow_departures!=null?`<span style="font-family:var(--mono);font-size:.68rem">Tmrw Dep <b>${fmtN(lat.tomorrow_departures)}</b></span>`:''}
+            </div>
+          </div>`:''}
         </div>
         <div class="section-card">
           <div class="section-head"><div class="section-title">Year to Date — ${yr}</div><div class="section-badge badge-info">${ytdMonthly.length} months</div></div>
