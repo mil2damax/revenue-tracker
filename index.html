@@ -423,7 +423,7 @@ function buildAppShell(){
     <div class="admin-menu" id="admin-menu">${adminItems.map(([v,l])=>`<button class="admin-item" data-aview="${v}">${l}</button>`).join('')}</div>
   </div>`;
   if(isOwner) nav=`<button class="nav-btn active" data-view="owner-summary">Overview</button><button class="nav-btn" data-view="owner-ar">AR / Aging</button><button class="nav-btn" data-view="owner-performance">Performance</button><button class="nav-btn" data-view="owner-accountability">Accountability</button>${adminHtml}`;
-  else if(propActive) nav=`<button class="nav-btn active" data-view="daily">Daily</button><button class="nav-btn" data-view="performance">Performance</button><button class="nav-btn" data-view="ar">AR / Aging</button><button class="nav-btn" data-view="accountability">Accountability</button>${adminHtml}`;
+  else if(propActive) nav=`<button class="nav-btn active" data-view="daily">Daily</button><button class="nav-btn" data-view="housekeeping">HK</button><button class="nav-btn" data-view="performance">Performance</button><button class="nav-btn" data-view="ar">AR / Aging</button><button class="nav-btn" data-view="accountability">Accountability</button>${adminHtml}`;
   else nav=`<button class="nav-btn active" data-view="coming-soon">Overview</button>`;
   document.getElementById('topbar-nav').innerHTML=nav;
   // Main nav clicks
@@ -494,6 +494,7 @@ function renderView(view){
     S.currentDate=avail.length?avail[avail.length-1]:yesterday;
     body.innerHTML=buildDaily(); wireDaily(); renderDailyContent();
   }
+  else if(view==='housekeeping'){ body.innerHTML=buildHK(); renderHKContent(vp()); }
   else if(view==='performance') { body.innerHTML=buildPerformance(); setTimeout(renderPerfCharts,100); }
   else if(view==='ar')          { body.innerHTML=buildAR(); }
   else if(view==='accountability') { body.innerHTML=buildAccountability(); }
@@ -1077,6 +1078,156 @@ async function renderTackCard(prop, date) {
     badge.textContent = 'Error';
     badge.className = 'section-badge badge-alert';
     el.innerHTML = `<div style="font-family:var(--mono);font-size:.72rem;color:var(--red)">Could not load Tack data: ${e.message}</div>
+      <a href="${TACK_URL}" target="_blank" rel="noopener" class="btn-sec" style="display:inline-block;margin-top:.5rem;font-size:.72rem;text-decoration:none">Open Tack App ↗</a>`;
+  }
+}
+
+// ═══════════════════════════════════
+// HOUSEKEEPING VIEW
+// ═══════════════════════════════════
+function buildHK(){
+  const prop=vp(), p=PROPS[prop];
+  return `
+  <div class="page-header">
+    <div class="page-title">Housekeeping</div>
+    <div class="page-sub">${p?.name} · Tack Integration</div>
+  </div>
+  <div class="content">
+    <div class="section-card" id="hk-highlights" style="margin-bottom:1rem">${loading()}</div>
+    <div class="section-card" id="hk-detail" style="display:none"></div>
+  </div>`;
+}
+
+async function renderHKContent(prop){
+  const h = { apikey: TACK_KEY, Authorization: 'Bearer ' + TACK_KEY };
+  const today = localISODate();
+  const yesterday = localYesterday();
+
+  // Fetch last 7 days of daily_totals + housekeeping rows for this property
+  const since = localISODate(new Date(new Date(today+'T00:00:00').getTime() - 7*86400000));
+  try {
+    const [totals, hkRows] = await Promise.all([
+      fetch(`${TACK_SB}/rest/v1/daily_totals?hotel_code=eq.${prop}&date=gte.${since}&order=date.desc`, {headers:h}).then(r=>r.json()),
+      fetch(`${TACK_SB}/rest/v1/housekeeping?hotel_code=eq.${prop}&date=gte.${since}&order=date.desc,name`, {headers:h}).then(r=>r.json()),
+    ]);
+
+    const el = document.getElementById('hk-highlights');
+    if(!el) return;
+
+    // Most recent day that has data
+    const latestTot = Array.isArray(totals) && totals.length ? totals[0] : null;
+    // HK rows use the arrival date convention — find rows matching latestTot date or yesterday
+    const latestDate = latestTot?.date || yesterday;
+    const latestHK = Array.isArray(hkRows) ? hkRows.filter(r=>r.date===latestDate) : [];
+    const noDataToday = !latestTot && !latestHK.length;
+
+    // ── Highlight strip ──────────────────────────────────────────────
+    const totalRooms  = latestHK.reduce((s,r)=>s+(r.k1kn_cosolc||0)+(r.k1kn_so||0)+(r.k2qn_cosolc||0)+(r.k2qn_so||0)+(r.o1kn_cosolc||0)+(r.o1kn_so||0)+(r.queen_1br_cosolc||0)+(r.queen_1br_so||0)+(r.so_full_service||0),0);
+    const totalBad    = latestHK.reduce((s,r)=>s+(r.bad_rooms||0),0);
+    const totalDeep   = latestHK.reduce((s,r)=>s+(r.deep_cleans||0),0);
+    const unreviewed  = latestHK.filter(r=>!r.gm_reviewed).length;
+    const allReviewed = latestHK.length>0 && unreviewed===0;
+
+    const statusColor = noDataToday ? 'var(--amber)' : totalBad>0 ? 'var(--red)' : allReviewed ? 'var(--green)' : 'var(--fog)';
+    const statusLabel = noDataToday ? 'Not Entered' : allReviewed ? 'GM Reviewed ✓' : `${unreviewed} Pending Review`;
+
+    const highlightKpis = noDataToday ? `
+      <div style="padding:.5rem 0 .75rem;font-family:var(--mono);font-size:.78rem;color:var(--amber)">
+        No housekeeping data has been entered in Tack for ${fmtDate(latestDate)}.
+      </div>` : `
+      <div class="kpi-grid" style="margin-bottom:1rem">
+        <div class="kpi-card ${totalBad>0?'red':'green'}">
+          <div class="kpi-label">Rooms Cleaned</div>
+          <div class="kpi-value">${totalRooms}</div>
+          <div class="kpi-meta">${latestTot?.cosolc??'—'} checkouts · ${latestTot?.stayover??'—'} stay-overs</div>
+        </div>
+        <div class="kpi-card gold">
+          <div class="kpi-label">Arrivals Prepped</div>
+          <div class="kpi-value">${latestTot?.arrivals??'—'}</div>
+          <div class="kpi-meta">For ${fmtDate(latestDate)}</div>
+        </div>
+        <div class="kpi-card ${latestHK.length>0?'blue':'amber'}">
+          <div class="kpi-label">Attendants On</div>
+          <div class="kpi-value">${latestHK.length}</div>
+          <div class="kpi-meta">${totalRooms>0&&latestHK.length>0?(totalRooms/latestHK.length).toFixed(1)+' rooms/person':''}</div>
+        </div>
+        <div class="kpi-card ${totalBad>0?'red':'green'}">
+          <div class="kpi-label">Bad Rooms</div>
+          <div class="kpi-value" style="color:${totalBad>0?'var(--red)':'var(--green)'}">${totalBad}</div>
+          <div class="kpi-meta">${totalDeep>0?`${totalDeep} deep clean${totalDeep>1?'s':''}`:totalBad===0?'All clear':'Needs attention'}</div>
+        </div>
+        <div class="kpi-card ${allReviewed?'green':unreviewed>0?'amber':'blue'}">
+          <div class="kpi-label">GM Review</div>
+          <div class="kpi-value" style="font-size:1.3rem;color:${statusColor}">${statusLabel}</div>
+          <div class="kpi-meta">${latestHK.length} attendant${latestHK.length!==1?'s':''} · ${fmtDate(latestDate)}</div>
+        </div>
+      </div>`;
+
+    // ── Attendant rows ───────────────────────────────────────────────
+    const attendantHtml = latestHK.length ? `
+      <div style="font-family:var(--mono);font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--fog);margin:.25rem 0 .6rem">Attendant Breakdown — ${fmtDate(latestDate)}</div>
+      <div class="tbl-wrap"><table class="data-table">
+        <thead><tr><th>Name</th><th class="r">Rooms</th><th class="r">C/O</th><th class="r">S/O</th><th class="r">Bad</th><th class="r">Deep</th><th>In</th><th>Out</th><th>Rating</th><th style="text-align:center">GM ✓</th></tr></thead>
+        <tbody>${latestHK.map(r=>{
+          const co=(r.k1kn_cosolc||0)+(r.k2qn_cosolc||0)+(r.o1kn_cosolc||0)+(r.queen_1br_cosolc||0);
+          const so=(r.k1kn_so||0)+(r.k2qn_so||0)+(r.o1kn_so||0)+(r.queen_1br_so||0)+(r.so_full_service||0);
+          const rooms=co+so;
+          const rc=r.rating==='Satisfactory'?'var(--green)':r.rating?'var(--amber)':'var(--fog)';
+          return `<tr style="${!r.gm_reviewed?'background:rgba(245,158,11,.05)':''}">
+            <td style="font-weight:600;font-size:.82rem">${r.name||'—'}</td>
+            <td class="r mono" style="font-weight:600">${rooms}</td>
+            <td class="r mono" style="color:var(--fog)">${co}</td>
+            <td class="r mono" style="color:var(--fog)">${so}</td>
+            <td class="r mono" style="${(r.bad_rooms||0)>0?'color:var(--red);font-weight:700':''}">${r.bad_rooms||0}</td>
+            <td class="r mono" style="${(r.deep_cleans||0)>0?'color:var(--blue)':''}">${r.deep_cleans||0}</td>
+            <td style="font-size:.72rem">${r.clock_in||'—'}</td>
+            <td style="font-size:.72rem">${r.clock_out||'—'}</td>
+            <td style="font-size:.75rem;color:${rc}">${r.rating||'—'}</td>
+            <td style="text-align:center;font-size:.9rem">${r.gm_reviewed?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--amber)">·</span>'}</td>
+          </tr>${r.notes?`<tr><td colspan="10" style="font-size:.7rem;color:var(--fog);font-style:italic;padding:.1rem 1rem .45rem;border-bottom:1px solid var(--border)">📝 ${r.notes}</td></tr>`:''}`;
+        }).join('')}</tbody>
+      </table></div>` : '';
+
+    // ── 7-day history strip ──────────────────────────────────────────
+    const histDates = [...new Set((Array.isArray(totals)?totals:[]).map(r=>r.date))].sort((a,b)=>b.localeCompare(a));
+    const histHtml = histDates.length>1 ? `
+      <div style="font-family:var(--mono);font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--fog);margin:1.25rem 0 .6rem">Last 7 Days</div>
+      <div class="tbl-wrap"><table class="data-table">
+        <thead><tr><th>Date</th><th class="r">Arrivals</th><th class="r">Checkouts</th><th class="r">Stay-Overs</th><th class="r">Attendants</th><th class="r">Bad Rooms</th></tr></thead>
+        <tbody>${histDates.map(dt=>{
+          const tot=totals.find(r=>r.date===dt)||{};
+          const dayHK=(Array.isArray(hkRows)?hkRows:[]).filter(r=>r.date===dt);
+          const dayBad=dayHK.reduce((s,r)=>s+(r.bad_rooms||0),0);
+          const isLatest=dt===latestDate;
+          return `<tr style="${isLatest?'font-weight:600':''}">
+            <td style="font-size:.78rem">${fmtDate(dt)}${isLatest?' <span style="font-family:var(--mono);font-size:.58rem;color:var(--blue);margin-left:.3rem">latest</span>':''}</td>
+            <td class="r mono">${tot.arrivals??'—'}</td>
+            <td class="r mono">${tot.cosolc??'—'}</td>
+            <td class="r mono">${tot.stayover??'—'}</td>
+            <td class="r mono">${dayHK.length||'—'}</td>
+            <td class="r mono" style="${dayBad>0?'color:var(--red);font-weight:700':''}">${dayBad||'—'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>` : '';
+
+    el.innerHTML = `
+      <div class="section-head">
+        <div class="section-title">Housekeeping Summary</div>
+        <div style="display:flex;align-items:center;gap:.75rem">
+          <span class="section-badge ${noDataToday?'badge-warn':allReviewed?'badge-ok':'badge-info'}">${noDataToday?'Not Entered':fmtDate(latestDate)}</span>
+          <a href="${TACK_URL}" target="_blank" rel="noopener"
+             style="font-family:var(--mono);font-size:.7rem;font-weight:600;padding:.35rem .85rem;border-radius:6px;background:var(--gold);color:#fff;text-decoration:none;letter-spacing:.04em">
+            Open Tack ↗
+          </a>
+        </div>
+      </div>
+      ${highlightKpis}
+      ${attendantHtml}
+      ${histHtml}`;
+
+  } catch(e) {
+    const el = document.getElementById('hk-highlights');
+    if(el) el.innerHTML=`<div style="font-family:var(--mono);font-size:.75rem;color:var(--red);padding:.5rem 0">Could not load Tack data: ${e.message}</div>
       <a href="${TACK_URL}" target="_blank" rel="noopener" class="btn-sec" style="display:inline-block;margin-top:.5rem;font-size:.72rem;text-decoration:none">Open Tack App ↗</a>`;
   }
 }
