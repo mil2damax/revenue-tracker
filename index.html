@@ -268,10 +268,6 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
     <div class="topbar-brand">Catbird Seat</div>
     <div class="topbar-prop-tag" id="topbar-prop-tag">OWNER</div>
     <nav class="topbar-nav" id="topbar-nav"></nav>
-    <div class="topbar-actions">
-      <button class="topbar-action-btn" id="switch-prop-btn">Switch</button>
-      <button class="topbar-action-btn" id="lock-btn">Lock</button>
-    </div>
   </div>
   <div id="app-body"></div>
 </div>
@@ -416,8 +412,8 @@ function buildAppShell(){
   const isOwner=S.mode==='OWNER', propActive=S.mode!=='OWNER'&&PROPS[S.mode]?.active;
   let nav='';
   const adminItems = isOwner
-    ? [['owner-upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status']]
-    : [['upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status']];
+    ? [['owner-upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status'],['switch','⇄ Switch Property'],['lock','🔒 Lock']]
+    : [['upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status'],['switch','⇄ Switch Property'],['lock','🔒 Lock']];
   const adminHtml=`<div class="admin-wrap" id="admin-wrap">
     <button class="admin-btn" id="admin-btn">⚙ Admin ▾</button>
     <div class="admin-menu" id="admin-menu">${adminItems.map(([v,l])=>`<button class="admin-item" data-aview="${v}">${l}</button>`).join('')}</div>
@@ -443,14 +439,14 @@ function buildAppShell(){
   document.getElementById('admin-menu')?.addEventListener('click', e=>{
     const item=e.target.closest('.admin-item'); if(!item) return;
     document.getElementById('admin-menu').classList.remove('open');
+    const dv=item.dataset.aview;
+    if(dv==='lock'||dv==='switch'){ lockApp(); return; }
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
     S.drillProp=null; S.drillView='summary';
-    renderView(item.dataset.aview);
+    renderView(dv);
   });
   // Close admin menu when clicking elsewhere
   document.addEventListener('click', ()=>document.getElementById('admin-menu')?.classList.remove('open'), {once:false});
-  document.getElementById('lock-btn').addEventListener('click', lockApp);
-  document.getElementById('switch-prop-btn').addEventListener('click', lockApp);
 }
 function lockApp(){
   S={mode:null,currentDate:localYesterday(),daily:{},ar:[],arActivity:[],overrides:[],adjs:[],inhouse:[],monthly:[],clerkActivity:[],userActivity:[],adjActivity:[],lineItems:[],pending:[],charts:{},drillProp:null,drillView:'summary'};
@@ -837,7 +833,6 @@ function buildDaily(){
     <div class="section-card"><div class="section-head"><div class="section-title">In-House Guest Balances</div><div style="display:flex;align-items:center;gap:.6rem"><select id="ih-date-sel" style="font-family:var(--mono);font-size:.72rem;background:var(--ink2);color:var(--fog);border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:.2rem .5rem;cursor:pointer"></select><div class="section-badge badge-info" id="ih-badge">—</div></div></div><div id="ih-body">${loading()}</div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">Rate Overrides — This Day</div><div class="section-badge" id="ovr-badge">—</div></div><div id="ovr-body">${empty('No overrides','No rate overrides for this date')}</div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">Adjustments &amp; Refunds — This Day</div><div class="section-badge" id="adj-badge">—</div></div><div id="adj-body">${empty('No adjustment data','Upload Adjustments & Refunds report')}</div></div>
-    <div class="section-card" id="tack-card"><div class="section-head"><div class="section-title">Tack · Housekeeping</div><div class="section-badge badge-info" id="tack-badge">—</div></div><div id="tack-body">${loading()}</div></div>
   </div>`;
 }
 function wireDaily(){
@@ -993,8 +988,6 @@ function renderDailyContent(){
       miscKpi.style.cursor='default';
     }
   }
-  // Tack HK summary — async fetch, renders independently
-  renderTackCard(prop, d);
 }
 
 // ═══════════════════════════════════
@@ -1100,7 +1093,7 @@ function buildHK(){
   return `
   <div class="page-header">
     <div class="page-title">Housekeeping</div>
-    <div class="page-sub">${p?.name} · Tack Integration</div>
+    <div class="page-sub" id="hk-page-sub">${p?.name} · ${fmtDate(localISODate())}</div>
   </div>
   <div class="content">
     <div class="section-card" id="hk-highlights" style="margin-bottom:1rem">${loading()}</div>
@@ -1146,6 +1139,17 @@ async function renderHKContent(prop){
     const coCount   = r => (r.k1kn_cosolc||0)+(r.k2qn_cosolc||0)+(r.o1kn_cosolc||0)+(r.queen_1br_cosolc||0);
     const soCount   = r => (r.k1kn_so||0)+(r.k2qn_so||0)+(r.o1kn_so||0)+(r.queen_1br_so||0)+(r.so_full_service||0);
 
+    // ── Update page-sub with date context ───────────────────────────
+    const pageSub = document.getElementById('hk-page-sub');
+    if(pageSub){
+      const p2 = PROPS[prop];
+      if(noData){
+        pageSub.textContent = `${p2?.name} · ${fmtDate(localISODate())} · HK needs to input data for information to be displayed`.toUpperCase();
+      } else {
+        pageSub.textContent = `${p2?.name} · ${fmtDate(localISODate())} · Data current through ${fmtDate(displayDate)}`.toUpperCase();
+      }
+    }
+
     // ── Latest-day aggregates ────────────────────────────────────────
     const totalRooms = latestHK.reduce((s,r)=>s+roomCount(r),0);
     const totalBad   = latestHK.reduce((s,r)=>s+(r.bad_rooms||0),0);
@@ -1174,12 +1178,12 @@ async function renderHKContent(prop){
           <div class="kpi-value">${latestHK.length}</div>
           <div class="kpi-meta">${totalRooms>0&&latestHK.length>0?(totalRooms/latestHK.length).toFixed(1)+' rooms / person':''}</div>
         </div>
-        <div class="kpi-card ${totalBad>0?'red':'green'}">
+        <div class="kpi-card ${totalBad>0?'amber':'green'}">
           <div class="kpi-label">Bad Rooms</div>
-          <div class="kpi-value" style="color:${totalBad>0?'var(--red)':'inherit'}">${totalBad}</div>
+          <div class="kpi-value" style="color:${totalBad>0?'var(--amber)':'inherit'}">${totalBad}</div>
           <div class="kpi-meta">${totalBad===0?'All clear':'Needs follow-up'}</div>
         </div>
-        <div class="kpi-card ${totalDeep>0?'blue':'green'}">
+        <div class="kpi-card ${totalDeep>0?'amber':'green'}">
           <div class="kpi-label">Deep Cleans</div>
           <div class="kpi-value">${totalDeep}</div>
           <div class="kpi-meta">${totalPet>0?`${totalPet} pet room${totalPet>1?'s':''}`:totalDeep===0?'None today':''}</div>
