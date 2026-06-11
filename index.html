@@ -1110,16 +1110,20 @@ async function renderHKContent(prop){
   if(!el) return;
 
   try {
-    // Three parallel fetches: 7-day totals, 7-day hk rows, ALL unreviewed (any date)
-    const [totals, hkRows, pendingAll] = await Promise.all([
+    // Four parallel fetches: 7-day totals, 7-day hk rows, ALL unreviewed, MTD hk rows for pet totals
+    const monthStart = today.slice(0,7)+'-01';
+    const [totals, hkRows, pendingAll, mtdHK] = await Promise.all([
       fetch(`${TACK_SB}/rest/v1/daily_totals?hotel_code=eq.${prop}&date=gte.${since}&order=date.desc`, {headers:h}).then(r=>r.json()),
       fetch(`${TACK_SB}/rest/v1/housekeeping?hotel_code=eq.${prop}&date=gte.${since}&order=date.desc,name`, {headers:h}).then(r=>r.json()),
       fetch(`${TACK_SB}/rest/v1/housekeeping?hotel_code=eq.${prop}&gm_reviewed=eq.false&order=date.desc,name`, {headers:h}).then(r=>r.json()),
+      fetch(`${TACK_SB}/rest/v1/housekeeping?hotel_code=eq.${prop}&date=gte.${monthStart}&select=pet,public_area`, {headers:h}).then(r=>r.json()),
     ]);
 
     const safeHK      = Array.isArray(hkRows)    ? hkRows    : [];
     const safeTotals  = Array.isArray(totals)     ? totals    : [];
     const safePending = Array.isArray(pendingAll) ? pendingAll: [];
+    const safeMtdHK   = Array.isArray(mtdHK)      ? mtdHK     : [];
+    const mtdPet      = safeMtdHK.reduce((s,r)=>s+(r.pet||0),0);
 
     // displayDate = most recent date ≤ yesterday that has actual HK rows.
     // HK records use the actual work date; daily_totals uses the NEXT day (arrival date).
@@ -1194,6 +1198,11 @@ async function renderHKContent(prop){
           <div class="kpi-value">${totalPA}</div>
           <div class="kpi-meta">Tasks completed</div>
         </div>`:''}
+        <div class="kpi-card ${mtdPet>0?'gold':'green'}">
+          <div class="kpi-label">Pet Rooms MTD</div>
+          <div class="kpi-value">${mtdPet}</div>
+          <div class="kpi-meta">${fmtMonth(monthStart)}${totalPet>0?' · '+totalPet+' today':''}</div>
+        </div>
         <div class="kpi-card ${allReviewed?'green':pendingCount>0?'amber':'blue'}">
           <div class="kpi-label">GM Pending Review</div>
           <div class="kpi-value" style="color:${allReviewed?'var(--green)':pendingCount>0?'var(--amber)':'inherit'}">${allReviewed?'✓':pendingCount}</div>
