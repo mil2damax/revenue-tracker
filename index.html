@@ -287,6 +287,9 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 const SUPABASE_URL = 'https://ltbjavxegskmhyjqpext.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0YmphdnhlZ3NrbWh5anFwZXh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTU5NzksImV4cCI6MjA5NjI5MTk3OX0.mE-bSDLH7K9UXTqKDQKOuiEy9gv6Qi1xRj9Q2a9gw6I';
 const VERIFY_PIN_URL = 'https://ltbjavxegskmhyjqpext.supabase.co/functions/v1/verify-pin';
+const TACK_URL   = 'https://hk.milkamhospitality.com';
+const TACK_SB    = 'https://prhsllifpfacvdlttyuf.supabase.co';
+const TACK_KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByaHNsbGlmcGZhY3ZkbHR0eXVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MTIxMTEsImV4cCI6MjA5MjM4ODExMX0._L65_b255yRPZ5d1A0i4rtcLO8NxmnokAwQ4grCMytk';
 const EDGE_FN_URL = 'https://ltbjavxegskmhyjqpext.supabase.co/functions/v1/process-night-audit';
 const PROPS = {
   WKFCW:{ name:'Candlewood Suites Wake Forest', short:'Candlewood WF', pms:'HotelKey', active:true },
@@ -823,6 +826,7 @@ function buildDaily(){
     <div class="section-card"><div class="section-head"><div class="section-title">In-House Guest Balances</div><div style="display:flex;align-items:center;gap:.6rem"><select id="ih-date-sel" style="font-family:var(--mono);font-size:.72rem;background:var(--ink2);color:var(--fog);border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:.2rem .5rem;cursor:pointer"></select><div class="section-badge badge-info" id="ih-badge">—</div></div></div><div id="ih-body">${loading()}</div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">Rate Overrides — This Day</div><div class="section-badge" id="ovr-badge">—</div></div><div id="ovr-body">${empty('No overrides','No rate overrides for this date')}</div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">Adjustments &amp; Refunds — This Day</div><div class="section-badge" id="adj-badge">—</div></div><div id="adj-body">${empty('No adjustment data','Upload Adjustments & Refunds report')}</div></div>
+    <div class="section-card" id="tack-card"><div class="section-head"><div class="section-title">Tack · Housekeeping</div><div class="section-badge badge-info" id="tack-badge">—</div></div><div id="tack-body">${loading()}</div></div>
   </div>`;
 }
 function wireDaily(){
@@ -977,6 +981,103 @@ function renderDailyContent(){
     } else {
       miscKpi.style.cursor='default';
     }
+  }
+  // Tack HK summary — async fetch, renders independently
+  renderTackCard(prop, d);
+}
+
+// ═══════════════════════════════════
+// TACK HOUSEKEEPING CARD
+// ═══════════════════════════════════
+async function renderTackCard(prop, date) {
+  const el = document.getElementById('tack-body');
+  const badge = document.getElementById('tack-badge');
+  if (!el) return;
+
+  // The HK app records under the NEXT day's date (e.g. work done Jun 9 = date Jun 10).
+  // So to get yesterday's housekeeping work we need today's date in the HK app.
+  // We also try the exact date in case the GM entered it under the actual work date.
+  const d = new Date(date + 'T00:00:00');
+  const nextDay = localISODate(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1));
+  const h = { apikey: TACK_KEY, Authorization: 'Bearer ' + TACK_KEY };
+
+  try {
+    // Fetch daily_totals — try nextDay first (HK app convention), then date itself
+    const [totNext, totSame, hkNext, hkSame] = await Promise.all([
+      fetch(`${TACK_SB}/rest/v1/daily_totals?hotel_code=eq.${prop}&date=eq.${nextDay}&limit=1`, { headers: h }).then(r => r.json()),
+      fetch(`${TACK_SB}/rest/v1/daily_totals?hotel_code=eq.${prop}&date=eq.${date}&limit=1`,    { headers: h }).then(r => r.json()),
+      fetch(`${TACK_SB}/rest/v1/housekeeping?hotel_code=eq.${prop}&date=eq.${nextDay}&order=name`, { headers: h }).then(r => r.json()),
+      fetch(`${TACK_SB}/rest/v1/housekeeping?hotel_code=eq.${prop}&date=eq.${date}&order=name`,    { headers: h }).then(r => r.json()),
+    ]);
+
+    const tot   = (Array.isArray(totNext)  && totNext.length)  ? totNext[0]  : (Array.isArray(totSame) && totSame.length) ? totSame[0] : null;
+    const hkRows= (Array.isArray(hkNext)   && hkNext.length)   ? hkNext      : (Array.isArray(hkSame) && hkSame.length)  ? hkSame     : [];
+    const hkDate= tot?.date || (hkRows[0]?.date) || null;
+
+    const noData = !tot && !hkRows.length;
+    if (noData) {
+      badge.textContent = 'Not entered';
+      badge.className = 'section-badge badge-warn';
+      el.innerHTML = `
+        <div style="padding:.6rem 0 .4rem;font-family:var(--mono);font-size:.72rem;color:var(--amber)">
+          No housekeeping data entered for ${fmtDate(date)} in Tack.
+        </div>
+        <a href="${TACK_URL}" target="_blank" rel="noopener" class="btn-sec" style="display:inline-block;margin-top:.5rem;font-size:.72rem;text-decoration:none">Open Tack App ↗</a>`;
+      return;
+    }
+
+    // Compute totals from hkRows
+    const totalRooms = hkRows.reduce((s, r) => s + (r.k1kn_cosolc||0) + (r.k1kn_so||0) + (r.k2qn_cosolc||0) + (r.k2qn_so||0) + (r.o1kn_cosolc||0) + (r.o1kn_so||0) + (r.queen_1br_cosolc||0) + (r.queen_1br_so||0) + (r.so_full_service||0), 0);
+    const totalBad    = hkRows.reduce((s, r) => s + (r.bad_rooms||0), 0);
+    const totalDeep   = hkRows.reduce((s, r) => s + (r.deep_cleans||0), 0);
+    const reviewed    = hkRows.filter(r => r.gm_reviewed).length;
+
+    badge.textContent = hkDate ? fmtDate(hkDate) : '—';
+    badge.className = 'section-badge badge-ok';
+
+    const summaryRow = tot ? `
+      <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:.75rem;padding-bottom:.6rem;border-bottom:1px solid var(--border)">
+        ${tot.arrivals   != null ? `<div style="text-align:center"><div style="font-family:var(--serif);font-size:1.4rem;color:var(--ink)">${tot.arrivals}</div><div style="font-family:var(--mono);font-size:.58rem;color:var(--fog);text-transform:uppercase;letter-spacing:.08em">Arrivals</div></div>` : ''}
+        ${tot.cosolc     != null ? `<div style="text-align:center"><div style="font-family:var(--serif);font-size:1.4rem;color:var(--ink)">${tot.cosolc}</div><div style="font-family:var(--mono);font-size:.58rem;color:var(--fog);text-transform:uppercase;letter-spacing:.08em">Checkouts</div></div>` : ''}
+        ${tot.stayover   != null ? `<div style="text-align:center"><div style="font-family:var(--serif);font-size:1.4rem;color:var(--ink)">${tot.stayover}</div><div style="font-family:var(--mono);font-size:.58rem;color:var(--fog);text-transform:uppercase;letter-spacing:.08em">Stay-Overs</div></div>` : ''}
+        ${totalBad > 0 ? `<div style="text-align:center"><div style="font-family:var(--serif);font-size:1.4rem;color:var(--red)">${totalBad}</div><div style="font-family:var(--mono);font-size:.58rem;color:var(--fog);text-transform:uppercase;letter-spacing:.08em">Bad Rooms</div></div>` : ''}
+        ${totalDeep > 0 ? `<div style="text-align:center"><div style="font-family:var(--serif);font-size:1.4rem;color:var(--blue)">${totalDeep}</div><div style="font-family:var(--mono);font-size:.58rem;color:var(--fog);text-transform:uppercase;letter-spacing:.08em">Deep Cleans</div></div>` : ''}
+      </div>` : '';
+
+    const attendantRows = hkRows.length ? `
+      <div style="font-family:var(--mono);font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:var(--fog);margin-bottom:.4rem">${hkRows.length} Attendant${hkRows.length > 1 ? 's' : ''} · ${totalRooms} rooms total</div>
+      <div class="tbl-wrap"><table class="data-table">
+        <thead><tr><th>Name</th><th class="r">Rooms</th><th class="r">Bad</th><th class="r">Deep</th><th>In</th><th>Out</th><th>Rating</th><th>GM ✓</th></tr></thead>
+        <tbody>${hkRows.map(r => {
+          const rooms = (r.k1kn_cosolc||0)+(r.k1kn_so||0)+(r.k2qn_cosolc||0)+(r.k2qn_so||0)+(r.o1kn_cosolc||0)+(r.o1kn_so||0)+(r.queen_1br_cosolc||0)+(r.queen_1br_so||0)+(r.so_full_service||0);
+          const ratingColor = r.rating === 'Satisfactory' ? 'var(--green)' : r.rating ? 'var(--amber)' : 'var(--fog)';
+          return `<tr>
+            <td style="font-weight:600">${r.name||'—'}</td>
+            <td class="r mono">${rooms}</td>
+            <td class="r mono" style="${(r.bad_rooms||0)>0?'color:var(--red);font-weight:600':''}">${r.bad_rooms||0}</td>
+            <td class="r mono" style="${(r.deep_cleans||0)>0?'color:var(--blue)':''}">${r.deep_cleans||0}</td>
+            <td class="mono" style="font-size:.7rem">${r.clock_in||'—'}</td>
+            <td class="mono" style="font-size:.7rem">${r.clock_out||'—'}</td>
+            <td style="font-size:.75rem;color:${ratingColor}">${r.rating||'—'}</td>
+            <td style="text-align:center;font-size:.8rem">${r.gm_reviewed ? '✓' : '·'}</td>
+          </tr>${r.notes ? `<tr><td colspan="8" style="font-size:.7rem;color:var(--fog);font-style:italic;padding:.15rem 1rem .4rem">${r.notes}</td></tr>` : ''}`;
+        }).join('')}</tbody>
+      </table></div>` : '';
+
+    const unreviewedWarn = hkRows.length && reviewed < hkRows.length
+      ? `<div style="font-family:var(--mono);font-size:.65rem;color:var(--amber);margin-top:.5rem">⚠ ${hkRows.length - reviewed} of ${hkRows.length} attendants not yet GM-reviewed in Tack</div>`
+      : '';
+
+    el.innerHTML = summaryRow + attendantRows + unreviewedWarn + `
+      <div style="margin-top:.9rem">
+        <a href="${TACK_URL}" target="_blank" rel="noopener" class="btn-sec" style="display:inline-block;font-size:.72rem;text-decoration:none">Open Tack App ↗</a>
+      </div>`;
+
+  } catch(e) {
+    badge.textContent = 'Error';
+    badge.className = 'section-badge badge-alert';
+    el.innerHTML = `<div style="font-family:var(--mono);font-size:.72rem;color:var(--red)">Could not load Tack data: ${e.message}</div>
+      <a href="${TACK_URL}" target="_blank" rel="noopener" class="btn-sec" style="display:inline-block;margin-top:.5rem;font-size:.72rem;text-decoration:none">Open Tack App ↗</a>`;
   }
 }
 
