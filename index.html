@@ -1106,9 +1106,10 @@ function buildHK(){
 
 async function renderHKContent(prop){
   const h = { apikey: TACK_KEY, Authorization: 'Bearer ' + TACK_KEY };
-  const today = localISODate();
-  const since = localISODate(new Date(new Date(today+'T00:00:00').getTime() - 7*86400000));
-  const el = document.getElementById('hk-highlights');
+  const today     = localISODate();
+  const yesterday = localYesterday();
+  const since     = localISODate(new Date(new Date(today+'T00:00:00').getTime() - 7*86400000));
+  const el        = document.getElementById('hk-highlights');
   if(!el) return;
 
   try {
@@ -1123,11 +1124,16 @@ async function renderHKContent(prop){
     const safeTotals  = Array.isArray(totals)     ? totals    : [];
     const safePending = Array.isArray(pendingAll) ? pendingAll: [];
 
-    // Most recent day with data
-    const latestTot  = safeTotals.length ? safeTotals[0] : null;
-    const latestDate = latestTot?.date || (safeHK.length ? safeHK[0].date : localYesterday());
-    const latestHK   = safeHK.filter(r => r.date === latestDate);
-    const noData     = !latestTot && !latestHK.length;
+    // Display date = yesterday, matching Daily Ops convention.
+    // housekeeping rows use the actual work date (yesterday).
+    // daily_totals in Tack uses the arrival date (today = one day ahead of work done).
+    const displayDate = yesterday;
+    const latestHK    = safeHK.filter(r => r.date === displayDate);
+    // For daily_totals: Tack stores work done on yesterday under today's date (arrival date)
+    const latestTot   = safeTotals.find(r => r.date === today)
+                     || safeTotals.find(r => r.date === displayDate)
+                     || (safeTotals.length ? safeTotals[0] : null);
+    const noData      = !latestTot && !latestHK.length;
 
     // ── Per-attendant helper ─────────────────────────────────────────
     const roomCount = r => (r.k1kn_cosolc||0)+(r.k1kn_so||0)+(r.k2qn_cosolc||0)+(r.k2qn_so||0)
@@ -1148,48 +1154,39 @@ async function renderHKContent(prop){
     const pendingDates = [...new Set(safePending.map(r=>r.date))].sort((a,b)=>b.localeCompare(a));
     const allReviewed  = !noData && pendingCount===0 && latestHK.length>0;
 
-    // ── KPI cards ────────────────────────────────────────────────────
+    // ── KPI stat strip (flat — no colored border stripe) ─────────────
+    const statBox = (label, value, meta, valueColor) =>
+      `<div style="padding:.7rem 1rem;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);min-width:100px">
+        <div style="font-family:var(--mono);font-size:.65rem;text-transform:uppercase;letter-spacing:.09em;color:var(--fog);margin-bottom:.3rem">${label}</div>
+        <div style="font-family:var(--serif);font-size:1.7rem;line-height:1;color:${valueColor||'var(--ink)'}">${value}</div>
+        ${meta?`<div style="font-family:var(--mono);font-size:.64rem;color:var(--fog);margin-top:.25rem">${meta}</div>`:''}
+      </div>`;
+
     const highlightKpis = noData ? `
       <div style="padding:.5rem 0 .75rem;font-family:var(--mono);font-size:.78rem;color:var(--amber)">
-        No housekeeping data entered in Tack for ${fmtDate(latestDate)}.
+        No housekeeping data entered in Tack for ${fmtDate(displayDate)}.
       </div>` : `
-      <div class="kpi-grid" style="margin-bottom:1.25rem">
-        <div class="kpi-card ${totalBad>0?'red':'green'}">
-          <div class="kpi-label">Rooms Cleaned</div>
-          <div class="kpi-value">${totalRooms}</div>
-          <div class="kpi-meta">${latestTot?.cosolc??'—'} checkouts · ${latestTot?.stayover??'—'} stay-overs</div>
-        </div>
-        <div class="kpi-card blue">
-          <div class="kpi-label">Attendants On</div>
-          <div class="kpi-value">${latestHK.length}</div>
-          <div class="kpi-meta">${totalRooms>0&&latestHK.length>0?(totalRooms/latestHK.length).toFixed(1)+' rooms / person':''}</div>
-        </div>
-        <div class="kpi-card ${totalBad>0?'red':'green'}">
-          <div class="kpi-label">Bad Rooms</div>
-          <div class="kpi-value" style="color:${totalBad>0?'var(--red)':'inherit'}">${totalBad}</div>
-          <div class="kpi-meta">${totalBad===0?'All clear':'Needs follow-up'}</div>
-        </div>
-        <div class="kpi-card ${totalDeep>0?'blue':'green'}">
-          <div class="kpi-label">Deep Cleans</div>
-          <div class="kpi-value">${totalDeep}</div>
-          <div class="kpi-meta">${totalPet>0?`${totalPet} pet room${totalPet>1?'s':''}`:totalDeep===0?'None today':''}</div>
-        </div>
-        ${totalPA>0?`<div class="kpi-card amber">
-          <div class="kpi-label">Public Area</div>
-          <div class="kpi-value">${totalPA}</div>
-          <div class="kpi-meta">Tasks completed</div>
-        </div>`:''}
-        <div class="kpi-card ${allReviewed?'green':pendingCount>0?'amber':'blue'}">
-          <div class="kpi-label">GM Pending Review</div>
-          <div class="kpi-value" style="color:${allReviewed?'var(--green)':pendingCount>0?'var(--amber)':'inherit'}">${allReviewed?'All clear':pendingCount}</div>
-          <div class="kpi-meta">${allReviewed?'All attendants reviewed':pendingCount>0?`Across ${pendingDates.length} day${pendingDates.length>1?'s':''}`:''}</div>
-        </div>
+      <div style="display:flex;flex-wrap:wrap;gap:.75rem;margin-bottom:1.25rem">
+        ${statBox('Rooms Cleaned', totalRooms,
+            `${latestTot?.cosolc??'—'} checkouts · ${latestTot?.stayover??'—'} stay-overs`)}
+        ${statBox('Attendants On', latestHK.length,
+            totalRooms>0&&latestHK.length>0?(totalRooms/latestHK.length).toFixed(1)+' rooms / person':'')}
+        ${statBox('Bad Rooms', totalBad,
+            totalBad===0?'All clear':'Needs follow-up',
+            totalBad>0?'var(--red)':null)}
+        ${statBox('Deep Cleans', totalDeep,
+            totalPet>0?`${totalPet} pet room${totalPet>1?'s':''}`:'')}
+        ${totalPA>0?statBox('Public Area', totalPA, 'Tasks completed'):''}
+        ${statBox('GM Pending Review',
+            allReviewed?'✓':pendingCount,
+            allReviewed?'All reviewed':pendingCount>0?`Across ${pendingDates.length} day${pendingDates.length>1?'s':''}`:'' ,
+            allReviewed?'var(--green)':pendingCount>0?'var(--amber)':null)}
       </div>`;
 
     // ── Attendant breakdown table ────────────────────────────────────
     const attendantHtml = latestHK.length ? `
       <div style="font-family:var(--mono);font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--fog);margin:.5rem 0 .6rem">
-        Attendant Breakdown — ${fmtDate(latestDate)}
+        Attendant Breakdown — ${fmtDate(displayDate)}
       </div>
       <div class="tbl-wrap"><table class="data-table">
         <thead><tr><th>Name</th><th class="r">Rooms</th><th class="r">C/O</th><th class="r">S/O</th><th class="r">Bad</th><th class="r">Deep</th><th class="r">Pet</th><th class="r">Pub Area</th><th>In</th><th>Out</th><th>Rating</th><th style="text-align:center">GM ✓</th></tr></thead>
@@ -1229,7 +1226,7 @@ async function renderHKContent(prop){
       </table></div>` : '';
 
     // ── 7-day history ────────────────────────────────────────────────
-    const histDates = [...new Set(safeTotals.map(r=>r.date))].sort((a,b)=>b.localeCompare(a));
+    const histDates = [...new Set(safeTotals.map(r=>r.date))].sort((a,b)=>a.localeCompare(b));
     const histHtml = histDates.length>1 ? `
       <div style="font-family:var(--mono);font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--fog);margin:1.25rem 0 .6rem">Last 7 Days</div>
       <div class="tbl-wrap"><table class="data-table">
@@ -1240,7 +1237,7 @@ async function renderHKContent(prop){
           const dayBad  = day.reduce((s,r)=>s+(r.bad_rooms||0),0);
           const dayDeep = day.reduce((s,r)=>s+(r.deep_cleans||0),0);
           const dayRooms= day.reduce((s,r)=>s+roomCount(r),0);
-          const isLatest = dt===latestDate;
+          const isLatest = dt===displayDate;
           return `<tr style="${isLatest?'font-weight:600':''}">
             <td style="font-size:.78rem">${fmtDate(dt)}${isLatest?' <span style="font-family:var(--mono);font-size:.58rem;color:var(--blue)"> latest</span>':''}</td>
             <td class="r mono">${tot.cosolc??'—'}</td>
@@ -1261,15 +1258,15 @@ async function renderHKContent(prop){
             ${noData?'Not Entered':allReviewed?'All Reviewed':pendingCount+' Pending'}
           </span>
           <a href="${TACK_URL}" target="_blank" rel="noopener"
-             style="font-family:var(--mono);font-size:.7rem;font-weight:600;padding:.35rem .85rem;border-radius:6px;background:var(--gold);color:#fff;text-decoration:none;letter-spacing:.04em">
+             style="font-family:var(--serif);font-size:.95rem;font-weight:700;padding:.3rem .9rem;border-radius:6px;border:2px solid var(--gold);color:var(--gold);text-decoration:none;background:transparent;letter-spacing:.02em">
             Open Tack ↗
           </a>
         </div>
       </div>
       ${highlightKpis}
+      ${histHtml}
       ${attendantHtml}
-      ${pendingHtml}
-      ${histHtml}`;
+      ${pendingHtml}`;
 
   } catch(e) {
     el.innerHTML=`<div style="font-family:var(--mono);font-size:.75rem;color:var(--red);padding:.5rem 0">Could not load Tack data: ${e.message}</div>
