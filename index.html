@@ -522,13 +522,14 @@ async function loadAllData(){
   } catch(e){ console.warn('Core load error:',e); }
   // Activity tables — load independently so a failure here never breaks core views
   try {
-    const [clerkActivity,userActivity,adjActivity,lineItems] = await Promise.all([
+    const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary] = await Promise.all([
       sbGet('clerk_activity','?order=date.desc&limit=2000'+pf),
       sbGet('user_activity','?order=date.desc&limit=2000'+pf),
       sbGet('adjustments_activity','?order=date.desc&limit=1000'+pf),
-      sbGet('revenue_line_items','?order=date.desc&limit=2000'+pf)
+      sbGet('revenue_line_items','?order=date.desc&limit=2000'+pf),
+      sbGet('tax_summary','?order=date.desc&limit=600'+pf),
     ]);
-    S.clerkActivity=clerkActivity; S.userActivity=userActivity; S.adjActivity=adjActivity; S.lineItems=lineItems;
+    S.clerkActivity=clerkActivity; S.userActivity=userActivity; S.adjActivity=adjActivity; S.lineItems=lineItems; S.taxSummary=taxSummary;
   } catch(e){ console.warn('Activity load error:',e); }
 }
 function dailyRow(date,prop){ return S.daily[(prop||S.mode)+'_'+date]||null; }
@@ -1537,6 +1538,45 @@ function buildAccountability(){
     <div class="section-card"><div class="section-head"><div class="section-title">All Rate Overrides</div><div class="section-badge badge-info">${propOvr.length} records</div></div>
       ${propOvr.length?`<div class="tbl-wrap">${overrideTableHtml(propOvr.slice(0,100))}</div>`:empty('No overrides','')}
     </div>
+
+    ${(()=>{
+      const propTax=(S.taxSummary||[]).filter(r=>r.property===prop);
+      const taxMTD=propTax.filter(r=>r.date?.startsWith(curMonth));
+      if(!propTax.length) return `<div class="section-card"><div class="section-head"><div class="section-title">Tax Exempt Revenue</div><div class="section-badge badge-ok">No data</div></div>${empty('No tax summary data','Upload Tax Report')}</div>`;
+      // MTD totals by tax name
+      const byName={};
+      taxMTD.forEach(r=>{
+        const n=r.tax_name||'Other';
+        if(!byName[n]) byName[n]={total_revenue:0,exempted_revenue:0,taxable_payable:0,payable_tax:0,exempted_tax:0};
+        byName[n].total_revenue+=(r.total_revenue||0);
+        byName[n].exempted_revenue+=(r.exempted_revenue||0);
+        byName[n].taxable_payable+=(r.taxable_payable||0);
+        byName[n].payable_tax+=(r.payable_tax||0);
+        byName[n].exempted_tax+=(r.exempted_tax||0);
+      });
+      const nameRows=Object.entries(byName);
+      const totalExempt=nameRows.reduce((s,[,d])=>s+(d.exempted_revenue||0),0);
+      const totalPayable=nameRows.reduce((s,[,d])=>s+(d.payable_tax||0),0);
+      // Day-by-day detail
+      const dates=[...new Set(propTax.map(r=>r.date))].sort((a,b)=>b.localeCompare(a)).slice(0,60);
+      const taxNames=[...new Set(propTax.map(r=>r.tax_name||'Other'))].sort();
+      return `<div class="section-card"><div class="section-head"><div class="section-title">Tax Exempt Revenue</div><div class="section-badge badge-info">${fmt$(totalExempt)} exempt · ${fmt$(totalPayable)} tax payable MTD</div></div>
+        <div class="kpi-grid" style="padding:1rem 1.4rem 0">
+          ${nameRows.map(([name,d])=>`<div class="kpi-card ${d.exempted_revenue>0?'amber':'green'}"><div class="kpi-label">${name} — Exempt MTD</div><div class="kpi-value">${fmt$(d.exempted_revenue)}</div><div class="kpi-meta">${fmt$(d.payable_tax)} tax payable · ${fmt$(d.exempted_tax)} exempt tax</div></div>`).join('')}
+        </div>
+        <div style="padding:1rem 1.4rem .5rem;font-family:var(--mono);font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--fog)">MTD Summary by Tax Type</div>
+        <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Tax Type</th><th class="r">Total Revenue</th><th class="r">Exempted Revenue</th><th class="r">Taxable</th><th class="r">Tax Payable</th><th class="r">Exempt Tax</th></tr></thead>
+        <tbody>${nameRows.map(([name,d])=>`<tr><td style="font-weight:500">${name}</td><td class="r mono">${fmt$(d.total_revenue)}</td><td class="r mono" style="${d.exempted_revenue>0?'color:var(--amber);font-weight:600':''}">${fmt$(d.exempted_revenue)}</td><td class="r mono">${fmt$(d.taxable_payable)}</td><td class="r mono" style="font-weight:500">${fmt$(d.payable_tax)}</td><td class="r mono">${fmt$(d.exempted_tax)}</td></tr>`).join('')}</tbody>
+        <tfoot><tr class="tot"><td>Total</td><td class="r">${fmt$(nameRows.reduce((s,[,d])=>s+d.total_revenue,0))}</td><td class="r" style="color:var(--amber)">${fmt$(totalExempt)}</td><td class="r">${fmt$(nameRows.reduce((s,[,d])=>s+d.taxable_payable,0))}</td><td class="r">${fmt$(totalPayable)}</td><td class="r">${fmt$(nameRows.reduce((s,[,d])=>s+d.exempted_tax,0))}</td></tr></tfoot>
+        </table></div>
+        <div style="padding:.75rem 1.4rem .5rem;font-family:var(--mono);font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--fog)">Day-by-Day Detail</div>
+        <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Date</th>${taxNames.map(n=>`<th class="r" style="font-size:.7rem">${n}</th><th class="r" style="font-size:.65rem;color:var(--fog)">Exempt</th>`).join('')}</tr></thead>
+        <tbody>${dates.map(dt=>{
+          const dayRows=propTax.filter(r=>r.date===dt);
+          return `<tr><td class="mono">${fmtDate(dt)}</td>${taxNames.map(n=>{const r=dayRows.find(x=>(x.tax_name||'Other')===n)||{}; return `<td class="r mono" style="font-size:.78rem">${r.total_revenue!=null?fmt$(r.total_revenue):'—'}</td><td class="r mono" style="font-size:.78rem;${r.exempted_revenue>0?'color:var(--amber)':''}">${r.exempted_revenue>0?fmt$(r.exempted_revenue):'—'}</td>`}).join('')}</tr>`;
+        }).join('')}</tbody></table></div>
+      </div>`;
+    })()}
   </div>`;
 }
 
@@ -1597,6 +1637,30 @@ function buildOwnerAccountability(){
     <div class="section-card"><div class="section-head"><div class="section-title">Adjustments MTD — All Properties</div><div class="section-badge badge-warn">${S.adjActivity.filter(r=>r.date?.startsWith(curMonth)&&(r.section==='Adjustments'||r.section==='Manager Charge Adjustments')).length} records</div></div>
       ${S.adjActivity.filter(r=>r.date?.startsWith(curMonth)&&(r.section==='Adjustments'||r.section==='Manager Charge Adjustments')).length?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Property</th><th>Type</th><th>Guest</th><th>Room</th><th>Reason</th><th class="r">Amount</th><th>User</th></tr></thead><tbody>${S.adjActivity.filter(r=>r.date?.startsWith(curMonth)&&(r.section==='Adjustments'||r.section==='Manager Charge Adjustments')).sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,100).map(r=>`<tr><td class="mono">${fmtDate(r.date)}</td><td><span class="pill pill-blue">${r.property}</span></td><td><span class="pill pill-amber">${r.section==='Manager Charge Adjustments'?'Mgr':r.section}</span></td><td>${r.guest_name||'—'}</td><td class="mono">${r.room_number||'—'}</td><td style="font-size:.75rem;color:var(--ink3)">${r.adjustment_reason||'—'}</td><td class="r mono">${fmt$(r.adjusted_amount)}</td><td class="mono" style="font-size:.7rem">${r.username||'—'}</td></tr>`).join('')}</tbody></table></div>`:empty('No adjustments this month','')}
     </div>
+
+    ${(()=>{
+      const taxMTD=(S.taxSummary||[]).filter(r=>r.date?.startsWith(curMonth));
+      if(!taxMTD.length) return '';
+      const taxNames=[...new Set(taxMTD.map(r=>r.tax_name||'Other'))].sort();
+      // MTD totals by property × tax type
+      const byProp={};
+      taxMTD.forEach(r=>{
+        const p=r.property||'?', n=r.tax_name||'Other';
+        if(!byProp[p]) byProp[p]={};
+        if(!byProp[p][n]) byProp[p][n]={exempted_revenue:0,payable_tax:0,exempted_tax:0};
+        byProp[p][n].exempted_revenue+=(r.exempted_revenue||0);
+        byProp[p][n].payable_tax+=(r.payable_tax||0);
+        byProp[p][n].exempted_tax+=(r.exempted_tax||0);
+      });
+      const totalExempt=taxMTD.reduce((s,r)=>s+(r.exempted_revenue||0),0);
+      const totalPayable=taxMTD.reduce((s,r)=>s+(r.payable_tax||0),0);
+      return `<div class="section-card"><div class="section-head"><div class="section-title">Tax Exempt Revenue MTD — All Properties</div><div class="section-badge badge-info">${fmt$(totalExempt)} exempt · ${fmt$(totalPayable)} tax payable</div></div>
+        <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Property</th>${taxNames.map(n=>`<th class="r" style="font-size:.7rem">${n} Exempt</th><th class="r" style="font-size:.65rem;color:var(--fog)">Tax Payable</th>`).join('')}<th class="r">Total Exempt</th></tr></thead>
+        <tbody>${activeCodes.filter(c=>byProp[c]).map(c=>{const d=byProp[c]||{}; const totEx=taxNames.reduce((s,n)=>s+(d[n]?.exempted_revenue||0),0); return `<tr><td><span class="pill pill-blue">${c}</span> ${PROPS[c]?.short||''}</td>${taxNames.map(n=>`<td class="r mono" style="${(d[n]?.exempted_revenue||0)>0?'color:var(--amber);font-weight:600':''}">${(d[n]?.exempted_revenue||0)>0?fmt$(d[n].exempted_revenue):'—'}</td><td class="r mono">${(d[n]?.payable_tax||0)>0?fmt$(d[n].payable_tax):'—'}</td>`).join('')}<td class="r mono" style="font-weight:600">${fmt$(totEx)}</td></tr>`}).join('')}</tbody>
+        <tfoot><tr class="tot"><td>Total</td>${taxNames.map(n=>`<td class="r" style="color:var(--amber)">${fmt$(taxMTD.filter(r=>(r.tax_name||'Other')===n).reduce((s,r)=>s+(r.exempted_revenue||0),0))}</td><td class="r">${fmt$(taxMTD.filter(r=>(r.tax_name||'Other')===n).reduce((s,r)=>s+(r.payable_tax||0),0))}</td>`).join('')}<td class="r">${fmt$(totalExempt)}</td></tr></tfoot>
+        </table></div>
+      </div>`;
+    })()}
   </div>`;
 }
 
