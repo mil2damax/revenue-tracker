@@ -182,6 +182,10 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 /* ── Scrollable tables ── */
 .tbl-wrap{overflow-x:auto}
 .tbl-scroll{overflow-x:auto;overflow-y:auto;max-height:300px}
+/* ── Notes buttons ── */
+.notes-btn{background:none;border:1px solid var(--border);border-radius:5px;color:var(--fog);font-family:var(--mono);font-size:.58rem;letter-spacing:.07em;padding:.18rem .5rem;cursor:pointer;white-space:nowrap;transition:all .15s;display:inline-flex;align-items:center;gap:.3rem}
+.notes-btn:hover{border-color:var(--gold);color:var(--gold)}
+.notes-count{background:var(--gold);color:#fff;border-radius:10px;padding:.05rem .35rem;font-size:.55rem;font-weight:700}
 /* ── Mobile responsive ── */
 @media(max-width:640px){
   .content{padding:.65rem}
@@ -310,6 +314,17 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
     <nav class="topbar-nav" id="topbar-nav"></nav>
   </div>
   <div id="app-body"></div>
+</div>
+
+<!-- Shared modal — used by Daily Ops misc/ooo/noshow popovers and Accountability notes -->
+<div id="daily-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:1rem" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow-lg);max-width:560px;width:100%;max-height:80vh;display:flex;flex-direction:column">
+    <div style="padding:.875rem 1.4rem;border-bottom:1px solid var(--border);background:var(--cream);display:flex;align-items:center;justify-content:space-between">
+      <div class="section-title" id="daily-modal-title">Detail</div>
+      <button onclick="document.getElementById('daily-modal').style.display='none'" style="background:none;border:none;color:var(--fog);font-size:1.1rem;cursor:pointer;padding:.2rem .5rem;border-radius:4px">✕</button>
+    </div>
+    <div id="daily-modal-body" style="overflow-y:auto;padding:0"></div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -533,7 +548,7 @@ function renderView(view){
   else if(view==='housekeeping'){ body.innerHTML=buildHK(); renderHKContent(vp()); }
   else if(view==='performance') { body.innerHTML=buildPerformance(); setTimeout(renderPerfCharts,100); }
   else if(view==='ar')          { body.innerHTML=buildAR(); }
-  else if(view==='accountability') { body.innerHTML=buildAccountability(); }
+  else if(view==='accountability') { body.innerHTML=buildAccountability(); wireAccountability(); }
   else if(view==='history')     { body.innerHTML=buildHistory(); wireHistory(); }
   else if(view==='upload')      { body.innerHTML=buildUploadView('PROP'); wireUploadView('u'); }
   else if(view==='sync-status') { body.innerHTML=buildSyncStatus(); wireSyncStatus(); }
@@ -562,14 +577,15 @@ async function loadAllData(){
   } catch(e){ console.warn('Core load error:',e); }
   // Activity tables — load independently so a failure here never breaks core views
   try {
-    const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary] = await Promise.all([
+    const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary,txNotes] = await Promise.all([
       sbGet('clerk_activity','?order=date.desc&limit=2000'+pf),
       sbGet('user_activity','?order=date.desc&limit=2000'+pf),
       sbGet('adjustments_activity','?order=date.desc&limit=1000'+pf),
       sbGet('revenue_line_items','?order=date.desc&limit=2000'+pf),
       sbGet('tax_summary','?order=date.desc&limit=600'+pf),
+      sbGet('transaction_notes','?order=created_at.asc&limit=2000').catch(()=>[]),
     ]);
-    S.clerkActivity=clerkActivity; S.userActivity=userActivity; S.adjActivity=adjActivity; S.lineItems=lineItems; S.taxSummary=taxSummary;
+    S.clerkActivity=clerkActivity; S.userActivity=userActivity; S.adjActivity=adjActivity; S.lineItems=lineItems; S.taxSummary=taxSummary; S.txNotes=txNotes||[];
   } catch(e){ console.warn('Activity load error:',e); }
 }
 function dailyRow(date,prop){ return S.daily[(prop||S.mode)+'_'+date]||null; }
@@ -870,15 +886,6 @@ function buildDaily(){
       <div class="section-card"><div class="section-head"><div class="section-title">Year to Date</div><div class="section-badge badge-info" id="ytd-badge">—</div></div><div id="ytd-body">${loading()}</div></div>
     </div>
     <div class="section-card"><div class="section-head"><div class="section-title">In-House Guest Balances</div><div style="display:flex;align-items:center;gap:.6rem"><select id="ih-date-sel" style="font-family:var(--mono);font-size:.72rem;background:var(--ink2);color:var(--fog);border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:.2rem .5rem;cursor:pointer"></select><div class="section-badge badge-info" id="ih-badge">—</div></div></div><div id="ih-body">${loading()}</div></div>
-  </div>
-  <div id="daily-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:1rem" onclick="if(event.target===this)this.style.display='none'">
-    <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow-lg);max-width:520px;width:100%;max-height:80vh;display:flex;flex-direction:column">
-      <div style="padding:.875rem 1.4rem;border-bottom:1px solid var(--border);background:var(--cream);display:flex;align-items:center;justify-content:space-between">
-        <div class="section-title" id="daily-modal-title">Detail</div>
-        <button onclick="document.getElementById('daily-modal').style.display='none'" style="background:none;border:none;color:var(--fog);font-size:1.1rem;cursor:pointer;padding:.2rem .5rem;border-radius:4px">✕</button>
-      </div>
-      <div id="daily-modal-body" style="overflow-y:auto;padding:0"></div>
-    </div>
   </div>`;
 }
 function wireDaily(){
@@ -1506,6 +1513,62 @@ function buildARTrendTable(prop){
 // ═══════════════════════════════════
 // ACCOUNTABILITY VIEW
 // ═══════════════════════════════════
+// ── Notes helpers ────────────────────────────────────────
+function txKey(prop,cat,date,room,guest){return[prop,cat,date,room||'',guest||''].join('|').toLowerCase();}
+function getNotesForTx(prop,cat,date,room,guest){
+  const k=txKey(prop,cat,date,room,guest);
+  return (S.txNotes||[]).filter(n=>txKey(n.property,n.tx_category,n.tx_date,n.room_number,n.guest_name)===k);
+}
+function notesBtnHtml(prop,cat,date,room,guest){
+  const count=getNotesForTx(prop,cat,date,room,guest).length;
+  return `<button class="notes-btn" data-prop="${prop}" data-cat="${cat}" data-date="${date}" data-room="${room||''}" data-guest="${(guest||'').replace(/"/g,'&quot;')}" title="Notes">${count?`<span class="notes-count">${count}</span>`:''}+ Note</button>`;
+}
+function openNotesModal(prop,cat,date,room,guest){
+  const notes=getNotesForTx(prop,cat,date,room,guest);
+  const title=`${cat.charAt(0).toUpperCase()+cat.slice(1)} Note — Rm ${room||'?'} · ${guest||'Guest'} · ${fmtDate(date)}`;
+  const notesHtml=notes.length
+    ?notes.map(n=>`<div style="padding:.65rem 1.4rem;border-bottom:1px solid var(--border)"><div style="font-family:var(--mono);font-size:.62rem;color:var(--fog);margin-bottom:.3rem">${new Date(n.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} · ${n.created_by}</div><div style="font-size:.88rem;color:var(--ink)">${n.note_text.replace(/</g,'&lt;')}</div></div>`).join('')
+    :`<div style="padding:1rem 1.4rem;font-family:var(--mono);font-size:.72rem;color:var(--fog)">No notes yet.</div>`;
+  const savedName=localStorage.getItem('cbsNotesName')||'';
+  document.getElementById('daily-modal-title').textContent=title;
+  document.getElementById('daily-modal-body').innerHTML=`
+    <div id="notes-list">${notesHtml}</div>
+    <div style="padding:1rem 1.4rem;border-top:2px solid var(--border)">
+      <textarea id="notes-input" placeholder="Add a note…" style="width:100%;box-sizing:border-box;min-height:80px;padding:.55rem .7rem;border:1px solid var(--border);border-radius:6px;font-size:.88rem;font-family:inherit;resize:vertical;background:var(--white);color:var(--ink)"></textarea>
+      <div style="display:flex;align-items:center;gap:.65rem;margin-top:.65rem">
+        <input id="notes-name" placeholder="Your name / initials" value="${savedName}" style="flex:1;padding:.45rem .7rem;border:1px solid var(--border);border-radius:6px;font-family:var(--mono);font-size:.72rem;background:var(--white);color:var(--ink)">
+        <button id="notes-add-btn" style="padding:.5rem 1.2rem;background:var(--ink);color:var(--gold);border:none;border-radius:7px;font-family:var(--mono);font-size:.63rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer">Add Note</button>
+      </div>
+      <div id="notes-status" style="font-family:var(--mono);font-size:.65rem;color:var(--fog);margin-top:.4rem;min-height:1rem"></div>
+    </div>`;
+  document.getElementById('daily-modal').style.display='flex';
+  document.getElementById('notes-add-btn').onclick=async()=>{
+    const text=document.getElementById('notes-input').value.trim();
+    const name=document.getElementById('notes-name').value.trim()||'operator';
+    if(!text){document.getElementById('notes-status').textContent='Note cannot be empty.';return;}
+    document.getElementById('notes-add-btn').disabled=true;
+    document.getElementById('notes-status').textContent='Saving…';
+    try {
+      await sbPost('transaction_notes',{property:prop,tx_category:cat,tx_date:date,room_number:room||null,guest_name:guest||null,note_text:text,created_by:name});
+      localStorage.setItem('cbsNotesName',name);
+      const newNote={property:prop,tx_category:cat,tx_date:date,room_number:room||null,guest_name:guest||null,note_text:text,created_by:name,created_at:new Date().toISOString()};
+      S.txNotes=[...(S.txNotes||[]),newNote];
+      document.getElementById('notes-status').textContent='Saved.';
+      document.getElementById('notes-input').value='';
+      const updated=getNotesForTx(prop,cat,date,room,guest);
+      document.getElementById('notes-list').innerHTML=updated.map(n=>`<div style="padding:.65rem 1.4rem;border-bottom:1px solid var(--border)"><div style="font-family:var(--mono);font-size:.62rem;color:var(--fog);margin-bottom:.3rem">${new Date(n.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} · ${n.created_by}</div><div style="font-size:.88rem;color:var(--ink)">${n.note_text.replace(/</g,'&lt;')}</div></div>`).join('');
+      // refresh any open table so the note count badge updates
+      if(typeof renderAcctDaily==='function') renderAcctDaily();
+    } catch(e){document.getElementById('notes-status').textContent='Error: '+e.message;}
+    document.getElementById('notes-add-btn').disabled=false;
+  };
+}
+function wireNotesBtns(){
+  document.querySelectorAll('.notes-btn').forEach(btn=>{
+    btn.onclick=()=>openNotesModal(btn.dataset.prop,btn.dataset.cat,btn.dataset.date,btn.dataset.room,btn.dataset.guest);
+  });
+}
+
 function buildAccountability(){
   const prop=vp(), curMonth=localISODate().slice(0,7);
 
@@ -1531,8 +1594,23 @@ function buildAccountability(){
   const allActions=[...new Set(userMTD.map(r=>r.action||'OTHER'))].sort();
   const userStaffRows=Object.entries(byUserStaff).sort((a,b)=>Object.values(b[1]).reduce((s,n)=>s+n,0)-Object.values(a[1]).reduce((s,n)=>s+n,0));
 
+  // date picker defaults to S.currentDate if set, else most recent adj/ovr date
+  const allDates=[...new Set([...propOvr.map(r=>r.stay_date),...propAdj.map(r=>r.date)].filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+  const acctDate=S.acctDate||(allDates[0]||localYesterday());
+  S.acctDate=acctDate;
+
   return `<div class="page-header"><div class="page-title">Accountability</div><div class="page-sub">${PROPS[prop]?.name} · MTD ${curMonth.slice(0,7)}</div></div>
   <div class="content">
+    <div class="date-nav" style="margin-bottom:1.25rem">
+      <button class="date-btn" id="acct-prev">◀</button>
+      <button class="date-btn" id="acct-next">▶</button>
+      <div class="date-display" id="acct-label">${fmtDate(acctDate)}</div>
+      <button class="date-today-btn" id="acct-today">Latest</button>
+      <div class="spacer"></div>
+      <div class="section-badge badge-info" id="acct-day-badge">—</div>
+    </div>
+    <div id="acct-ovr-section"></div>
+    <div id="acct-adj-section"></div>
     <div class="kpi-grid">
       <div class="kpi-card amber"><div class="kpi-label">Override Impact MTD</div><div class="kpi-value">${fmt$(ovrImpact||null)}</div><div class="kpi-meta">${ovrMTD.length} overrides · ${ovrStaffRows.length} staff</div></div>
       <div class="kpi-card ${adjMTD.filter(r=>r.section==='Adjustments'||r.section==='Manager Charge Adjustments').length>0?'amber':'green'}"><div class="kpi-label">Adjustments MTD</div><div class="kpi-value">${adjMTD.filter(r=>r.section==='Adjustments'||r.section==='Manager Charge Adjustments').length}</div><div class="kpi-meta">${fmt$(adjMTDamt)} net impact</div></div>
@@ -1599,6 +1677,65 @@ function buildAccountability(){
       </div>`;
     })()}
   </div>`;
+}
+
+function renderAcctDaily(){
+  const prop=vp(), d=S.acctDate||localYesterday();
+  const allDates=[...new Set([...S.overrides.filter(r=>r.property===prop).map(r=>r.stay_date),...S.adjActivity.filter(r=>r.property===prop).map(r=>r.date)].filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+  document.getElementById('acct-label').textContent=fmtDate(d);
+
+  const dayOvr=S.overrides.filter(r=>r.property===prop&&r.stay_date===d);
+  const dayAdj=S.adjActivity.filter(r=>r.property===prop&&r.date===d);
+  const dayRefunds=dayAdj.filter(r=>r.section==='Refunds'||r.section==='Manager Refund');
+  const dayAdjOnly=dayAdj.filter(r=>r.section==='Adjustments'||r.section==='Manager Charge Adjustments');
+
+  document.getElementById('acct-day-badge').textContent=`${dayOvr.length} override${dayOvr.length!==1?'s':''} · ${dayAdj.length} adj/refund${dayAdj.length!==1?'s':''}`;
+  document.getElementById('acct-day-badge').className=`section-badge ${dayRefunds.length?'badge-alert':dayAdj.length||dayOvr.length?'badge-warn':'badge-ok'}`;
+
+  // Rate Overrides section
+  const ovrEl=document.getElementById('acct-ovr-section');
+  if(ovrEl){
+    ovrEl.innerHTML=`<div class="section-card"><div class="section-head"><div class="section-title">Rate Overrides — ${fmtDate(d)}</div><div class="section-badge ${dayOvr.length?'badge-warn':'badge-ok'}">${dayOvr.length} override${dayOvr.length!==1?'s':''}</div></div>${
+      dayOvr.length
+        ?`<div class="tbl-wrap" style="max-height:280px;overflow-y:auto"><table class="data-table sticky-head"><thead><tr><th>Room</th><th>Guest</th><th>Company</th><th>Rate</th><th>Override Rate</th><th class="r">Impact</th><th>User</th><th></th></tr></thead><tbody>${
+          dayOvr.map(r=>`<tr><td class="mono" style="font-weight:600">${r.room_number||'—'}</td><td>${r.guest_name||'—'}</td><td>${r.company||'—'}</td><td class="r mono">${fmt$(r.actual_rate)}</td><td class="r mono">${fmt$(r.override_rate)}</td><td class="r mono" style="${(r.override_amount||0)<0?'color:var(--red);font-weight:600':''}">${fmt$(r.override_amount)}</td><td class="mono" style="font-size:.68rem">${r.username||'—'}</td><td>${notesBtnHtml(prop,'override',r.stay_date,r.room_number,r.guest_name)}</td></tr>`).join('')
+        }</tbody></table></div>`
+        :empty('No overrides for this date','')
+    }</div>`;
+  }
+
+  // Adjustments & Refunds section
+  const adjEl=document.getElementById('acct-adj-section');
+  if(adjEl){
+    adjEl.innerHTML=`<div class="section-card"><div class="section-head"><div class="section-title">Adjustments &amp; Refunds — ${fmtDate(d)}</div><div class="section-badge ${dayRefunds.length?'badge-alert':dayAdj.length?'badge-warn':'badge-ok'}">${dayAdj.length} record${dayAdj.length!==1?'s':''}${dayRefunds.length?' · '+dayRefunds.length+' refund'+(dayRefunds.length!==1?'s':''):''}</div></div>${
+      dayAdj.length
+        ?`<div class="tbl-wrap" style="max-height:320px;overflow-y:auto"><table class="data-table sticky-head"><thead><tr><th>Type</th><th>Tx Type</th><th>Guest</th><th>Room</th><th>Reason</th><th class="r">Amount</th><th>User</th><th></th></tr></thead><tbody>${
+          dayAdj.map(r=>{
+            const isTransfer=(r.transaction_type||'').toUpperCase().includes('TRANSFER');
+            const isRefund=r.section==='Refunds'||r.section==='Manager Refund';
+            const cat=isRefund?'refund':'adjustment';
+            return `<tr style="${isRefund&&!isTransfer?'background:rgba(185,28,28,.03)':''}"><td><span class="pill ${isRefund?'pill-red':r.section==='Manager Charge Adjustments'?'pill-amber':'pill-blue'}">${r.section==='Manager Charge Adjustments'?'Mgr Adj':r.section==='Manager Refund'?'Mgr Refund':r.section}</span></td><td class="mono" style="font-size:.7rem">${r.transaction_type?`<span class="pill ${isTransfer?'pill-blue':'pill-gray'}">${r.transaction_type}</span>`:'—'}</td><td style="font-weight:500">${r.guest_name||'—'}</td><td class="mono">${r.room_number||'—'}</td><td style="font-size:.78rem;color:var(--ink3)">${r.adjustment_reason||'—'}</td><td class="r mono" style="${isRefund&&!isTransfer?'color:var(--red);font-weight:600':''}">${fmt$(Math.abs(r.adjusted_amount))}</td><td class="mono" style="font-size:.68rem">${r.username||'—'}</td><td>${notesBtnHtml(prop,cat,r.date,r.room_number,r.guest_name)}</td></tr>`;
+          }).join('')
+        }</tbody></table></div>`
+        :empty('No adjustments or refunds for this date','')
+    }</div>`;
+  }
+
+  wireNotesBtns();
+}
+
+function wireAccountability(){
+  const prop=vp();
+  const allDates=[...new Set([...S.overrides.filter(r=>r.property===prop).map(r=>r.stay_date),...S.adjActivity.filter(r=>r.property===prop).map(r=>r.date)].filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+  function go(d){ S.acctDate=d; renderAcctDaily(); }
+  document.getElementById('acct-prev')?.addEventListener('click',()=>{
+    const idx=allDates.indexOf(S.acctDate); if(idx<allDates.length-1) go(allDates[idx+1]);
+  });
+  document.getElementById('acct-next')?.addEventListener('click',()=>{
+    const idx=allDates.indexOf(S.acctDate); if(idx>0) go(allDates[idx-1]);
+  });
+  document.getElementById('acct-today')?.addEventListener('click',()=>{ if(allDates[0]) go(allDates[0]); });
+  renderAcctDaily();
 }
 
 function buildOwnerAccountability(){
