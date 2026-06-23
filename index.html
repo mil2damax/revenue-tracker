@@ -179,6 +179,46 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .tab-content.active{display:block}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
 @media(max-width:960px){.two-col{grid-template-columns:1fr}}
+/* ── Scrollable tables ── */
+.tbl-wrap{overflow-x:auto}
+.tbl-scroll{overflow-x:auto;overflow-y:auto;max-height:300px}
+/* ── Mobile responsive ── */
+@media(max-width:640px){
+  .content{padding:.65rem}
+  .page-header{padding:1rem .85rem .75rem}
+  .page-title{font-size:1.25rem}
+  .page-sub{font-size:.58rem}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:.55rem;margin-bottom:1.25rem}
+  .kpi-value{font-size:1.45rem}
+  .kpi-label{font-size:.6rem}
+  .kpi-meta{font-size:.6rem}
+  .kpi-card{padding:.9rem 1rem}
+  .section-head{padding:.7rem 1rem;flex-wrap:wrap;gap:.5rem}
+  .section-title{font-size:.65rem}
+  .data-table th{font-size:.6rem;padding:.55rem .7rem}
+  .data-table td{font-size:.8rem;padding:.55rem .7rem}
+  .data-table td.r{font-size:.75rem}
+  .topbar-nav{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .topbar-nav::-webkit-scrollbar{display:none}
+  .nav-btn{white-space:nowrap;font-size:.58rem;padding:.45rem .8rem}
+  .date-nav{flex-wrap:wrap;gap:.45rem;padding:.65rem 1rem}
+  .date-display{font-size:.68rem;min-width:110px}
+  .alert-strip{padding:.5rem 1rem;gap:.4rem}
+  .alert-chip{font-size:.58rem;padding:.2rem .55rem}
+  .tab-btn{font-size:.58rem;padding:.6rem .8rem}
+  .drill-tab{font-size:.6rem;padding:.25rem .65rem}
+  .section-badge{font-size:.6rem}
+}
+/* ── Global font size boost (all views) ── */
+.kpi-value{font-size:2rem}
+.kpi-label{font-size:.65rem;letter-spacing:.1em}
+.kpi-meta{font-size:.63rem}
+.data-table td{font-size:.88rem}
+.data-table th{font-size:.62rem}
+@media(max-width:640px){
+  .kpi-value{font-size:1.5rem}
+  .kpi-label{font-size:.62rem}
+}
 .prop-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-bottom:1.75rem}
 .prop-summary-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;cursor:pointer;transition:all .2s}
 .prop-summary-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-1px)}
@@ -419,7 +459,7 @@ function buildAppShell(){
     <div class="admin-menu" id="admin-menu">${adminItems.map(([v,l])=>`<button class="admin-item" data-aview="${v}">${l}</button>`).join('')}</div>
   </div>`;
   if(isOwner) nav=`<button class="nav-btn active" data-view="owner-summary">Overview</button><button class="nav-btn" data-view="owner-ar">AR / Aging</button><button class="nav-btn" data-view="owner-performance">Performance</button><button class="nav-btn" data-view="owner-accountability">Accountability</button>${adminHtml}`;
-  else if(propActive) nav=`<button class="nav-btn active" data-view="daily">Daily</button><button class="nav-btn" data-view="housekeeping">HK</button><button class="nav-btn" data-view="performance">Performance</button><button class="nav-btn" data-view="ar">AR / Aging</button><button class="nav-btn" data-view="accountability">Accountability</button>${adminHtml}`;
+  else if(propActive) nav=`<button class="nav-btn active" data-view="daily">Daily</button><button class="nav-btn" data-view="accountability">Accountability</button><button class="nav-btn" data-view="housekeeping">HK</button><button class="nav-btn" data-view="ar">AR / Aging</button>${adminHtml}`;
   else nav=`<button class="nav-btn active" data-view="coming-soon">Overview</button>`;
   document.getElementById('topbar-nav').innerHTML=nav;
   // Main nav clicks
@@ -825,15 +865,20 @@ function buildDaily(){
   </div>
   <div class="content">
     <div class="kpi-grid" id="d-kpis">${loading()}</div>
-    <div class="section-card" id="misc-detail-card" style="display:none"><div class="section-head"><div class="section-title">Misc Revenue Detail</div><div class="section-badge badge-amber" id="misc-detail-badge">—</div></div><div id="misc-detail-body"></div></div>
     <div class="two-col">
       <div class="section-card"><div class="section-head"><div class="section-title">Month to Date</div><div class="section-badge badge-info" id="mtd-badge">—</div></div><div id="mtd-body">${loading()}</div></div>
       <div class="section-card"><div class="section-head"><div class="section-title">Year to Date</div><div class="section-badge badge-info" id="ytd-badge">—</div></div><div id="ytd-body">${loading()}</div></div>
     </div>
-    <div class="section-card"><div class="section-head"><div class="section-title">AR Snapshot</div><div class="section-badge badge-info" id="ar-snap-badge">—</div></div><div id="ar-snap-body">${loading()}</div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">In-House Guest Balances</div><div style="display:flex;align-items:center;gap:.6rem"><select id="ih-date-sel" style="font-family:var(--mono);font-size:.72rem;background:var(--ink2);color:var(--fog);border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:.2rem .5rem;cursor:pointer"></select><div class="section-badge badge-info" id="ih-badge">—</div></div></div><div id="ih-body">${loading()}</div></div>
-    <div class="section-card"><div class="section-head"><div class="section-title">Rate Overrides — This Day</div><div class="section-badge" id="ovr-badge">—</div></div><div id="ovr-body">${empty('No overrides','No rate overrides for this date')}</div></div>
-    <div class="section-card"><div class="section-head"><div class="section-title">Adjustments &amp; Refunds — This Day</div><div class="section-badge" id="adj-badge">—</div></div><div id="adj-body">${empty('No adjustment data','Upload Adjustments & Refunds report')}</div></div>
+  </div>
+  <div id="daily-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:1rem" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow-lg);max-width:520px;width:100%;max-height:80vh;display:flex;flex-direction:column">
+      <div style="padding:.875rem 1.4rem;border-bottom:1px solid var(--border);background:var(--cream);display:flex;align-items:center;justify-content:space-between">
+        <div class="section-title" id="daily-modal-title">Detail</div>
+        <button onclick="document.getElementById('daily-modal').style.display='none'" style="background:none;border:none;color:var(--fog);font-size:1.1rem;cursor:pointer;padding:.2rem .5rem;border-radius:4px">✕</button>
+      </div>
+      <div id="daily-modal-body" style="overflow-y:auto;padding:0"></div>
+    </div>
   </div>`;
 }
 function wireDaily(){
@@ -871,10 +916,8 @@ function renderDailyContent(){
       ${(row.rooms_ooo!=null||row.no_shows!=null)?`
       <div style="grid-column:1/-1;font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fog);padding:.25rem 0 0;border-top:1px solid var(--border)">Room Inventory &amp; Activity</div>
       ${row.rooms_total!=null?`<div class="kpi-card blue"><div class="kpi-label">Total Rooms</div><div class="kpi-value">${fmtN(row.rooms_total)}</div><div class="kpi-meta">Sold: ${fmtN(row.rooms_sold)} · Avail: ${fmtN(row.rooms_available)}</div></div>`:''}
-      ${row.rooms_ooo!=null?`<div class="kpi-card red"><div class="kpi-label">Out of Order</div><div class="kpi-value">${fmtN(row.rooms_ooo)}</div><div class="kpi-meta">${row.rooms_comp!=null?`Comp: ${fmtN(row.rooms_comp)}`:''}${row.rooms_house!=null?` · House: ${fmtN(row.rooms_house)}`:''}
-</div></div>`:''}
-      ${row.no_shows!=null?`<div class="kpi-card amber"><div class="kpi-label">No Shows</div><div class="kpi-value">${fmtN(row.no_shows)}</div><div class="kpi-meta">${row.walk_ins!=null?`Walk-ins: ${fmtN(row.walk_ins)}`:''}${row.cancellations!=null?` · Cancels: ${fmtN(row.cancellations)}`:''}
-</div></div>`:''}
+      ${row.rooms_ooo!=null?`<div class="kpi-card red" data-daily-modal="ooo" title="Click for room detail"><div class="kpi-label">Out of Order <span style="font-size:.52rem;opacity:.6">▼</span></div><div class="kpi-value">${fmtN(row.rooms_ooo)}</div><div class="kpi-meta">${row.rooms_comp!=null?`Comp: ${fmtN(row.rooms_comp)}`:''}${row.rooms_house!=null?` · House: ${fmtN(row.rooms_house)}`:''}</div></div>`:''}
+      ${row.no_shows!=null?`<div class="kpi-card amber" data-daily-modal="noshows" title="Click for guest detail"><div class="kpi-label">No Shows <span style="font-size:.52rem;opacity:.6">▼</span></div><div class="kpi-value">${fmtN(row.no_shows)}</div><div class="kpi-meta">${row.walk_ins!=null?`Walk-ins: ${fmtN(row.walk_ins)}`:''}${row.cancellations!=null?` · Cancels: ${fmtN(row.cancellations)}`:''}</div></div>`:''}
       ${row.tomorrow_arrivals!=null?`<div class="kpi-card green"><div class="kpi-label">Tomorrow Arrivals</div><div class="kpi-value">${fmtN(row.tomorrow_arrivals)}</div><div class="kpi-meta">${row.tomorrow_departures!=null?`Departures: ${fmtN(row.tomorrow_departures)}`:''}
 </div></div>`:''}
       `:''}
@@ -909,20 +952,9 @@ function renderDailyContent(){
     document.getElementById('ytd-badge').textContent=`${ytdMonthly.length} mo · Jan–${fmtMonth(`${yr}-${mo}-01`).split(' ')[0]}`;
     document.getElementById('ytd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(ytdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(ytdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdTot)}</td></tr><tr><td>Avg Occupancy</td><td class="r">${fmtPct(ytdOcc)}</td></tr><tr><td>Avg ADR</td><td class="r">${fmt$(ytdADR)}</td></tr>${lyYtdRev>0?`<tr><td>LY Room / Total Revenue</td><td class="r" style="color:var(--fog)">${fmt$(lyYtdRev)} / ${fmt$(lyYtdTot)} ${deltaChip(ytdRev,lyYtdRev)}</td></tr>`:''}</table>`;
   } else { document.getElementById('ytd-body').innerHTML=empty('No YTD data',''); document.getElementById('ytd-badge').textContent='0 mo'; }
-  // AR snap: use ar_aging (all buckets correct, 7 days)
-  const propARrows=S.ar.filter(r=>r.property===prop); // all categories
-  const latArDate=[...new Set(propARrows.map(r=>r.date))].sort().reverse()[0]||null;
-  const arSnapCos=latArDate?arAgingSummary(prop,latArDate):[];  // all categories
-  const arTot=arNetTotal(arSnapCos), ar90=arSnapCos.filter(c=>c.category==='Accounts Receivables').reduce((s,c)=>s+c.b90+c.b120+c.b150,0);
-  if(arSnapCos.length){
-    document.getElementById('ar-snap-badge').textContent=fmt$(arTot);
-    document.getElementById('ar-snap-badge').className=`section-badge ${ar90>50000?'badge-alert':ar90>20000?'badge-warn':'badge-ok'}`;
-    document.getElementById('ar-snap-body').innerHTML=arAgingHtml(arSnapCos)+`<div style="padding:.4rem 1.4rem .8rem;font-family:var(--mono);font-size:.58rem;color:var(--fog)">${fmtDate(latArDate)} · 90+ days: <span style="color:var(--red)">${fmt$(ar90)}</span></div>`;
-  } else {
-    document.getElementById('ar-snap-body').innerHTML=empty('No AR data','Upload Direct Bill Aging report');
-    document.getElementById('ar-snap-badge').textContent='—';
-  }
   // In-House Guest Balances — date selector lets user browse any uploaded snapshot
+  const STANDARD_BILLING=['IHG REWARD','CLC','KFLEX','K-FLEX','FLEX'];
+  function isStandardBilling(co){if(!co)return true;const u=co.toUpperCase();return STANDARD_BILLING.some(s=>u.includes(s));}
   const propIH=S.inhouse.filter(r=>r.property===prop);
   const ihDates=[...new Set(propIH.map(r=>r.date))].sort((a,b)=>b.localeCompare(a));
   const ihSel=document.getElementById('ih-date-sel');
@@ -937,58 +969,47 @@ function renderDailyContent(){
   function renderIHTable(p){
     const selDate=document.getElementById('ih-date-sel')?.value||ihDates[0]||'';
     const rows=propIH.filter(r=>r.date===selDate);
-    document.getElementById('ih-badge').textContent=rows.length?`${rows.length} guests · ${fmtDate(selDate)}`:'—';
+    const flagCount=rows.filter(r=>!isStandardBilling(r.company)).length;
+    document.getElementById('ih-badge').textContent=rows.length?`${rows.length} guests · ${fmtDate(selDate)}${flagCount?' · '+flagCount+' flagged':''}`:'—';
+    document.getElementById('ih-badge').className=`section-badge ${flagCount?'badge-alert':'badge-ok'}`;
     document.getElementById('ih-body').innerHTML=rows.length
-      ?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Room</th><th>Guest</th><th>Company</th><th>Arrival</th><th>Departure</th><th class="r">Rate</th><th class="r">Balance</th><th>Payment</th></tr></thead><tbody>${rows.sort((a,b)=>(a.room_number||'').localeCompare(b.room_number||'')).map(r=>`<tr><td class="mono" style="font-weight:600">${r.room_number||'—'}</td><td>${r.guest_name||'—'}</td><td>${r.company?`<span class="pill pill-blue">${r.company}</span>`:'—'}</td><td class="mono" style="font-size:.72rem">${r.arrival_date?fmtDate(r.arrival_date):'—'}</td><td class="mono" style="font-size:.72rem">${r.departure_date?fmtDate(r.departure_date):'—'}</td><td class="r">${(!r.room_rate||r.room_rate===0)?'<span class="pill pill-amber">COMP</span>':fmt$(r.room_rate)}</td><td class="r" style="font-weight:500">${fmt$(r.folio_balance)}</td><td class="mono" style="font-size:.7rem">${r.payment_method||'—'}</td></tr>`).join('')}</tbody><tfoot><tr class="tot"><td colspan="6">Total Balance</td><td class="r">${fmt$(rows.reduce((s,r)=>s+(r.folio_balance||0),0))}</td><td></td></tr></tfoot></table></div>`
+      ?`<div class="tbl-wrap" style="max-height:320px;overflow-y:auto"><table class="data-table sticky-head"><thead><tr><th>Room</th><th>Guest</th><th>Company</th><th>Arrival</th><th>Departure</th><th class="r">Rate</th><th class="r">Balance</th><th>Payment</th></tr></thead><tbody>${rows.sort((a,b)=>(a.room_number||'').localeCompare(b.room_number||'')).map(r=>{const flagRow=!isStandardBilling(r.company);return`<tr style="${flagRow?'background:var(--red-lt)':''}""><td class="mono" style="font-weight:600">${r.room_number||'—'}</td><td style="${flagRow?'color:var(--red);font-weight:600':''}">${r.guest_name||'—'}</td><td>${r.company?`<span class="pill ${flagRow?'pill-red':'pill-blue'}">${r.company}</span>`:'—'}</td><td class="mono" style="font-size:.72rem">${r.arrival_date?fmtDate(r.arrival_date):'—'}</td><td class="mono" style="font-size:.72rem">${r.departure_date?fmtDate(r.departure_date):'—'}</td><td class="r">${(!r.room_rate||r.room_rate===0)?'<span class="pill pill-amber">COMP</span>':fmt$(r.room_rate)}</td><td class="r" style="font-weight:500">${fmt$(r.folio_balance)}</td><td class="mono" style="font-size:.7rem">${r.payment_method||'—'}</td></tr>`;}).join('')}</tbody><tfoot><tr class="tot"><td colspan="6">Total Balance</td><td class="r">${fmt$(rows.reduce((s,r)=>s+(r.folio_balance||0),0))}</td><td></td></tr></tfoot></table></div>`
       :empty('No in-house data','Upload In-House Guest Balances report');
   }
   renderIHTable(prop);
-  // Rate overrides for this day
-  if(dayOvr.length){
-    const ovrNeg=dayOvr.filter(r=>(r.override_amount||0)<0).length;
-    document.getElementById('ovr-badge').textContent=`${dayOvr.length} override${dayOvr.length>1?'s':''} · net ${fmt$(ovrNet)}`;
-    document.getElementById('ovr-badge').className=`section-badge ${ovrNeg?'badge-alert':'badge-warn'}`;
-    document.getElementById('ovr-body').innerHTML=`<div class="tbl-wrap">${overrideTableHtml(dayOvr)}</div>`;
-  } else {
-    document.getElementById('ovr-badge').textContent='None';
-    document.getElementById('ovr-badge').className='section-badge badge-ok';
-    document.getElementById('ovr-body').innerHTML=empty('No rate overrides','No overrides for this date');
-  }
-  if(dayAdj.length){
-    document.getElementById('adj-badge').textContent=`${dayAdj.length} events${refunds.length?' · '+refunds.length+' refund'+(refunds.length>1?'s':''):''}`;
-    document.getElementById('adj-badge').className=`section-badge ${refunds.length?'badge-alert':'badge-warn'}`;
-    document.getElementById('adj-body').innerHTML=`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Section</th><th>Tx Type</th><th>Guest</th><th>Room</th><th>Reason</th><th class="r">Amount</th><th>User</th></tr></thead><tbody>${dayAdj.map(r=>{const isTransfer=(r.transaction_type||'').toUpperCase().includes('TRANSFER');return`<tr><td><span class="pill ${r.section==='Refunds'||r.section==='Manager Refund'?'pill-red':r.section==='Manager Charge Adjustments'?'pill-amber':'pill-blue'}">${r.section==='Manager Charge Adjustments'?'Mgr Adj':r.section==='Manager Refund'?'Mgr Refund':r.section}</span></td><td class="mono" style="font-size:.7rem">${r.transaction_type?`<span class="pill ${isTransfer?'pill-blue':'pill-gray'}">${r.transaction_type}</span>`:'—'}</td><td style="font-weight:500">${r.guest_name||'—'}</td><td class="mono">${r.room_number||'—'}</td><td style="font-size:.78rem;color:var(--ink3)">${r.adjustment_reason||'—'}</td><td class="r mono" style="${(!isTransfer&&(r.section==='Refunds'||r.section==='Manager Refund'))?'color:var(--red);font-weight:600':''}">${fmt$(Math.abs(r.adjusted_amount))}</td><td class="mono" style="font-size:.68rem">${r.username||'—'}</td></tr>`}).join('')}</tbody></table></div>`;
-  } else { document.getElementById('adj-badge').textContent='None'; document.getElementById('adj-badge').className='section-badge badge-ok'; document.getElementById('adj-body').innerHTML=empty('No adjustments or refunds',''); }
-  // Misc Revenue drill-in — wire click on Misc KPI
+  // Misc Revenue modal — wire click on Misc KPI
   const miscKpi=document.getElementById('misc-kpi');
-  const miscCard=document.getElementById('misc-detail-card');
-  if(miscKpi&&miscCard){
-    const dayMisc=S.lineItems.filter(r=>r.property===prop&&r.date===d&&r.section==='Misc Revenue'&&(r.actual_today||0)+(r.mtd||0)!==0);
+  if(miscKpi){
     const allMisc=S.lineItems.filter(r=>r.property===prop&&r.date===d&&r.section==='Misc Revenue');
     if(allMisc.length){
-      const nonZeroToday=dayMisc.filter(r=>(r.actual_today||0)!==0);
-      const mtdOnly=dayMisc.filter(r=>(r.actual_today||0)===0&&(r.mtd||0)!==0);
-      document.getElementById('misc-detail-badge').textContent=`${nonZeroToday.length} items today · ${fmt$(allMisc.reduce((s,r)=>s+(r.mtd||0),0))} MTD`;
-      document.getElementById('misc-detail-body').innerHTML=`<div class="tbl-wrap"><table class="data-table">
-        <thead><tr><th>Category</th><th class="r">Today</th><th class="r">MTD</th><th class="r">YTD</th></tr></thead>
-        <tbody>${allMisc.filter(r=>(r.actual_today||0)!==0||(r.mtd||0)!==0||(r.ytd||0)!==0).sort((a,b)=>(b.actual_today||0)-(a.actual_today||0)).map(r=>`<tr>
-          <td style="font-size:.8rem">${r.label||'—'}</td>
-          <td class="r mono" style="${(r.actual_today||0)>0?'font-weight:600':'color:var(--fog)'}">${(r.actual_today||0)!==0?fmt$(r.actual_today):'—'}</td>
-          <td class="r mono">${(r.mtd||0)!==0?fmt$(r.mtd):'—'}</td>
-          <td class="r mono" style="color:var(--fog)">${(r.ytd||0)!==0?fmt$(r.ytd):'—'}</td>
-        </tr>`).join('')}</tbody>
-        <tfoot><tr class="tot"><td>Total</td><td class="r">${fmt$(allMisc.reduce((s,r)=>s+(r.actual_today||0),0))}</td><td class="r">${fmt$(allMisc.reduce((s,r)=>s+(r.mtd||0),0))}</td><td class="r" style="color:var(--fog)">${fmt$(allMisc.reduce((s,r)=>s+(r.ytd||0),0))}</td></tr></tfoot>
-      </table></div>`;
-      let miscOpen=false;
-      miscKpi.addEventListener('click',()=>{
-        miscOpen=!miscOpen;
-        miscCard.style.display=miscOpen?'':'none';
-        miscKpi.querySelector('.kpi-label span').textContent=miscOpen?'▲ detail':'▼ detail';
-      });
-    } else {
-      miscKpi.style.cursor='default';
-    }
+      miscKpi.onclick=()=>{
+        document.getElementById('daily-modal-title').textContent=`Misc Revenue — ${fmtDate(d)}`;
+        document.getElementById('daily-modal-body').innerHTML=`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Category</th><th class="r">Today</th><th class="r">MTD</th><th class="r">YTD</th></tr></thead><tbody>${allMisc.filter(r=>(r.actual_today||0)!==0||(r.mtd||0)!==0||(r.ytd||0)!==0).sort((a,b)=>(b.actual_today||0)-(a.actual_today||0)).map(r=>`<tr><td style="font-size:.82rem">${r.label||'—'}</td><td class="r mono" style="${(r.actual_today||0)>0?'font-weight:600':'color:var(--fog)'}">${(r.actual_today||0)!==0?fmt$(r.actual_today):'—'}</td><td class="r mono">${(r.mtd||0)!==0?fmt$(r.mtd):'—'}</td><td class="r mono" style="color:var(--fog)">${(r.ytd||0)!==0?fmt$(r.ytd):'—'}</td></tr>`).join('')}</tbody><tfoot><tr class="tot"><td>Total</td><td class="r">${fmt$(allMisc.reduce((s,r)=>s+(r.actual_today||0),0))}</td><td class="r">${fmt$(allMisc.reduce((s,r)=>s+(r.mtd||0),0))}</td><td class="r" style="color:var(--fog)">${fmt$(allMisc.reduce((s,r)=>s+(r.ytd||0),0))}</td></tr></tfoot></table></div>`;
+        document.getElementById('daily-modal').style.display='flex';
+      };
+    } else { miscKpi.style.cursor='default'; }
   }
+  // OOO / No Shows modals
+  function showDailyModal(title,html){document.getElementById('daily-modal-title').textContent=title;document.getElementById('daily-modal-body').innerHTML=html;document.getElementById('daily-modal').style.display='flex';}
+  document.querySelectorAll('[data-daily-modal]').forEach(btn=>{
+    const type=btn.dataset.dailyModal;
+    btn.style.cursor='pointer';
+    btn.onclick=()=>{
+      if(type==='ooo'){
+        const oooRows=S.userActivity.filter(r=>r.property===prop&&r.date===d&&(r.action||'').toUpperCase().replace(/[_\s]/g,'').includes('OOO'));
+        const html=oooRows.length
+          ?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Room</th><th>Guest</th><th>Action</th><th>User</th></tr></thead><tbody>${oooRows.map(r=>`<tr><td class="mono" style="font-weight:600">${r.room_number||'—'}</td><td>${r.guest_name||'—'}</td><td class="mono" style="font-size:.7rem">${r.action||'—'}</td><td class="mono" style="font-size:.68rem">${r.username||'—'}</td></tr>`).join('')}</tbody></table></div>`
+          :`<div style="padding:1.4rem;font-family:var(--mono);font-size:.72rem;color:var(--fog)">No OOO room detail available from activity log for this date. Check HK report for room numbers.</div>`;
+        showDailyModal(`Out of Order — ${fmtDate(d)}`,html);
+      } else if(type==='noshows'){
+        const nsRows=S.userActivity.filter(r=>r.property===prop&&r.date===d&&(r.action||'').toUpperCase().replace(/[_\s]/g,'').includes('NOSHOW'));
+        const html=nsRows.length
+          ?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Room</th><th>Guest</th><th>Action</th><th>User</th></tr></thead><tbody>${nsRows.map(r=>`<tr><td class="mono" style="font-weight:600">${r.room_number||'—'}</td><td>${r.guest_name||'—'}</td><td class="mono" style="font-size:.7rem">${r.action||'—'}</td><td class="mono" style="font-size:.68rem">${r.username||'—'}</td></tr>`).join('')}</tbody></table></div>`
+          :`<div style="padding:1.4rem;font-family:var(--mono);font-size:.72rem;color:var(--fog)">No guest-level detail found in activity log for this date.</div>`;
+        showDailyModal(`No Shows — ${fmtDate(d)}`,html);
+      }
+    };
+  });
 }
 
 // ═══════════════════════════════════
