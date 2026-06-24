@@ -577,7 +577,7 @@ async function loadAllData(){
   try {
     const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary,txNotes] = await Promise.all([
       sbGet('clerk_activity','?order=date.desc&limit=2000'+pf),
-      sbGet('user_activity','?order=date.desc&limit=2000'+pf),
+      sbGet('user_activity','?order=date.desc&limit=3000'+pf),
       sbGet('adjustments_activity','?order=date.desc&limit=1000'+pf),
       sbGet('revenue_line_items','?order=date.desc&limit=2000'+pf),
       sbGet('tax_summary','?order=date.desc&limit=600'+pf),
@@ -1584,9 +1584,11 @@ function buildAccountability(){
   const refundsMTD=adjMTD.filter(r=>r.section==='Refunds'||r.section==='Manager Refund');
   const adjMTDamt=adjMTD.filter(r=>r.section==='Adjustments'||r.section==='Manager Charge Adjustments').reduce((s,r)=>s+(r.adjusted_amount||0),0);
 
-  // ── User Activity — Reservation Actions ─
+  // ── User Activity — Reservation Actions (exclude automated ROOM_NUMBER_CHANGE) ─
+  const EXCLUDED_ACTIONS=['ROOM_NUMBER_CHANGE'];
   const propUser=S.userActivity.filter(r=>r.property===prop);
-  const userMTD=propUser.filter(r=>r.date?.startsWith(curMonth));
+  const userMTDAll=propUser.filter(r=>r.date?.startsWith(curMonth));
+  const userMTD=userMTDAll.filter(r=>!EXCLUDED_ACTIONS.includes(r.action));
   const byUserStaff={};
   userMTD.forEach(r=>{ const u=r.username||'Unknown'; if(!byUserStaff[u]) byUserStaff[u]={}; const a=r.action||'OTHER'; byUserStaff[u][a]=(byUserStaff[u][a]||0)+1; });
   const allActions=[...new Set(userMTD.map(r=>r.action||'OTHER'))].sort();
@@ -1599,13 +1601,6 @@ function buildAccountability(){
 
   return `<div class="page-header"><div class="page-title">Accountability</div><div class="page-sub">${PROPS[prop]?.name} · MTD ${curMonth.slice(0,7)}</div></div>
   <div class="content">
-    <div class="kpi-grid">
-      <div class="kpi-card amber"><div class="kpi-label">Override Impact MTD</div><div class="kpi-value">${fmt$(ovrImpact||null)}</div><div class="kpi-meta">${ovrMTD.length} overrides · ${ovrStaffRows.length} staff</div></div>
-      <div class="kpi-card ${adjMTD.filter(r=>r.section==='Adjustments'||r.section==='Manager Charge Adjustments').length>0?'amber':'green'}"><div class="kpi-label">Adjustments MTD</div><div class="kpi-value">${adjMTD.filter(r=>r.section==='Adjustments'||r.section==='Manager Charge Adjustments').length}</div><div class="kpi-meta">${fmt$(adjMTDamt)} net impact</div></div>
-      <div class="kpi-card ${refundsMTD.length>0?'red':'green'}"><div class="kpi-label">Refunds MTD</div><div class="kpi-value">${refundsMTD.length}</div><div class="kpi-meta">${fmt$(refundsMTD.reduce((s,r)=>s+Math.abs(r.adjusted_amount||0),0))} total refunded</div></div>
-      <div class="kpi-card gold"><div class="kpi-label">Reservation Actions MTD</div><div class="kpi-value">${userMTD.length}</div><div class="kpi-meta">${userStaffRows.length} staff · ${allActions.length} action types</div></div>
-    </div>
-
     <div class="date-nav" style="margin-bottom:1.25rem">
       <button class="date-btn" id="acct-prev">◀</button>
       <button class="date-btn" id="acct-next">▶</button>
@@ -1617,6 +1612,13 @@ function buildAccountability(){
     <div id="acct-ovr-section"></div>
     <div id="acct-adj-section"></div>
     <div id="acct-exempt-section"></div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card amber"><div class="kpi-label">Override Impact MTD</div><div class="kpi-value">${fmt$(ovrImpact||null)}</div><div class="kpi-meta">${ovrMTD.length} overrides · ${ovrStaffRows.length} staff</div></div>
+      <div class="kpi-card ${adjMTD.filter(r=>r.section==='Adjustments'||r.section==='Manager Charge Adjustments').length>0?'amber':'green'}"><div class="kpi-label">Adjustments MTD</div><div class="kpi-value">${adjMTD.filter(r=>r.section==='Adjustments'||r.section==='Manager Charge Adjustments').length}</div><div class="kpi-meta">${fmt$(adjMTDamt)} net impact</div></div>
+      <div class="kpi-card ${refundsMTD.length>0?'red':'green'}"><div class="kpi-label">Refunds MTD</div><div class="kpi-value">${refundsMTD.length}</div><div class="kpi-meta">${fmt$(refundsMTD.reduce((s,r)=>s+Math.abs(r.adjusted_amount||0),0))} total refunded</div></div>
+      <div class="kpi-card gold"><div class="kpi-label">Staff Actions MTD</div><div class="kpi-value">${userMTD.length}</div><div class="kpi-meta">${userStaffRows.length} staff · ${allActions.length} action types</div></div>
+    </div>
 
     <div class="section-card"><div class="section-head"><div class="section-title">Override Impact by Staff</div><div class="section-badge badge-warn">${propOvr.length} total overrides</div></div>
       ${ovrStaffRows.length?`<div class="tbl-wrap" style="max-height:320px;overflow-y:auto"><table class="data-table sticky-head"><thead><tr><th>Staff Member</th><th class="r">Count</th><th class="r">Net Impact</th><th class="r">Avg / Override</th></tr></thead><tbody>${ovrStaffRows.map(([name,d])=>`<tr><td style="font-weight:500">${name}</td><td class="r mono">${d.count}</td><td class="r"><span class="${d.net<0?'pill pill-red':'pill pill-green'}">${fmt$(d.net)}</span></td><td class="r mono">${fmt$(d.net/d.count)}</td></tr>`).join('')}</tbody><tfoot><tr class="tot"><td>Total</td><td class="r mono">${propOvr.length}</td><td class="r">${fmt$(propOvr.reduce((s,r)=>s+(r.override_amount||0),0))}</td><td></td></tr></tfoot></table></div>`:empty('No override data','Upload Rate Override reports')}
