@@ -471,7 +471,7 @@ function buildAppShell(){
     <div class="admin-menu" id="admin-menu">${adminItems.map(([v,l])=>`<button class="admin-item" data-aview="${v}">${l}</button>`).join('')}</div>
   </div>`;
   if(isOwner) nav=`<button class="nav-btn active" data-view="owner-coming-soon">Overview</button>${adminHtml}`;
-  else if(propActive) nav=`<button class="nav-btn active" data-view="daily">Daily</button><button class="nav-btn" data-view="accountability">Accountability</button><button class="nav-btn" data-view="housekeeping">HK</button><button class="nav-btn" data-view="ar">AR / Aging</button>${adminHtml}`;
+  else if(propActive) nav=`<button class="nav-btn active" data-view="daily">Daily</button><button class="nav-btn" data-view="accountability">Accountability</button><button class="nav-btn" data-view="reputation">Reputation</button><button class="nav-btn" data-view="housekeeping">HK</button><button class="nav-btn" data-view="ar">AR / Aging</button>${adminHtml}`;
   else nav=`<button class="nav-btn active" data-view="coming-soon">Overview</button>`;
   document.getElementById('topbar-nav').innerHTML=nav;
   // Main nav clicks
@@ -547,6 +547,7 @@ function renderView(view){
   else if(view==='performance') { body.innerHTML=buildPerformance(); setTimeout(renderPerfCharts,100); }
   else if(view==='ar')          { body.innerHTML=buildAR(); }
   else if(view==='accountability') { body.innerHTML=buildAccountability(); wireAccountability(); }
+  else if(view==='reputation')     { body.innerHTML=buildReputation(); }
   else if(view==='history')     { body.innerHTML=buildHistory(); wireHistory(); }
   else if(view==='upload')      { body.innerHTML=buildUploadView('PROP'); wireUploadView('u'); }
   else if(view==='sync-status') { body.innerHTML=buildSyncStatus(); wireSyncStatus(); }
@@ -575,15 +576,19 @@ async function loadAllData(){
   } catch(e){ console.warn('Core load error:',e); }
   // Activity tables — load independently so a failure here never breaks core views
   try {
-    const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary,txNotes] = await Promise.all([
+    const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary,txNotes,repSnapshots,repReviews,medalliaSurveys] = await Promise.all([
       sbGet('clerk_activity','?order=date.desc&limit=2000'+pf),
       sbGet('user_activity','?order=date.desc&limit=3000'+pf),
       sbGet('adjustments_activity','?order=date.desc&limit=1000'+pf),
       sbGet('revenue_line_items','?order=date.desc&limit=2000'+pf),
       sbGet('tax_summary','?order=date.desc&limit=600'+pf),
       sbGet('transaction_notes','?order=created_at.asc&limit=2000').catch(()=>[]),
+      sbGet('reputation_snapshots','?order=updated_at.desc').catch(()=>[]),
+      sbGet('reputation_reviews','?order=review_date.desc&limit=100').catch(()=>[]),
+      sbGet('medallia_surveys','?order=survey_date.desc&limit=200').catch(()=>[]),
     ]);
     S.clerkActivity=clerkActivity; S.userActivity=userActivity; S.adjActivity=adjActivity; S.lineItems=lineItems; S.taxSummary=taxSummary; S.txNotes=txNotes||[];
+    S.repSnapshots=repSnapshots||[]; S.repReviews=repReviews||[]; S.medalliaSurveys=medalliaSurveys||[];
   } catch(e){ console.warn('Activity load error:',e); }
 }
 function dailyRow(date,prop){ return S.daily[(prop||S.mode)+'_'+date]||null; }
@@ -1737,6 +1742,125 @@ function wireAccountability(){
   });
   document.getElementById('acct-today')?.addEventListener('click',()=>{ if(allDates[0]) go(allDates[0]); });
   renderAcctDaily();
+}
+
+// ═══════════════════════════════════
+// REPUTATION TAB
+// ═══════════════════════════════════
+function buildReputation(){
+  const prop=vp();
+  const snapshots=(S.repSnapshots||[]).filter(r=>r.property===prop);
+  const gSnap=snapshots.find(r=>r.platform==='google')||null;
+  const taSnap=snapshots.find(r=>r.platform==='tripadvisor')||null;
+  const gReviews=(S.repReviews||[]).filter(r=>r.property===prop&&r.platform==='google').slice(0,10);
+  const taReviews=(S.repReviews||[]).filter(r=>r.property===prop&&r.platform==='tripadvisor').slice(0,10);
+  const surveys=(S.medalliaSurveys||[]).filter(r=>r.property===prop);
+  const recent10=surveys.slice(0,10);
+  const avgScore=surveys.length?Math.round(surveys.reduce((s,r)=>s+(r.overall_score||0),0)/surveys.length*10)/10:null;
+  const pct10=surveys.length?Math.round(surveys.filter(r=>r.overall_score>=9).length/surveys.length*100):null;
+
+  function starHtml(rating,max=5){
+    if(!rating) return '<span style="color:var(--fog)">—</span>';
+    const pct=Math.round((rating/max)*100);
+    return `<span style="font-size:1.1rem;letter-spacing:.05rem" title="${rating}/${max}">
+      <span style="background:linear-gradient(90deg,var(--gold) ${pct}%,var(--border) ${pct}%);-webkit-background-clip:text;-webkit-text-fill-color:transparent">★★★★★</span>
+    </span>`;
+  }
+  function reviewCard(r){
+    const stars='★'.repeat(Math.round(r.rating||0))+'☆'.repeat(5-Math.round(r.rating||0));
+    return `<div style="padding:1.1rem 1.75rem;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem">
+        <div style="font-weight:600;font-size:.95rem">${r.reviewer_name||'Anonymous'}</div>
+        <div style="display:flex;align-items:center;gap:.75rem">
+          <span style="color:var(--gold);font-size:1rem;letter-spacing:.05rem">${stars}</span>
+          <span class="mono" style="font-size:.72rem;color:var(--fog)">${r.review_date?fmtDate(r.review_date):''}</span>
+        </div>
+      </div>
+      <div style="font-size:.88rem;color:var(--ink3);line-height:1.6">${(r.review_text||'').replace(/</g,'&lt;')}</div>
+    </div>`;
+  }
+  function platformSection(label,snap,reviews,color,setupNote){
+    const ratingDisplay=snap?.rating?`<span style="font-family:var(--serif);font-size:2.6rem;color:var(--ink);line-height:1">${snap.rating}</span><span style="font-size:1rem;color:var(--fog)">/5</span>`:null;
+    return `<div class="section-card">
+      <div class="section-head">
+        <div class="section-title">${label}</div>
+        <div class="section-badge ${snap?.rating?'badge-ok':'badge-info'}">${snap?.rating?snap.rating+' / 5 · '+(snap.review_count||'?')+' reviews':'No data yet'}</div>
+      </div>
+      ${snap?.rating?`
+        <div style="padding:1.25rem 1.75rem;display:flex;align-items:center;gap:1.5rem;border-bottom:1px solid var(--border)">
+          <div>${ratingDisplay}</div>
+          <div>${starHtml(snap.rating)}</div>
+          <div style="font-family:var(--mono);font-size:.7rem;color:var(--fog)">${snap.review_count||0} reviews<br>Updated ${snap.updated_at?new Date(snap.updated_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):''}</div>
+        </div>
+        <div style="max-height:480px;overflow-y:auto">${reviews.length?reviews.map(reviewCard).join(''):empty('No reviews stored yet','')}</div>
+      `:`<div style="padding:1.75rem">
+        <div style="font-family:var(--mono);font-size:.75rem;color:var(--fog);line-height:1.9">${setupNote}</div>
+      </div>`}
+    </div>`;
+  }
+
+  const googleSetup=`To populate Google reviews automatically, you need a Google Places API key.<br>
+    For now, ratings and reviews can be entered manually via Supabase.<br>
+    Table: <b>reputation_snapshots</b> (overall rating) · <b>reputation_reviews</b> (individual reviews).`;
+  const taSetup=`TripAdvisor does not provide a public reviews API.<br>
+    Ratings and reviews can be entered manually via Supabase.<br>
+    Table: <b>reputation_snapshots</b> (overall rating) · <b>reputation_reviews</b> (individual reviews).`;
+
+  return `<div class="page-header"><div class="page-title">Reputation</div><div class="page-sub">${(S.props||PROPS)[prop]?.name||prop} · Guest Reviews &amp; Surveys</div></div>
+  <div class="content">
+    <div class="kpi-grid">
+      <div class="kpi-card ${gSnap?.rating>=4.5?'green':gSnap?.rating>=4?'gold':'amber'}">
+        <div class="kpi-label">Google Rating</div>
+        <div class="kpi-value">${gSnap?.rating??'—'}</div>
+        <div class="kpi-meta">${gSnap?.review_count?gSnap.review_count+' reviews':'No data'}</div>
+      </div>
+      <div class="kpi-card ${taSnap?.rating>=4?'green':taSnap?.rating>=3.5?'gold':'amber'}">
+        <div class="kpi-label">TripAdvisor Rating</div>
+        <div class="kpi-value">${taSnap?.rating??'—'}</div>
+        <div class="kpi-meta">${taSnap?.review_count?taSnap.review_count+' reviews':'No data'}</div>
+      </div>
+      <div class="kpi-card ${avgScore>=9?'green':avgScore>=7?'gold':'amber'}">
+        <div class="kpi-label">Medallia Avg Score</div>
+        <div class="kpi-value">${avgScore??'—'}</div>
+        <div class="kpi-meta">${surveys.length} survey${surveys.length!==1?'s':''}${pct10!==null?' · '+pct10+'% scored 9–10':''}</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Recent Medallia</div>
+        <div class="kpi-value">${recent10.length?recent10[0].overall_score+'<span style="font-size:1.2rem;color:var(--fog)">/10</span>':'—'}</div>
+        <div class="kpi-meta">${recent10.length?'Last: '+(recent10[0].guest_name||'Guest')+' · '+fmtDate(recent10[0].survey_date):'No surveys yet'}</div>
+      </div>
+    </div>
+
+    ${platformSection('Google Reviews',gSnap,gReviews,'green',googleSetup)}
+    ${platformSection('TripAdvisor Reviews',taSnap,taReviews,'blue',taSetup)}
+
+    <div class="alert-strip" style="background:var(--gold-lt);border:1px solid rgba(201,151,58,.25);border-radius:var(--radius);margin-bottom:1.5rem">
+      <span class="alert-chip warn" style="font-size:.75rem;padding:.35rem .9rem">📋 Please check Medallia on the IHG Concerto every day.</span>
+    </div>
+
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-title">Medallia Guest Surveys</div>
+        <div class="section-badge ${surveys.length?'badge-ok':'badge-info'}">${surveys.length} survey${surveys.length!==1?'s':''} · avg ${avgScore??'—'}/10</div>
+      </div>
+      ${surveys.length?`<div class="tbl-wrap" style="max-height:520px;overflow-y:auto">
+        <table class="data-table sticky-head">
+          <thead><tr><th>Date</th><th>Guest</th><th class="r">Score</th><th>Comments</th></tr></thead>
+          <tbody>${surveys.map(r=>{
+            const s=r.overall_score??null;
+            const color=s>=9?'var(--green)':s>=7?'var(--amber)':'var(--red)';
+            return `<tr>
+              <td class="mono" style="white-space:nowrap">${fmtDate(r.survey_date)}</td>
+              <td style="font-weight:500;white-space:nowrap">${r.guest_name||'—'}</td>
+              <td class="r"><span style="font-family:var(--serif);font-size:1.3rem;font-weight:700;color:${color}">${s??'—'}</span><span style="color:var(--fog);font-size:.75rem">/10</span></td>
+              <td style="font-size:.88rem;color:var(--ink3);line-height:1.55;max-width:480px">${(r.comments||'—').replace(/</g,'&lt;')}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>`
+      :empty('No Medallia surveys yet','Surveys will appear here once the email automation is set up')}
+    </div>
+  </div>`;
 }
 
 function buildOwnerAccountability(){
