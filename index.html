@@ -1192,10 +1192,11 @@ async function renderHKContent(prop){
     const totalPet   = latestHK.reduce((s,r)=>s+(r.pet||0),0);
     const totalPA    = latestHK.reduce((s,r)=>s+(r.public_area||0),0);
 
-    // ── GM Pending Review — latest day only, matching Tack's own count ──
+    // ── GM Pending Review — count by date (matching Tack's own count) ──
     const safePending  = latestHK.filter(r => !r.gm_reviewed);
-    const pendingCount = safePending.length;
-    const pendingDates = pendingCount>0 ? [displayDate] : [];
+    // Tack counts pending as number of dates with any unreviewed attendant, not individual rows
+    const pendingDates = [...new Set(safeHK.filter(r=>!r.gm_reviewed).map(r=>r.date))].filter(d=>d<=yesterday).sort((a,b)=>b.localeCompare(a));
+    const pendingCount = pendingDates.length;
     const allReviewed  = !noData && pendingCount===0 && latestHK.length>0;
 
     // ── KPI cards ────────────────────────────────────────────────────
