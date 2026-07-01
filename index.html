@@ -1781,21 +1781,21 @@ function buildReputation(){
   }
   function platformSection(label,snap,reviews,color,setupNote){
     const ratingDisplay=snap?.rating?`<span style="font-family:var(--serif);font-size:2.6rem;color:var(--ink);line-height:1">${snap.rating}</span><span style="font-size:1rem;color:var(--fog)">/5</span>`:null;
+    const badgeText=snap?.rating?snap.rating+' / 5 · '+(snap.review_count||'?')+' reviews':reviews.length?reviews.length+' review'+(reviews.length!==1?'s':'')+' · no aggregate yet':'No data yet';
+    const badgeCls=snap?.rating?'badge-ok':reviews.length?'badge-info':'badge-info';
     return `<div class="section-card">
       <div class="section-head">
         <div class="section-title">${label}</div>
-        <div class="section-badge ${snap?.rating?'badge-ok':'badge-info'}">${snap?.rating?snap.rating+' / 5 · '+(snap.review_count||'?')+' reviews':'No data yet'}</div>
+        <div class="section-badge ${badgeCls}">${badgeText}</div>
       </div>
       ${snap?.rating?`
         <div style="padding:1.25rem 1.75rem;display:flex;align-items:center;gap:1.5rem;border-bottom:1px solid var(--border)">
           <div>${ratingDisplay}</div>
           <div>${starHtml(snap.rating)}</div>
           <div style="font-family:var(--mono);font-size:.7rem;color:var(--fog)">${snap.review_count||0} reviews<br>Updated ${snap.updated_at?new Date(snap.updated_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):''}</div>
-        </div>
-        <div style="max-height:480px;overflow-y:auto">${reviews.length?reviews.map(reviewCard).join(''):empty('No reviews stored yet','')}</div>
-      `:`<div style="padding:1.75rem">
-        <div style="font-family:var(--mono);font-size:.75rem;color:var(--fog);line-height:1.9">${setupNote}</div>
-      </div>`}
+        </div>`:''}
+      ${reviews.length?`<div style="max-height:480px;overflow-y:auto">${reviews.map(reviewCard).join('')}</div>`
+        :`<div style="padding:1.75rem"><div style="font-family:var(--mono);font-size:.75rem;color:var(--fog);line-height:1.9">${setupNote}</div></div>`}
     </div>`;
   }
 
