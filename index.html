@@ -1848,12 +1848,15 @@ function buildReputation(){
           <thead><tr><th>Date</th><th>Guest</th><th class="r">Score</th><th>Comments</th></tr></thead>
           <tbody>${surveys.map(r=>{
             const s=r.overall_score??null;
-            const color=s>=9?'var(--green)':s>=7?'var(--amber)':'var(--red)';
+            const isGoogle=(r.comments||'').startsWith('Google Review');
+            const denom=isGoogle?5:10;
+            const color=isGoogle?(s>=4?'var(--green)':s>=3?'var(--amber)':'var(--red)'):(s>=9?'var(--green)':s>=7?'var(--amber)':'var(--red)');
+            const commentDisplay=isGoogle?((r.comments||'').replace(/^Google Review\s*·?\s*/,'').trim()||'—'):(r.comments||'—');
             return `<tr>
               <td class="mono" style="white-space:nowrap">${fmtDate(r.survey_date)}</td>
-              <td style="font-weight:500;white-space:nowrap">${r.guest_name||'—'}</td>
-              <td class="r"><span style="font-family:var(--serif);font-size:1.3rem;font-weight:700;color:${color}">${s??'—'}</span><span style="color:var(--fog);font-size:.75rem">/10</span></td>
-              <td style="font-size:.88rem;color:var(--ink3);line-height:1.55;max-width:480px">${(r.comments||'—').replace(/</g,'&lt;')}</td>
+              <td style="font-weight:500;white-space:nowrap">${isGoogle?'<span class="pill pill-blue" style="font-size:.65rem">Google</span>':r.guest_name||'—'}</td>
+              <td class="r"><span style="font-family:var(--serif);font-size:1.3rem;font-weight:700;color:${color}">${s??'—'}</span><span style="color:var(--fog);font-size:.75rem">/${denom}</span></td>
+              <td style="font-size:.88rem;color:var(--ink3);line-height:1.55;max-width:480px">${commentDisplay.replace(/</g,'&lt;')}</td>
             </tr>`;
           }).join('')}</tbody>
         </table>
