@@ -632,9 +632,12 @@ function buildOwnerSummary(){
   const ytdMonthly=S.monthly.filter(r=>{ const [y,m]=r.period_start.split('-').map(Number); return y===curYearNum&&m<=curMonthNum; });
   const ytdRoomRev=ytdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0);
   const ytdTotalRev=ytdMonthly.reduce((s,r)=>s+(r.total_revenue||0),0);
-  // Same Jan..currentMonth window, prior year — for a like-for-like YTD vs LY comparison
-  const lyYtdMonthly=S.monthly.filter(r=>{ const [y,m]=r.period_start.split('-').map(Number); return y===curYearNum-1&&m<=curMonthNum; });
-  const lyYtdRoomRev=lyYtdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0);
+  // LY YTD must cover the SAME days as this year's YTD: full LY months before the
+  // current month, plus LY-M-T-D for the in-progress month (the report's own
+  // "same month last year, through the same day" figure). Including the full LY
+  // current month would inflate LY with days that haven't happened yet this year.
+  const lyYtdMonthly=S.monthly.filter(r=>{ const [y,m]=r.period_start.split('-').map(Number); return y===curYearNum-1&&m<curMonthNum; });
+  const lyYtdRoomRev=lyYtdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0)+(curMonthRow?.ly_mtd_room_revenue||0);
 
   // AR KPI: all categories (AR + Settlements + Invoices)
   const arAllAR=S.ar; // no category filter — show everything
@@ -951,14 +954,17 @@ function renderDailyContent(){
 
   // YTD: sum each finished/in-progress month of the current year from monthly_revenue
   // (the only table holding the full multi-year history — daily_revenue only goes
-  // back to the start of live daily tracking in June 2026). LY-YTD is the same
-  // Jan..currentMonth window for the prior year, for a like-for-like comparison.
+  // back to the start of live daily tracking in June 2026).
+  // LY-YTD must cover the SAME days: full LY months BEFORE the current month, plus
+  // the current month row's LY-M-T-D (last year's same month through the same day).
+  // Summing full LY months m<=moNum would include days that haven't happened yet
+  // this year, inflating the LY comparison.
   const ytdMonthly=S.monthly.filter(r=>{ if(r.property!==prop) return false; const [y,m]=r.period_start.split('-').map(Number); return y===yrNum&&m<=moNum; });
-  const lyYtdMonthly=S.monthly.filter(r=>{ if(r.property!==prop) return false; const [y,m]=r.period_start.split('-').map(Number); return y===yrNum-1&&m<=moNum; });
+  const lyYtdMonthly=S.monthly.filter(r=>{ if(r.property!==prop) return false; const [y,m]=r.period_start.split('-').map(Number); return y===yrNum-1&&m<moNum; });
   if(ytdMonthly.length){
     const ytdRev=ytdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0), ytdMisc=ytdMonthly.reduce((s,r)=>s+(r.misc_revenue||0),0), ytdTot=ytdMonthly.reduce((s,r)=>s+(r.total_revenue||0),0);
     const ytdOcc=ytdMonthly.reduce((s,r)=>s+(r.occ_pct||0),0)/ytdMonthly.length, ytdADR=ytdMonthly.reduce((s,r)=>s+(r.adr||0),0)/ytdMonthly.length;
-    const lyYtdRev=lyYtdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0), lyYtdTot=lyYtdMonthly.reduce((s,r)=>s+(r.total_revenue||0),0);
+    const lyYtdRev=lyYtdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0)+(curMonthRow?.ly_mtd_room_revenue||0), lyYtdTot=lyYtdMonthly.reduce((s,r)=>s+(r.total_revenue||0),0)+(curMonthRow?.ly_mtd_total_revenue||0);
     document.getElementById('ytd-badge').textContent=`${ytdMonthly.length} mo · Jan–${fmtMonth(`${yr}-${mo}-01`).split(' ')[0]}`;
     document.getElementById('ytd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(ytdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(ytdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdTot)}</td></tr><tr><td>Avg Occupancy</td><td class="r">${fmtPct(ytdOcc)}</td></tr><tr><td>Avg ADR</td><td class="r">${fmt$(ytdADR)}</td></tr>${lyYtdRev>0?`<tr><td>LY Room / Total Revenue</td><td class="r" style="color:var(--fog)">${fmt$(lyYtdRev)} / ${fmt$(lyYtdTot)} ${deltaChip(ytdRev,lyYtdRev)}</td></tr>`:''}</table>`;
   } else { document.getElementById('ytd-body').innerHTML=empty('No YTD data',''); document.getElementById('ytd-badge').textContent='0 mo'; }
