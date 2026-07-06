@@ -471,7 +471,7 @@ function buildAppShell(){
     <div class="admin-menu" id="admin-menu">${adminItems.map(([v,l])=>`<button class="admin-item" data-aview="${v}">${l}</button>`).join('')}</div>
   </div>`;
   if(isOwner) nav=`<button class="nav-btn active" data-view="owner-coming-soon">Overview</button>${adminHtml}`;
-  else if(propActive) nav=`<button class="nav-btn active" data-view="daily">Daily</button><button class="nav-btn" data-view="accountability">Accountability</button><button class="nav-btn" data-view="reputation">Reputation</button><button class="nav-btn" data-view="housekeeping">HK</button><button class="nav-btn" data-view="ar">AR / Aging</button>${adminHtml}`;
+  else if(propActive) nav=`<button class="nav-btn active" data-view="daily">Daily</button><button class="nav-btn" data-view="accountability">Accountability</button><button class="nav-btn" data-view="reconciliation">Reconciliation</button><button class="nav-btn" data-view="reputation">Reputation</button><button class="nav-btn" data-view="housekeeping">HK</button><button class="nav-btn" data-view="ar">AR / Aging</button>${adminHtml}`;
   else nav=`<button class="nav-btn active" data-view="coming-soon">Overview</button>`;
   document.getElementById('topbar-nav').innerHTML=nav;
   // Main nav clicks
@@ -548,6 +548,7 @@ function renderView(view){
   else if(view==='ar')          { body.innerHTML=buildAR(); }
   else if(view==='accountability') { body.innerHTML=buildAccountability(); wireAccountability(); }
   else if(view==='reputation')     { body.innerHTML=buildReputation(); }
+  else if(view==='reconciliation') { body.innerHTML=buildReconciliation(); wireReconciliation(); }
   else if(view==='history')     { body.innerHTML=buildHistory(); wireHistory(); }
   else if(view==='upload')      { body.innerHTML=buildUploadView('PROP'); wireUploadView('u'); }
   else if(view==='sync-status') { body.innerHTML=buildSyncStatus(); wireSyncStatus(); }
@@ -576,7 +577,7 @@ async function loadAllData(){
   } catch(e){ console.warn('Core load error:',e); }
   // Activity tables — load independently so a failure here never breaks core views
   try {
-    const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary,txNotes,repSnapshots,repReviews,medalliaSurveys] = await Promise.all([
+    const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary,txNotes,repSnapshots,repReviews,medalliaSurveys,settlements] = await Promise.all([
       sbGet('clerk_activity','?order=date.desc&limit=2000'+pf),
       sbGet('user_activity','?order=date.desc&limit=3000'+pf),
       sbGet('adjustments_activity','?order=date.desc&limit=1000'+pf),
@@ -586,9 +587,11 @@ async function loadAllData(){
       sbGet('reputation_snapshots','?order=updated_at.desc').catch(()=>[]),
       sbGet('reputation_reviews','?order=review_date.desc&limit=100').catch(()=>[]),
       sbGet('medallia_surveys','?order=survey_date.desc&limit=200').catch(()=>[]),
+      sbGet('settlements','?order=date.desc&limit=3000'+pf).catch(()=>[]),
     ]);
     S.clerkActivity=clerkActivity; S.userActivity=userActivity; S.adjActivity=adjActivity; S.lineItems=lineItems; S.taxSummary=taxSummary; S.txNotes=txNotes||[];
     S.repSnapshots=repSnapshots||[]; S.repReviews=repReviews||[]; S.medalliaSurveys=medalliaSurveys||[];
+    S.settlements=settlements||[];
   } catch(e){ console.warn('Activity load error:',e); }
 }
 function dailyRow(date,prop){ return S.daily[(prop||S.mode)+'_'+date]||null; }
@@ -1748,6 +1751,73 @@ function wireAccountability(){
   });
   document.getElementById('acct-today')?.addEventListener('click',()=>{ if(allDates[0]) go(allDates[0]); });
   renderAcctDaily();
+}
+
+// ═══════════════════════════════════
+// RECONCILIATION TAB
+// ═══════════════════════════════════
+// Card-brand settlements from HotelKey's "Settlement By Payment Type" report.
+// Purpose: match each day's expected card totals against processor/bank deposits.
+const RECON_TYPE_ORDER=['VISA','MASTER','AMEX','DISCOVER','CASH','CHECK','BILL TO COMPANY'];
+function reconDates(){ return [...new Set((S.settlements||[]).filter(r=>r.property===vp()).map(r=>r.date))].sort().reverse(); }
+function reconTypeTotals(rows){
+  const m={};
+  rows.forEach(r=>{ const t=r.payment_type||'OTHER'; if(!m[t]) m[t]={amt:0,n:0}; m[t].amt+=(r.amount||0); m[t].n++; });
+  const known=RECON_TYPE_ORDER.filter(t=>m[t]);
+  const extra=Object.keys(m).filter(t=>!RECON_TYPE_ORDER.includes(t)).sort();
+  return [...known,...extra].map(t=>({type:t,amt:Math.round(m[t].amt*100)/100,n:m[t].n}));
+}
+function buildReconciliation(){
+  const dates=reconDates();
+  if(!dates.length) return `<div class="page-header"><div class="page-title">Reconciliation</div><div class="page-sub">Settlement by Payment Type</div></div><div class="content">${empty('No settlement data yet','Settlement by Payment Type reports upload daily starting Jul 3, 2026')}</div>`;
+  if(!S.reconDate||!dates.includes(S.reconDate)) S.reconDate=dates[0];
+  return `<div class="page-header"><div class="page-title">Reconciliation</div><div class="page-sub">${(S.props||PROPS)[vp()]?.name||vp()} · Card settlements vs. deposits</div></div>
+  <div class="content">
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;flex-wrap:wrap">
+      <span style="font-family:var(--mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--fog)">Business date</span>
+      <select id="recon-date" class="date-select" style="font-family:var(--mono);font-size:.8rem;padding:.4rem .7rem;border:1px solid var(--border);border-radius:6px;background:var(--white)">${dates.map(d=>`<option value="${d}"${d===S.reconDate?' selected':''}>${fmtDate(d)}</option>`).join('')}</select>
+      <span style="font-family:var(--mono);font-size:.58rem;color:var(--fog)">Card batches typically deposit 1–3 business days later</span>
+    </div>
+    <div id="recon-cards"></div>
+    <div class="section-card"><div class="section-head"><div class="section-title">Daily Totals by Payment Type — Last 14 Days</div><div class="section-badge badge-info">for deposit matching</div></div><div id="recon-matrix" style="padding:.4rem 0"></div></div>
+    <div class="section-card"><div class="section-head"><div class="section-title">Settlements — <span id="recon-date-lbl"></span></div><div class="section-badge badge-info" id="recon-count"></div></div><div id="recon-tx"></div></div>
+  </div>`;
+}
+function renderReconContent(){
+  const prop=vp(), d=S.reconDate;
+  const rows=(S.settlements||[]).filter(r=>r.property===prop&&r.date===d).sort((a,b)=>(a.row_number||0)-(b.row_number||0));
+  const totals=reconTypeTotals(rows);
+  const grand=Math.round(totals.reduce((s,t)=>s+t.amt,0)*100)/100;
+  const refunds=rows.filter(r=>(r.amount||0)<0);
+  // Per-type cards
+  document.getElementById('recon-cards').innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-bottom:1.25rem">
+    ${totals.map(t=>`<div class="section-card" style="margin:0;padding:1rem 1.2rem"><div style="font-family:var(--mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--fog);margin-bottom:.35rem">${t.type}</div><div style="font-family:var(--serif);font-size:1.3rem;color:var(--ink)">${fmt$(t.amt)}</div><div style="font-family:var(--mono);font-size:.6rem;color:var(--fog);margin-top:.2rem">${t.n} txn${t.n!==1?'s':''}</div></div>`).join('')}
+    <div class="section-card" style="margin:0;padding:1rem 1.2rem;border-left:3px solid var(--gold)"><div style="font-family:var(--mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--fog);margin-bottom:.35rem">Total Settled</div><div style="font-family:var(--serif);font-size:1.3rem;color:var(--ink);font-weight:600">${fmt$(grand)}</div><div style="font-family:var(--mono);font-size:.6rem;color:${refunds.length?'var(--red)':'var(--fog)'};margin-top:.2rem">${refunds.length?refunds.length+' refund'+(refunds.length!==1?'s':'')+' · '+fmt$(refunds.reduce((s,r)=>s+r.amount,0)):'no refunds'}</div></div>
+  </div>`;
+  // 14-day matrix
+  const dates=reconDates().slice(0,14);
+  const allTypes=[...new Set([...RECON_TYPE_ORDER.filter(t=>(S.settlements||[]).some(r=>r.property===prop&&r.payment_type===t)),...(S.settlements||[]).filter(r=>r.property===prop).map(r=>r.payment_type||'OTHER')])];
+  const ordered=[...RECON_TYPE_ORDER.filter(t=>allTypes.includes(t)),...allTypes.filter(t=>!RECON_TYPE_ORDER.includes(t)).sort()];
+  document.getElementById('recon-matrix').innerHTML=`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Date</th>${ordered.map(t=>`<th class="r">${t}</th>`).join('')}<th class="r">Total</th></tr></thead><tbody>
+    ${dates.map(dt=>{
+      const dr=(S.settlements||[]).filter(r=>r.property===prop&&r.date===dt);
+      const tm={}; dr.forEach(r=>{ const t=r.payment_type||'OTHER'; tm[t]=(tm[t]||0)+(r.amount||0); });
+      const tot=dr.reduce((s,r)=>s+(r.amount||0),0);
+      return `<tr${dt===d?' style="background:var(--cream)"':''}><td class="mono" style="font-size:.75rem;${dt===d?'font-weight:600':''}">${fmtDate(dt)}</td>${ordered.map(t=>`<td class="r"${tm[t]==null?' style="color:var(--fog)"':''}>${tm[t]!=null?fmt$(Math.round(tm[t]*100)/100):'—'}</td>`).join('')}<td class="r" style="font-weight:600">${fmt$(Math.round(tot*100)/100)}</td></tr>`;
+    }).join('')}
+  </tbody></table></div>`;
+  // Transaction detail
+  document.getElementById('recon-date-lbl').textContent=fmtDate(d);
+  document.getElementById('recon-count').textContent=rows.length+' transactions';
+  document.getElementById('recon-tx').innerHTML=rows.length
+    ?`<div class="tbl-wrap" style="max-height:440px;overflow-y:auto"><table class="data-table sticky-head"><thead><tr><th>Time</th><th>Guest / Account</th><th>Room</th><th>Type</th><th>Card</th><th class="r">Amount</th><th>User</th><th>Remarks</th></tr></thead><tbody>
+      ${rows.map(r=>{const neg=(r.amount||0)<0;return `<tr${neg?' style="background:var(--red-lt)"':''}><td class="mono" style="font-size:.72rem">${(r.time||'—').slice(0,5)}</td><td style="${neg?'color:var(--red);font-weight:600':''}">${r.guest_name||'—'}${r.account_name?` <span class="pill pill-blue" style="font-size:.6rem">${r.account_name}</span>`:''}</td><td class="mono" style="font-size:.75rem">${r.room_number||'—'}</td><td class="mono" style="font-size:.7rem">${r.payment_type||'—'}</td><td class="mono" style="font-size:.75rem">${r.payment_detail||'—'}</td><td class="r" style="${neg?'color:var(--red);font-weight:600':'font-weight:500'}">${fmt$(r.amount)}</td><td class="mono" style="font-size:.68rem">${r.username||'—'}</td><td style="font-size:.75rem;color:var(--fog);max-width:260px">${r.remarks||'—'}</td></tr>`;}).join('')}
+    </tbody><tfoot><tr class="tot"><td colspan="5">Total</td><td class="r">${fmt$(grand)}</td><td colspan="2"></td></tr></tfoot></table></div>`
+    :empty('No settlements for this date','');
+}
+function wireReconciliation(){
+  document.getElementById('recon-date')?.addEventListener('change',e=>{ S.reconDate=e.target.value; renderReconContent(); });
+  renderReconContent();
 }
 
 // ═══════════════════════════════════
