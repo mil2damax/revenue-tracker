@@ -577,7 +577,7 @@ async function loadAllData(){
   } catch(e){ console.warn('Core load error:',e); }
   // Activity tables — load independently so a failure here never breaks core views
   try {
-    const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary,txNotes,repSnapshots,repReviews,medalliaSurveys,settlements] = await Promise.all([
+    const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary,txNotes,repSnapshots,repReviews,medalliaSurveys,settlements,procTx] = await Promise.all([
       sbGet('clerk_activity','?order=date.desc&limit=2000'+pf),
       sbGet('user_activity','?order=date.desc&limit=3000'+pf),
       sbGet('adjustments_activity','?order=date.desc&limit=1000'+pf),
@@ -588,10 +588,12 @@ async function loadAllData(){
       sbGet('reputation_reviews','?order=review_date.desc&limit=100').catch(()=>[]),
       sbGet('medallia_surveys','?order=survey_date.desc&limit=200').catch(()=>[]),
       sbGet('settlements','?order=date.desc&limit=3000'+pf).catch(()=>[]),
+      sbGet('processor_transactions','?order=batch_date.desc&limit=3000'+pf).catch(()=>[]),
     ]);
     S.clerkActivity=clerkActivity; S.userActivity=userActivity; S.adjActivity=adjActivity; S.lineItems=lineItems; S.taxSummary=taxSummary; S.txNotes=txNotes||[];
     S.repSnapshots=repSnapshots||[]; S.repReviews=repReviews||[]; S.medalliaSurveys=medalliaSurveys||[];
     S.settlements=settlements||[];
+    S.procTx=procTx||[];
   } catch(e){ console.warn('Activity load error:',e); }
 }
 function dailyRow(date,prop){ return S.daily[(prop||S.mode)+'_'+date]||null; }
@@ -604,6 +606,7 @@ const fmtPct=n=>n==null?'—':Number(n).toFixed(2)+'%';
 const fmtN=n=>n==null?'—':Number(n).toLocaleString('en-US');
 const fmtDate=d=>{ if(!d) return '—'; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}); };
 const fmtMonth=d=>{ if(!d) return '—'; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',year:'numeric'}); };
+const nextDay=d=>{ const dt=new Date(d+'T00:00:00'); dt.setDate(dt.getDate()+1); return dt.toISOString().slice(0,10); };
 const loading=()=>`<div class="loading"><div class="pdot"></div><div class="pdot"></div><div class="pdot"></div><span>Loading...</span></div>`;
 const empty=(t,s)=>`<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">${t}</div><div class="empty-sub">${s}</div></div>`;
 function deltaChip(curr,prev){ if(!curr||!prev||prev===0) return ''; const d=((curr-prev)/Math.abs(prev)*100).toFixed(1); const cls=d>0?'up':d<0?'down':'flat'; const arrow=d>0?'▲':d<0?'▼':'—'; return `<span class="kpi-delta ${cls}">${arrow} ${Math.abs(d)}% vs LY</span>`; }
@@ -1779,6 +1782,7 @@ function buildReconciliation(){
       <span style="font-family:var(--mono);font-size:.58rem;color:var(--fog)">Card batches typically deposit 1–3 business days later</span>
     </div>
     <div id="recon-cards"></div>
+    <div class="section-card"><div class="section-head"><div class="section-title">PMS ↔ Processor Match</div><div class="section-badge" id="recon-match-badge">—</div></div><div id="recon-match" style="padding:.4rem 0"></div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">Daily Totals by Payment Type — Last 14 Days</div><div class="section-badge badge-info">for deposit matching</div></div><div id="recon-matrix" style="padding:.4rem 0"></div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">Settlements — <span id="recon-date-lbl"></span></div><div class="section-badge badge-info" id="recon-count"></div></div><div id="recon-tx"></div></div>
   </div>`;
@@ -1794,6 +1798,43 @@ function renderReconContent(){
     ${totals.map(t=>`<div class="section-card" style="margin:0;padding:1rem 1.2rem"><div style="font-family:var(--mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--fog);margin-bottom:.35rem">${t.type}</div><div style="font-family:var(--serif);font-size:1.3rem;color:var(--ink)">${fmt$(t.amt)}</div><div style="font-family:var(--mono);font-size:.6rem;color:var(--fog);margin-top:.2rem">${t.n} txn${t.n!==1?'s':''}</div></div>`).join('')}
     <div class="section-card" style="margin:0;padding:1rem 1.2rem;border-left:3px solid var(--gold)"><div style="font-family:var(--mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--fog);margin-bottom:.35rem">Total Settled</div><div style="font-family:var(--serif);font-size:1.3rem;color:var(--ink);font-weight:600">${fmt$(grand)}</div><div style="font-family:var(--mono);font-size:.6rem;color:${refunds.length?'var(--red)':'var(--fog)'};margin-top:.2rem">${refunds.length?refunds.length+' refund'+(refunds.length!==1?'s':'')+' · '+fmt$(refunds.reduce((s,r)=>s+r.amount,0)):'no refunds'}</div></div>
   </div>`;
+  // PMS ↔ Processor matching (Loop 1). Business Track's Invoice Number carries
+  // HotelKey's transaction number, so card settlements match deterministically
+  // on invoice + amount. Match is searched across ALL loaded processor rows
+  // (not just this date) because after-midnight charges carry the next txn_date.
+  const CARD_TYPES=['VISA','MASTER','AMEX','DISCOVER'];
+  const hkCards=rows.filter(r=>CARD_TYPES.includes(r.payment_type));
+  const allBt=(S.procTx||[]).filter(r=>r.property===prop);
+  const btForDate=allBt.filter(r=>r.txn_date===d||r.txn_date===nextDay(d));
+  const usedBt=new Set();
+  const hkResults=hkCards.map(h=>{
+    const m=allBt.find(b=>!usedBt.has(b.id)&&b.invoice_number&&h.transaction_number&&b.invoice_number.toUpperCase()===String(h.transaction_number).toUpperCase()&&Math.abs((b.amount||0)-(h.amount||0))<0.01);
+    if(m) usedBt.add(m.id);
+    return {hk:h,bt:m||null};
+  });
+  const matched=hkResults.filter(r=>r.bt).length;
+  const hkOnly=hkResults.filter(r=>!r.bt);
+  const btOnly=btForDate.filter(b=>!usedBt.has(b.id)&&!hkResults.some(r=>r.bt&&r.bt.id===b.id));
+  const btCoverage=allBt.length>0&&btForDate.length>0;
+  const badge=document.getElementById('recon-match-badge');
+  if(!allBt.length){ badge.className='section-badge badge-info'; badge.textContent='no processor data yet'; }
+  else if(!btCoverage){ badge.className='section-badge badge-info'; badge.textContent='processor file pending'; }
+  else if(!hkOnly.length&&!btOnly.length){ badge.className='section-badge badge-ok'; badge.textContent=`${matched}/${hkCards.length} matched`; }
+  else { badge.className='section-badge badge-warn'; badge.textContent=`${hkOnly.length+btOnly.length} exception${hkOnly.length+btOnly.length!==1?'s':''}`; }
+  document.getElementById('recon-match').innerHTML=!allBt.length
+    ?`<div style="padding:1rem 1.4rem;font-family:var(--mono);font-size:.68rem;color:var(--fog)">Waiting for the first Business Track daily settlement file. Once it flows, card settlements are matched here automatically by invoice number + amount.</div>`
+    :!btCoverage
+    ?`<div style="padding:1rem 1.4rem;font-family:var(--mono);font-size:.68rem;color:var(--fog)">The processor batch covering this business date hasn't been received yet — Business Track's file for ${fmtDate(d)} typically arrives ${fmtDate(nextDay(nextDay(d)))} morning.</div>`
+    :`<div style="display:flex;gap:1.5rem;padding:.9rem 1.4rem;flex-wrap:wrap;font-family:var(--mono);font-size:.68rem">
+        <span style="color:var(--green)">✓ ${matched} matched (${fmt$(hkResults.filter(r=>r.bt).reduce((s,r)=>s+(r.hk.amount||0),0))})</span>
+        <span style="color:${hkOnly.length?'var(--red)':'var(--fog)'}">${hkOnly.length} in PMS only</span>
+        <span style="color:${btOnly.length?'var(--red)':'var(--fog)'}">${btOnly.length} at processor only</span>
+      </div>`
+      +((hkOnly.length||btOnly.length)?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Where</th><th>Reference</th><th>Guest / Detail</th><th>Type</th><th class="r">Amount</th><th>Note</th></tr></thead><tbody>
+        ${hkOnly.map(r=>`<tr style="background:var(--red-lt)"><td class="mono" style="font-size:.68rem">PMS only</td><td class="mono" style="font-size:.72rem">${r.hk.transaction_number||'—'}</td><td>${r.hk.guest_name||'—'}</td><td class="mono" style="font-size:.7rem">${r.hk.payment_type} ${r.hk.payment_detail||''}</td><td class="r" style="font-weight:600">${fmt$(r.hk.amount)}</td><td style="font-size:.72rem;color:var(--fog)">posted in HotelKey, not found at processor</td></tr>`).join('')}
+        ${btOnly.map(b=>`<tr style="background:var(--red-lt)"><td class="mono" style="font-size:.68rem">Processor only</td><td class="mono" style="font-size:.72rem">${b.invoice_number||'—'}</td><td class="mono" style="font-size:.72rem">card ···${b.account_last4||'—'}</td><td class="mono" style="font-size:.7rem">${b.network||'—'}</td><td class="r" style="font-weight:600">${fmt$(b.amount)}</td><td style="font-size:.72rem;color:var(--fog)">processed ${b.txn_date?fmtDate(b.txn_date):''}, no matching PMS settlement</td></tr>`).join('')}
+      </tbody></table></div>`:'');
+
   // 14-day matrix
   const dates=reconDates().slice(0,14);
   const allTypes=[...new Set([...RECON_TYPE_ORDER.filter(t=>(S.settlements||[]).some(r=>r.property===prop&&r.payment_type===t)),...(S.settlements||[]).filter(r=>r.property===prop).map(r=>r.payment_type||'OTHER')])];
