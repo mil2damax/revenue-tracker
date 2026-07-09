@@ -607,6 +607,19 @@ const fmtN=n=>n==null?'—':Number(n).toLocaleString('en-US');
 const fmtDate=d=>{ if(!d) return '—'; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}); };
 const fmtMonth=d=>{ if(!d) return '—'; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',year:'numeric'}); };
 const nextDay=d=>{ const dt=new Date(d+'T00:00:00'); dt.setDate(dt.getDate()+1); return dt.toISOString().slice(0,10); };
+// Human-readable "same days last year" window for LY comparison labels, e.g.
+// "Jul 1–8, 2025". Derived from the current month row's snapshot_date (the
+// through-date of HotelKey's M-T-D / LY-M-T-D columns).
+function lyWindowEnd(row,curYear){
+  const sd=row?.snapshot_date; if(!sd) return `${curYear-1}`;
+  const dt=new Date(sd+'T00:00:00');
+  return `${dt.toLocaleDateString('en-US',{month:'short'})} ${dt.getDate()}, ${curYear-1}`;
+}
+function lyWindow(row,curYear){
+  const sd=row?.snapshot_date; if(!sd) return `same M-T-D, ${curYear-1}`;
+  const dt=new Date(sd+'T00:00:00');
+  return `${dt.toLocaleDateString('en-US',{month:'short'})} 1–${dt.getDate()}, ${curYear-1}`;
+}
 const loading=()=>`<div class="loading"><div class="pdot"></div><div class="pdot"></div><div class="pdot"></div><span>Loading...</span></div>`;
 const empty=(t,s)=>`<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">${t}</div><div class="empty-sub">${s}</div></div>`;
 function deltaChip(curr,prev){ if(!curr||!prev||prev===0) return ''; const d=((curr-prev)/Math.abs(prev)*100).toFixed(1); const cls=d>0?'up':d<0?'down':'flat'; const arrow=d>0?'▲':d<0?'▼':'—'; return `<span class="kpi-delta ${cls}">${arrow} ${Math.abs(d)}% vs LY</span>`; }
@@ -955,7 +968,7 @@ function renderDailyContent(){
     const mtdRev=curMonthRow.room_revenue||0, mtdMisc=curMonthRow.misc_revenue||0, mtdTot=curMonthRow.total_revenue||0;
     const lyMtdRev=curMonthRow.ly_mtd_room_revenue;
     document.getElementById('mtd-badge').textContent=curMonthRow.snapshot_date?`Through ${fmtDate(curMonthRow.snapshot_date)}`:'—';
-    document.getElementById('mtd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(mtdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(mtdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(mtdTot)}</td></tr><tr><td>Occupancy</td><td class="r">${fmtPct(curMonthRow.occ_pct)}</td></tr><tr><td>ADR</td><td class="r">${fmt$(curMonthRow.adr)}</td></tr><tr><td>RevPAR</td><td class="r">${fmt$(curMonthRow.revpar)}</td></tr>${lyMtdRev!=null?`<tr><td>LY Room Revenue (same M-T-D)</td><td class="r" style="color:var(--fog)">${fmt$(lyMtdRev)} ${deltaChip(mtdRev,lyMtdRev)}</td></tr>`:''}</table>`;
+    document.getElementById('mtd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(mtdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(mtdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(mtdTot)}</td></tr><tr><td>Occupancy</td><td class="r">${fmtPct(curMonthRow.occ_pct)}</td></tr><tr><td>ADR</td><td class="r">${fmt$(curMonthRow.adr)}</td></tr><tr><td>RevPAR</td><td class="r">${fmt$(curMonthRow.revpar)}</td></tr>${lyMtdRev!=null?`<tr><td>LY Room Revenue <span style="font-size:.7rem;color:var(--fog)">(${lyWindow(curMonthRow,yrNum)} · from HotelKey)</span></td><td class="r" style="color:var(--fog)">${fmt$(lyMtdRev)} ${deltaChip(mtdRev,lyMtdRev)}</td></tr>`:''}</table>`;
   } else { document.getElementById('mtd-body').innerHTML=empty('No MTD data',''); document.getElementById('mtd-badge').textContent='—'; }
 
   // YTD: sum each finished/in-progress month of the current year from monthly_revenue
@@ -972,7 +985,7 @@ function renderDailyContent(){
     const ytdOcc=ytdMonthly.reduce((s,r)=>s+(r.occ_pct||0),0)/ytdMonthly.length, ytdADR=ytdMonthly.reduce((s,r)=>s+(r.adr||0),0)/ytdMonthly.length;
     const lyYtdRev=lyYtdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0)+(curMonthRow?.ly_mtd_room_revenue||0), lyYtdTot=lyYtdMonthly.reduce((s,r)=>s+(r.total_revenue||0),0)+(curMonthRow?.ly_mtd_total_revenue||0);
     document.getElementById('ytd-badge').textContent=`${ytdMonthly.length} mo · Jan–${fmtMonth(`${yr}-${mo}-01`).split(' ')[0]}`;
-    document.getElementById('ytd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(ytdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(ytdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdTot)}</td></tr><tr><td>Avg Occupancy</td><td class="r">${fmtPct(ytdOcc)}</td></tr><tr><td>Avg ADR</td><td class="r">${fmt$(ytdADR)}</td></tr>${lyYtdRev>0?`<tr><td>LY Room / Total Revenue</td><td class="r" style="color:var(--fog)">${fmt$(lyYtdRev)} / ${fmt$(lyYtdTot)} ${deltaChip(ytdRev,lyYtdRev)}</td></tr>`:''}</table>`;
+    document.getElementById('ytd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(ytdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(ytdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdTot)}</td></tr><tr><td>Avg Occupancy</td><td class="r">${fmtPct(ytdOcc)}</td></tr><tr><td>Avg ADR</td><td class="r">${fmt$(ytdADR)}</td></tr>${lyYtdRev>0?`<tr><td>LY Room / Total Revenue <span style="font-size:.7rem;color:var(--fog)">(Jan 1 – ${lyWindowEnd(curMonthRow,yrNum)})</span></td><td class="r" style="color:var(--fog)">${fmt$(lyYtdRev)} / ${fmt$(lyYtdTot)} ${deltaChip(ytdRev,lyYtdRev)}</td></tr>`:''}</table>`;
   } else { document.getElementById('ytd-body').innerHTML=empty('No YTD data',''); document.getElementById('ytd-badge').textContent='0 mo'; }
   // In-House Guest Balances — date selector lets user browse any uploaded snapshot
   const STANDARD_BILLING=['IHG REWARD','CLC','KFLEX','K-FLEX','FLEX'];
