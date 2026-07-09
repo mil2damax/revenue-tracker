@@ -1807,8 +1807,14 @@ function renderReconContent(){
   const allBt=(S.procTx||[]).filter(r=>r.property===prop);
   const btForDate=allBt.filter(r=>r.txn_date===d||r.txn_date===nextDay(d));
   const usedBt=new Set();
+  // Invoice matches HotelKey's transaction number for V/MC/Discover, but Amex
+  // routes the FOLIO number through as the invoice (leading zeros stripped) —
+  // so fall back to folio comparison when the transaction number misses.
+  const trimZeros=v=>String(v||'').replace(/^0+/,'').toUpperCase();
   const hkResults=hkCards.map(h=>{
-    const m=allBt.find(b=>!usedBt.has(b.id)&&b.invoice_number&&h.transaction_number&&b.invoice_number.toUpperCase()===String(h.transaction_number).toUpperCase()&&Math.abs((b.amount||0)-(h.amount||0))<0.01);
+    const amtOk=b=>Math.abs((b.amount||0)-(h.amount||0))<0.01;
+    let m=allBt.find(b=>!usedBt.has(b.id)&&b.invoice_number&&h.transaction_number&&b.invoice_number.toUpperCase()===String(h.transaction_number).toUpperCase()&&amtOk(b));
+    if(!m&&h.folio_number) m=allBt.find(b=>!usedBt.has(b.id)&&b.invoice_number&&trimZeros(b.invoice_number)===trimZeros(h.folio_number)&&amtOk(b));
     if(m) usedBt.add(m.id);
     return {hk:h,bt:m||null};
   });
