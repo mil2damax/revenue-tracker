@@ -1805,7 +1805,10 @@ function renderReconContent(){
   const CARD_TYPES=['VISA','MASTER','AMEX','DISCOVER'];
   const hkCards=rows.filter(r=>CARD_TYPES.includes(r.payment_type));
   const allBt=(S.procTx||[]).filter(r=>r.property===prop);
-  const btForDate=allBt.filter(r=>r.txn_date===d||r.txn_date===nextDay(d));
+  // Business day D settles in the processor batch dated D+1. Coverage = that
+  // batch has arrived; judging by txn_date alone false-positives on the few
+  // after-midnight transactions that ride along in the prior batch.
+  const btForDate=allBt.filter(r=>r.batch_date===nextDay(d));
   const usedBt=new Set();
   // Invoice matches HotelKey's transaction number for V/MC/Discover, but Amex
   // routes the FOLIO number through as the invoice (leading zeros stripped) —
