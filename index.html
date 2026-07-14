@@ -56,7 +56,8 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .pin-dot.error{background:var(--red);border-color:var(--red);animation:shake .3s ease}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 .pin-pad{display:grid;grid-template-columns:repeat(3,58px);gap:9px}
-.pin-key{width:58px;height:58px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-family:var(--sans);font-size:1.2rem;font-weight:300;cursor:pointer;transition:all .1s;display:flex;align-items:center;justify-content:center}
+.pin-key{width:58px;height:58px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-family:var(--sans);font-size:1.2rem;font-weight:300;cursor:pointer;transition:all .1s;display:flex;align-items:center;justify-content:center;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+button{touch-action:manipulation}
 .pin-key:hover{background:rgba(255,255,255,.12)}
 .pin-key:active{transform:scale(.92)}
 .pin-key.wide{border-radius:29px;font-size:.7rem;letter-spacing:.1em}
