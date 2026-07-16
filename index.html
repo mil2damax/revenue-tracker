@@ -1219,9 +1219,14 @@ async function renderHKContent(prop){
     const totalPA    = latestHK.reduce((s,r)=>s+(r.public_area||0),0);
 
     // ── GM Pending Review — count by date (matching Tack's own count) ──
-    const safePending  = latestHK.filter(r => !r.gm_reviewed);
+    // GM review is only required (and only ever recorded in Tack) for rows with
+    // special-room work — pet, bad rooms, deep cleans, public area. Ordinary
+    // rows keep gm_reviewed=false forever, so counting them would permanently
+    // disagree with Tack's own pending number.
+    const needsReview  = r => ((r.pet||0)+(r.bad_rooms||0)+(r.deep_cleans||0)+(r.public_area||0))>0 && !r.gm_reviewed;
+    const safePending  = latestHK.filter(needsReview);
     // Tack counts pending as number of dates with any unreviewed attendant, not individual rows
-    const pendingDates = [...new Set(safeHK.filter(r=>!r.gm_reviewed).map(r=>r.date))].filter(d=>d<=yesterday).sort((a,b)=>b.localeCompare(a));
+    const pendingDates = [...new Set(safeHK.filter(needsReview).map(r=>r.date))].filter(d=>d<=yesterday).sort((a,b)=>b.localeCompare(a));
     const pendingCount = pendingDates.length;
     const allReviewed  = !noData && pendingCount===0 && latestHK.length>0;
 
@@ -1277,7 +1282,7 @@ async function renderHKContent(prop){
         <thead><tr><th>Name</th><th class="r">Rooms</th><th class="r">C/O</th><th class="r">S/O</th><th class="r">Bad</th><th class="r">Deep</th><th class="r">Pet</th><th class="r">Pub Area</th><th>In</th><th>Out</th><th>Rating</th><th style="text-align:center">GM ✓</th></tr></thead>
         <tbody>${latestHK.map(r=>{
           const rc = r.rating==='Satisfactory'?'var(--green)':r.rating?'var(--amber)':'var(--fog)';
-          return `<tr style="${!r.gm_reviewed?'background:rgba(245,158,11,.04)':''}">
+          return `<tr style="${needsReview(r)?'background:rgba(245,158,11,.04)':''}">
             <td style="font-weight:600;font-size:.82rem">${r.name||'—'}</td>
             <td class="r mono" style="font-weight:600">${roomCount(r)}</td>
             <td class="r mono" style="color:var(--fog)">${coCount(r)}</td>
@@ -1289,7 +1294,7 @@ async function renderHKContent(prop){
             <td style="font-size:.72rem">${r.clock_in||'—'}</td>
             <td style="font-size:.72rem">${r.clock_out||'—'}</td>
             <td style="font-size:.75rem;color:${rc}">${r.rating||'—'}</td>
-            <td style="text-align:center;font-size:.9rem">${r.gm_reviewed?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--amber)">!</span>'}</td>
+            <td style="text-align:center;font-size:.9rem">${r.gm_reviewed?'<span style="color:var(--green)">✓</span>':needsReview(r)?'<span style="color:var(--amber)">!</span>':'<span style="color:var(--fog)">—</span>'}</td>
           </tr>${r.notes?`<tr><td colspan="12" style="font-size:.7rem;color:var(--fog);font-style:italic;padding:.1rem 1rem .4rem">📝 ${r.notes}</td></tr>`:''}`;
         }).join('')}</tbody>
       </table></div>` : '';
