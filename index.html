@@ -1817,7 +1817,8 @@ function renderReconContent(){
   // on invoice + amount. Match is searched across ALL loaded processor rows
   // (not just this date) because after-midnight charges carry the next txn_date.
   const CARD_TYPES=['VISA','MASTER','AMEX','DISCOVER'];
-  const hkCards=rows.filter(r=>CARD_TYPES.includes(r.payment_type));
+  // $0 rows are card-verification placeholders — nothing settles, skip them.
+  const hkCards=rows.filter(r=>CARD_TYPES.includes(r.payment_type)&&Math.abs(r.amount||0)>0.005);
   const allBt=(S.procTx||[]).filter(r=>r.property===prop);
   // Business day D settles in the processor batch dated D+1. Coverage = that
   // batch has arrived; judging by txn_date alone false-positives on the few
@@ -1836,8 +1837,24 @@ function renderReconContent(){
     return {hk:h,bt:m||null};
   });
   const matched=hkResults.filter(r=>r.bt).length;
-  const hkOnly=hkResults.filter(r=>!r.bt);
-  const btOnly=btForDate.filter(b=>!usedBt.has(b.id)&&!hkResults.some(r=>r.bt&&r.bt.id===b.id));
+  let hkOnly=hkResults.filter(r=>!r.bt);
+  let btOnly=btForDate.filter(b=>!usedBt.has(b.id)&&!hkResults.some(r=>r.bt&&r.bt.id===b.id));
+  // Reclassify offsetting leftovers as internal transfers: a charge reversed
+  // and re-posted under another confirmation shows as +X and -X in the PMS
+  // (sometimes the + side sits processor-only, e.g. a manual terminal charge).
+  // They net to zero — informational, not a discrepancy.
+  const transfers=[];
+  let pool=[...hkOnly.map(r=>({side:'PMS',amt:r.hk.amount||0,r})),...btOnly.map(b=>({side:'BT',amt:b.amount||0,b}))];
+  for(let i=0;i<pool.length;i++){
+    if(pool[i].done) continue;
+    for(let j=0;j<pool.length;j++){
+      if(i===j||pool[j].done) continue;
+      const opposite=(pool[i].side===pool[j].side)?Math.abs(pool[i].amt+pool[j].amt)<0.01:Math.abs(pool[i].amt-pool[j].amt)<0.01;
+      if(opposite&&Math.abs(pool[i].amt)>0.005){ pool[i].done=pool[j].done=true; transfers.push([pool[i],pool[j]]); break; }
+    }
+  }
+  hkOnly=hkOnly.filter(r=>!pool.some(p=>p.done&&p.r===r));
+  btOnly=btOnly.filter(b=>!pool.some(p=>p.done&&p.b===b));
   const btCoverage=allBt.length>0&&btForDate.length>0;
   const badge=document.getElementById('recon-match-badge');
   if(!allBt.length){ badge.className='section-badge badge-info'; badge.textContent='no processor data yet'; }
@@ -1850,12 +1867,14 @@ function renderReconContent(){
     ?`<div style="padding:1rem 1.4rem;font-family:var(--mono);font-size:.68rem;color:var(--fog)">The processor batch covering this business date hasn't been received yet — Business Track's file for ${fmtDate(d)} typically arrives ${fmtDate(nextDay(nextDay(d)))} morning.</div>`
     :`<div style="display:flex;gap:1.5rem;padding:.9rem 1.4rem;flex-wrap:wrap;font-family:var(--mono);font-size:.68rem">
         <span style="color:var(--green)">✓ ${matched} matched (${fmt$(hkResults.filter(r=>r.bt).reduce((s,r)=>s+(r.hk.amount||0),0))})</span>
+        ${transfers.length?`<span style="color:var(--amber)">${transfers.length} offsetting pair${transfers.length!==1?'s':''} (net $0)</span>`:''}
         <span style="color:${hkOnly.length?'var(--red)':'var(--fog)'}">${hkOnly.length} in PMS only</span>
         <span style="color:${btOnly.length?'var(--red)':'var(--fog)'}">${btOnly.length} at processor only</span>
       </div>`
-      +((hkOnly.length||btOnly.length)?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Where</th><th>Reference</th><th>Guest / Detail</th><th>Type</th><th class="r">Amount</th><th>Note</th></tr></thead><tbody>
+      +((hkOnly.length||btOnly.length||transfers.length)?`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Where</th><th>Reference</th><th>Guest / Detail</th><th>Type</th><th class="r">Amount</th><th>Note</th></tr></thead><tbody>
         ${hkOnly.map(r=>`<tr style="background:var(--red-lt)"><td class="mono" style="font-size:.68rem">PMS only</td><td class="mono" style="font-size:.72rem">${r.hk.transaction_number||'—'}</td><td>${r.hk.guest_name||'—'}</td><td class="mono" style="font-size:.7rem">${r.hk.payment_type} ${r.hk.payment_detail||''}</td><td class="r" style="font-weight:600">${fmt$(r.hk.amount)}</td><td style="font-size:.72rem;color:var(--fog)">posted in HotelKey, not found at processor</td></tr>`).join('')}
         ${btOnly.map(b=>`<tr style="background:var(--red-lt)"><td class="mono" style="font-size:.68rem">Processor only</td><td class="mono" style="font-size:.72rem">${b.invoice_number||'—'}</td><td class="mono" style="font-size:.72rem">card ···${b.account_last4||'—'}</td><td class="mono" style="font-size:.7rem">${b.network||'—'}</td><td class="r" style="font-weight:600">${fmt$(b.amount)}</td><td style="font-size:.72rem;color:var(--fog)">processed ${b.txn_date?fmtDate(b.txn_date):''}, no matching PMS settlement</td></tr>`).join('')}
+        ${transfers.map(([a,b])=>{const lbl=p=>p.side==='PMS'?`${p.r.hk.guest_name||''} #${p.r.hk.transaction_number}`:`inv ${p.b.invoice_number} ···${p.b.account_last4}`;return `<tr style="background:var(--amber-lt,#fdf6e3)"><td class="mono" style="font-size:.68rem">Offsetting</td><td class="mono" style="font-size:.72rem">${a.side}/${b.side}</td><td style="font-size:.78rem">${lbl(a)} ↔ ${lbl(b)}</td><td class="mono" style="font-size:.7rem">—</td><td class="r" style="font-weight:600;color:var(--amber)">${fmt$(a.amt)} / ${fmt$(b.amt)}</td><td style="font-size:.72rem;color:var(--fog)">reversal or re-posted charge — nets to zero</td></tr>`;}).join('')}
       </tbody></table></div>`:'');
 
   // 14-day matrix
