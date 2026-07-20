@@ -972,15 +972,19 @@ function renderDailyContent(){
   const missingDays=[]; for(let i=1;i<=dayNum;i++){ const dd=`${yr}-${mo}-${String(i).padStart(2,'0')}`; if(!mtdDays.some(r=>r.date===dd)) missingDays.push(dd); }
   const gapRow=missingDays.length?`<tr><td colspan="2" style="font-size:.68rem;color:var(--amber)">⚠ ${missingDays.length} day${missingDays.length>1?'s':''} missing from uploads (${missingDays.map(x=>moShort+' '+Number(x.slice(8))).join(', ')}) — totals exclude ${missingDays.length>1?'them':'it'}</td></tr>`:'';
   let mtdRev=null, mtdTot=null, lyMtdRev=null, lyMtdTot=null, mtdOccVal=null;
+  // HotelKey's LY-M-T-D figure covers "month-to-date through the LATEST report"
+  // — there is no per-day LY history to rebuild the window for earlier dates,
+  // so LY comparisons are shown only when viewing the latest reported date.
+  const isLatestSnap=curMonthRow?.snapshot_date===d;
   if(mtdDays.length){
     const sum=k=>mtdDays.reduce((s,r)=>s+(r[k]||0),0);
     mtdRev=round2c(sum('room_revenue')); const mtdMisc=round2c(sum('misc_revenue')); mtdTot=round2c(sum('total_revenue'));
     const sold=sum('rooms_sold'), avail=sum('rooms_available');
     mtdOccVal=avail>0?sold/avail*100:null;
     const adr=sold>0?mtdRev/sold:null, revpar=avail>0?mtdRev/avail:null;
-    lyMtdRev=round2c(sum('ly_room_revenue')); lyMtdTot=round2c(sum('ly_total_revenue'));
+    if(isLatestSnap){ lyMtdRev=curMonthRow.ly_mtd_room_revenue||null; lyMtdTot=curMonthRow.ly_mtd_total_revenue||null; }
     document.getElementById('mtd-badge').textContent=`Through ${fmtDate(d)}`;
-    document.getElementById('mtd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(mtdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(mtdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(mtdTot)}</td></tr><tr><td>Occupancy</td><td class="r">${fmtPct(mtdOccVal)}</td></tr><tr><td>ADR</td><td class="r">${fmt$(adr)}</td></tr><tr><td>RevPAR</td><td class="r">${fmt$(revpar)}</td></tr>${lyMtdRev>0?`<tr><td>LY Room Revenue <span style="font-size:.7rem;color:var(--fog)">(${moShort} 1–${dayNum}, ${yrNum-1})</span></td><td class="r" style="color:var(--fog)">${fmt$(lyMtdRev)} ${deltaChip(mtdRev,lyMtdRev)}</td></tr>`:''}${(missingDays.length&&curMonthRow?.snapshot_date===d)?`<tr><td>HotelKey reported MTD <span style="font-size:.7rem;color:var(--fog)">(includes missing day${missingDays.length>1?'s':''})</span></td><td class="r" style="color:var(--fog)">${fmt$(curMonthRow.room_revenue)}</td></tr>`:''}${gapRow}</table>`;
+    document.getElementById('mtd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(mtdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(mtdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(mtdTot)}</td></tr><tr><td>Occupancy</td><td class="r">${fmtPct(mtdOccVal)}</td></tr><tr><td>ADR</td><td class="r">${fmt$(adr)}</td></tr><tr><td>RevPAR</td><td class="r">${fmt$(revpar)}</td></tr>${lyMtdRev>0?`<tr><td>LY Room Revenue <span style="font-size:.7rem;color:var(--fog)">(${lyWindow(curMonthRow,yrNum)} · from HotelKey)</span></td><td class="r" style="color:var(--fog)">${fmt$(lyMtdRev)} ${deltaChip(mtdRev,lyMtdRev)}</td></tr>`:(!isLatestSnap?`<tr><td colspan="2" style="font-size:.68rem;color:var(--fog)">LY comparison shown on the latest date (HotelKey reports LY month-to-date only as of the most recent night audit)</td></tr>`:'')}${gapRow}</table>`;
   } else if(curMonthRow){
     // No daily history for this month (pre-June 2026) — fall back to the month row
     mtdRev=curMonthRow.room_revenue||0; mtdTot=curMonthRow.total_revenue||0;
@@ -1005,7 +1009,10 @@ function renderDailyContent(){
     const lyYtdRev=round2c(lyYtdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0)+(lyMtdRev||0));
     const lyYtdTot=round2c(lyYtdMonthly.reduce((s,r)=>s+(r.total_revenue||0),0)+(lyMtdTot||0));
     document.getElementById('ytd-badge').textContent=`Jan 1 – ${fmtDate(d)}`;
-    document.getElementById('ytd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(ytdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(ytdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdTot)}</td></tr><tr><td>Avg Occupancy</td><td class="r">${fmtPct(ytdOcc)}</td></tr><tr><td>Avg ADR</td><td class="r">${fmt$(ytdADR)}</td></tr>${lyYtdRev>0?`<tr><td>LY Room / Total Revenue <span style="font-size:.7rem;color:var(--fog)">(Jan 1 – ${moShort} ${dayNum}, ${yrNum-1})</span></td><td class="r" style="color:var(--fog)">${fmt$(lyYtdRev)} / ${fmt$(lyYtdTot)} ${deltaChip(ytdRev,lyYtdRev)}</td></tr>`:''}${gapRow}</table>`;
+    // LY YTD needs the LY same-days month portion, which only exists for the
+    // latest reported date (see MTD note above) — hide it for earlier dates
+    // rather than show a mismatched-window comparison.
+    document.getElementById('ytd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(ytdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(ytdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdTot)}</td></tr><tr><td>Avg Occupancy</td><td class="r">${fmtPct(ytdOcc)}</td></tr><tr><td>Avg ADR</td><td class="r">${fmt$(ytdADR)}</td></tr>${(isLatestSnap&&lyYtdRev>0)?`<tr><td>LY Room / Total Revenue <span style="font-size:.7rem;color:var(--fog)">(Jan 1 – ${moShort} ${dayNum}, ${yrNum-1})</span></td><td class="r" style="color:var(--fog)">${fmt$(lyYtdRev)} / ${fmt$(lyYtdTot)} ${deltaChip(ytdRev,lyYtdRev)}</td></tr>`:(!isLatestSnap?`<tr><td colspan="2" style="font-size:.68rem;color:var(--fog)">LY comparison shown on the latest date</td></tr>`:'')}${gapRow}</table>`;
   } else { document.getElementById('ytd-body').innerHTML=empty('No YTD data',''); document.getElementById('ytd-badge').textContent='0 mo'; }
   // In-House Guest Balances — date selector lets user browse any uploaded snapshot
   const STANDARD_BILLING=['IHG REWARD','CLC','KFLEX','K-FLEX','FLEX'];
