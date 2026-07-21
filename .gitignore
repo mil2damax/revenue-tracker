@@ -1,0 +1,5 @@
+node_modules/
+*.log
+upload-log.txt
+medallia-upload-log.txt
+supabase/.temp/
