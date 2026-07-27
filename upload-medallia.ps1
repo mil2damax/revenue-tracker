@@ -79,6 +79,16 @@ foreach ($prop in $PROPERTIES) {
                  Where-Object { $_.Name -notlike "*_uploaded*" }
 
         foreach ($f in $files) {
+            # OneDrive sometimes leaves a non-suffixed duplicate next to the
+            # already-renamed "_uploaded" copy. If the uploaded twin exists, this
+            # file was already processed — delete the redundant copy and skip, so
+            # we never re-insert a duplicate survey row.
+            $uploadedTwin = $f.FullName -replace "\.txt$", "_uploaded.txt"
+            if (Test-Path $uploadedTwin) {
+                Remove-Item $f.FullName -Force -ErrorAction SilentlyContinue
+                Log "[$($prop.Code)] [DEDUP] removed re-synced duplicate $($f.Name) (already uploaded)"
+                continue
+            }
             $found++
             try {
                 $html = Get-Content $f.FullName -Raw -Encoding UTF8
@@ -111,8 +121,13 @@ foreach ($prop in $PROPERTIES) {
 
                 try {
                     Invoke-RestMethod -Uri $url -Method Post -Headers $headers -ContentType "application/json; charset=utf-8" -Body $bodyBytes | Out-Null
-                    $newName = $f.Name -replace "\.txt$", "_uploaded.txt"
-                    Rename-Item $f.FullName $newName
+                    # Mark as processed. If the rename can't happen (target exists),
+                    # delete the source instead — the row is already inserted, so the
+                    # file must not survive to be re-uploaded next run.
+                    $newPath = $f.FullName -replace "\.txt$", "_uploaded.txt"
+                    if (Test-Path $newPath) { Remove-Item $f.FullName -Force -ErrorAction SilentlyContinue }
+                    else { Rename-Item $f.FullName $newPath -ErrorAction SilentlyContinue }
+                    if (Test-Path $f.FullName) { Remove-Item $f.FullName -Force -ErrorAction SilentlyContinue }
                     Log "[$($prop.Code)] [OK] $($f.Name) uploaded ($desc)"
                 } catch {
                     Log "[$($prop.Code)] [ERROR] $($f.Name) : $($_.Exception.Message) : $($_.ErrorDetails.Message)"
