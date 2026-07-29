@@ -578,7 +578,7 @@ async function loadAllData(){
   } catch(e){ console.warn('Core load error:',e); }
   // Activity tables — load independently so a failure here never breaks core views
   try {
-    const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary,txNotes,repSnapshots,repReviews,medalliaSurveys,settlements,procTx] = await Promise.all([
+    const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary,txNotes,repSnapshots,repReviews,medalliaSurveys,settlements,procTx,reconVerifs,bankDeposits] = await Promise.all([
       sbGet('clerk_activity','?order=date.desc&limit=2000'+pf),
       sbGet('user_activity','?order=date.desc&limit=3000'+pf),
       sbGet('adjustments_activity','?order=date.desc&limit=1000'+pf),
@@ -590,11 +590,14 @@ async function loadAllData(){
       sbGet('medallia_surveys','?order=survey_date.desc&limit=200').catch(()=>[]),
       sbGet('settlements','?order=date.desc&limit=3000'+pf).catch(()=>[]),
       sbGet('processor_transactions','?order=batch_date.desc&limit=3000'+pf).catch(()=>[]),
+      sbGet('recon_verifications','?order=recon_date.desc&limit=1000'+pf).catch(()=>[]),
+      sbGet('bank_deposits','?order=deposit_date.desc&limit=1000'+pf).catch(()=>[]),
     ]);
     S.clerkActivity=clerkActivity; S.userActivity=userActivity; S.adjActivity=adjActivity; S.lineItems=lineItems; S.taxSummary=taxSummary; S.txNotes=txNotes||[];
     S.repSnapshots=repSnapshots||[]; S.repReviews=repReviews||[]; S.medalliaSurveys=medalliaSurveys||[];
     S.settlements=settlements||[];
     S.procTx=procTx||[];
+    S.reconVerifs=reconVerifs||[]; S.bankDeposits=bankDeposits||[];
   } catch(e){ console.warn('Activity load error:',e); }
 }
 function dailyRow(date,prop){ return S.daily[(prop||S.mode)+'_'+date]||null; }
@@ -1809,6 +1812,51 @@ function wireAccountability(){
 // Purpose: match each day's expected card totals against processor/bank deposits.
 const RECON_TYPE_ORDER=['VISA','MASTER','AMEX','DISCOVER','CASH','CHECK','BILL TO COMPANY'];
 function reconDates(){ return [...new Set((S.settlements||[]).filter(r=>r.property===vp()).map(r=>r.date))].sort().reverse(); }
+function reconVerif(prop,d){ return (S.reconVerifs||[]).find(r=>r.property===prop&&r.recon_date===d)||null; }
+// Compute the Loop-1 match for one business day. Returns the full picture so the
+// worklist, tie-out, and detail all share one source of truth.
+function reconMatch(prop,d){
+  const rows=(S.settlements||[]).filter(r=>r.property===prop&&r.date===d);
+  const CARD_TYPES=['VISA','MASTER','AMEX','DISCOVER'];
+  const hkCards=rows.filter(r=>CARD_TYPES.includes(r.payment_type)&&Math.abs(r.amount||0)>0.005);
+  const allBt=(S.procTx||[]).filter(r=>r.property===prop);
+  const btForDate=allBt.filter(r=>r.batch_date===nextDay(d));
+  const usedBt=new Set();
+  const trimZeros=v=>String(v||'').replace(/^0+/,'').toUpperCase();
+  const hkResults=hkCards.map(h=>{
+    const amtOk=b=>Math.abs((b.amount||0)-(h.amount||0))<0.01;
+    let m=allBt.find(b=>!usedBt.has(b.id)&&b.invoice_number&&h.transaction_number&&b.invoice_number.toUpperCase()===String(h.transaction_number).toUpperCase()&&amtOk(b));
+    if(!m&&h.folio_number) m=allBt.find(b=>!usedBt.has(b.id)&&b.invoice_number&&trimZeros(b.invoice_number)===trimZeros(h.folio_number)&&amtOk(b));
+    if(m) usedBt.add(m.id);
+    return {hk:h,bt:m||null};
+  });
+  const matched=hkResults.filter(r=>r.bt).length;
+  let hkOnly=hkResults.filter(r=>!r.bt);
+  let btOnly=btForDate.filter(b=>!usedBt.has(b.id)&&!hkResults.some(r=>r.bt&&r.bt.id===b.id));
+  const transfers=[];
+  let pool=[...hkOnly.map(r=>({side:'PMS',amt:r.hk.amount||0,r})),...btOnly.map(b=>({side:'BT',amt:b.amount||0,b}))];
+  for(let i=0;i<pool.length;i++){ if(pool[i].done) continue; for(let j=0;j<pool.length;j++){ if(i===j||pool[j].done) continue; const opposite=(pool[i].side===pool[j].side)?Math.abs(pool[i].amt+pool[j].amt)<0.01:Math.abs(pool[i].amt-pool[j].amt)<0.01; if(opposite&&Math.abs(pool[i].amt)>0.005){ pool[i].done=pool[j].done=true; transfers.push([pool[i],pool[j]]); break; } } }
+  hkOnly=hkOnly.filter(r=>!pool.some(p=>p.done&&p.r===r));
+  btOnly=btOnly.filter(b=>!pool.some(p=>p.done&&p.b===b));
+  const hkTotal=round2c(hkCards.reduce((s,r)=>s+(r.amount||0),0));
+  const btTotal=round2c(btForDate.reduce((s,b)=>s+(b.amount||0),0));
+  const btCoverage=allBt.length>0&&btForDate.length>0;
+  const exceptions=hkOnly.length+btOnly.length;
+  const diff=round2c(hkTotal-btTotal);
+  return {rows,hkCards,hkResults,matched,hkOnly,btOnly,transfers,hkTotal,btTotal,diff,btCoverage,exceptions,btForDate};
+}
+// A day's reconciliation state, for the worklist + badges.
+// pending_processor → clean → exceptions → verified (with stale check).
+function reconState(prop,d){
+  const m=reconMatch(prop,d), v=reconVerif(prop,d);
+  if(!m.btCoverage) return {key:'pending',label:'Awaiting processor',m,v};
+  if(v){
+    const stale=(v.matched_count!=null&&v.matched_count!==m.matched)||(v.exception_count!=null&&v.exception_count!==m.exceptions)||(v.hotelkey_total!=null&&Math.abs(Number(v.hotelkey_total)-m.hkTotal)>0.005);
+    return {key:stale?'stale':'verified',label:stale?'Changed since sign-off':'Verified',m,v};
+  }
+  if(m.exceptions>0) return {key:'exceptions',label:m.exceptions+' exception'+(m.exceptions!==1?'s':''),m,v};
+  return {key:'clean',label:'Matched — ready to verify',m,v};
+}
 function reconTypeTotals(rows){
   const m={};
   rows.forEach(r=>{ const t=r.payment_type||'OTHER'; if(!m[t]) m[t]={amt:0,n:0}; m[t].amt+=(r.amount||0); m[t].n++; });
@@ -1827,8 +1875,11 @@ function buildReconciliation(){
       <select id="recon-date" class="date-select" style="font-family:var(--mono);font-size:.8rem;padding:.4rem .7rem;border:1px solid var(--border);border-radius:6px;background:var(--white)">${dates.map(d=>`<option value="${d}"${d===S.reconDate?' selected':''}>${fmtDate(d)}</option>`).join('')}</select>
       <span style="font-family:var(--mono);font-size:.58rem;color:var(--fog)">Card batches typically deposit 1–3 business days later</span>
     </div>
+    <div class="section-card"><div class="section-head"><div class="section-title">Verification Worklist</div><div class="section-badge" id="recon-wl-badge">—</div></div><div id="recon-worklist" style="padding:.2rem 0"></div></div>
     <div id="recon-cards"></div>
+    <div class="section-card"><div class="section-head"><div class="section-title">Tie-Out &amp; Sign-Off — <span id="recon-tieout-lbl"></span></div><div class="section-badge" id="recon-tieout-badge">—</div></div><div id="recon-tieout" style="padding:.2rem 0"></div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">PMS ↔ Processor Match</div><div class="section-badge" id="recon-match-badge">—</div></div><div id="recon-match" style="padding:.4rem 0"></div></div>
+    <div class="section-card"><div class="section-head"><div class="section-title">Bank Deposits — Loop 2 <span style="font-family:var(--mono);font-size:.6rem;color:var(--fog)">(money → bank)</span></div><div class="section-badge" id="recon-bank-badge">—</div></div><div id="recon-bank" style="padding:.4rem 0"></div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">Daily Totals by Payment Type — Last 14 Days</div><div class="section-badge badge-info">for deposit matching</div></div><div id="recon-matrix" style="padding:.4rem 0"></div></div>
     <div class="section-card"><div class="section-head"><div class="section-title">Settlements — <span id="recon-date-lbl"></span></div><div class="section-badge badge-info" id="recon-count"></div></div><div id="recon-tx"></div></div>
   </div>`;
@@ -1844,50 +1895,57 @@ function renderReconContent(){
     ${totals.map(t=>`<div class="section-card" style="margin:0;padding:1rem 1.2rem"><div style="font-family:var(--mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--fog);margin-bottom:.35rem">${t.type}</div><div style="font-family:var(--serif);font-size:1.3rem;color:var(--ink)">${fmt$(t.amt)}</div><div style="font-family:var(--mono);font-size:.6rem;color:var(--fog);margin-top:.2rem">${t.n} txn${t.n!==1?'s':''}</div></div>`).join('')}
     <div class="section-card" style="margin:0;padding:1rem 1.2rem;border-left:3px solid var(--gold)"><div style="font-family:var(--mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--fog);margin-bottom:.35rem">Total Settled</div><div style="font-family:var(--serif);font-size:1.3rem;color:var(--ink);font-weight:600">${fmt$(grand)}</div><div style="font-family:var(--mono);font-size:.6rem;color:${refunds.length?'var(--red)':'var(--fog)'};margin-top:.2rem">${refunds.length?refunds.length+' refund'+(refunds.length!==1?'s':'')+' · '+fmt$(refunds.reduce((s,r)=>s+r.amount,0)):'no refunds'}</div></div>
   </div>`;
-  // PMS ↔ Processor matching (Loop 1). Business Track's Invoice Number carries
-  // HotelKey's transaction number, so card settlements match deterministically
-  // on invoice + amount. Match is searched across ALL loaded processor rows
-  // (not just this date) because after-midnight charges carry the next txn_date.
-  const CARD_TYPES=['VISA','MASTER','AMEX','DISCOVER'];
-  // $0 rows are card-verification placeholders — nothing settles, skip them.
-  const hkCards=rows.filter(r=>CARD_TYPES.includes(r.payment_type)&&Math.abs(r.amount||0)>0.005);
-  const allBt=(S.procTx||[]).filter(r=>r.property===prop);
-  // Business day D settles in the processor batch dated D+1. Coverage = that
-  // batch has arrived; judging by txn_date alone false-positives on the few
-  // after-midnight transactions that ride along in the prior batch.
-  const btForDate=allBt.filter(r=>r.batch_date===nextDay(d));
-  const usedBt=new Set();
-  // Invoice matches HotelKey's transaction number for V/MC/Discover, but Amex
-  // routes the FOLIO number through as the invoice (leading zeros stripped) —
-  // so fall back to folio comparison when the transaction number misses.
-  const trimZeros=v=>String(v||'').replace(/^0+/,'').toUpperCase();
-  const hkResults=hkCards.map(h=>{
-    const amtOk=b=>Math.abs((b.amount||0)-(h.amount||0))<0.01;
-    let m=allBt.find(b=>!usedBt.has(b.id)&&b.invoice_number&&h.transaction_number&&b.invoice_number.toUpperCase()===String(h.transaction_number).toUpperCase()&&amtOk(b));
-    if(!m&&h.folio_number) m=allBt.find(b=>!usedBt.has(b.id)&&b.invoice_number&&trimZeros(b.invoice_number)===trimZeros(h.folio_number)&&amtOk(b));
-    if(m) usedBt.add(m.id);
-    return {hk:h,bt:m||null};
-  });
-  const matched=hkResults.filter(r=>r.bt).length;
-  let hkOnly=hkResults.filter(r=>!r.bt);
-  let btOnly=btForDate.filter(b=>!usedBt.has(b.id)&&!hkResults.some(r=>r.bt&&r.bt.id===b.id));
-  // Reclassify offsetting leftovers as internal transfers: a charge reversed
-  // and re-posted under another confirmation shows as +X and -X in the PMS
-  // (sometimes the + side sits processor-only, e.g. a manual terminal charge).
-  // They net to zero — informational, not a discrepancy.
-  const transfers=[];
-  let pool=[...hkOnly.map(r=>({side:'PMS',amt:r.hk.amount||0,r})),...btOnly.map(b=>({side:'BT',amt:b.amount||0,b}))];
-  for(let i=0;i<pool.length;i++){
-    if(pool[i].done) continue;
-    for(let j=0;j<pool.length;j++){
-      if(i===j||pool[j].done) continue;
-      const opposite=(pool[i].side===pool[j].side)?Math.abs(pool[i].amt+pool[j].amt)<0.01:Math.abs(pool[i].amt-pool[j].amt)<0.01;
-      if(opposite&&Math.abs(pool[i].amt)>0.005){ pool[i].done=pool[j].done=true; transfers.push([pool[i],pool[j]]); break; }
-    }
-  }
-  hkOnly=hkOnly.filter(r=>!pool.some(p=>p.done&&p.r===r));
-  btOnly=btOnly.filter(b=>!pool.some(p=>p.done&&p.b===b));
-  const btCoverage=allBt.length>0&&btForDate.length>0;
+  // PMS ↔ Processor matching (Loop 1) — shared engine, see reconMatch().
+  const M=reconMatch(prop,d);
+  const {hkCards,hkResults,matched,hkOnly,btOnly,transfers,btForDate,btCoverage}=M;
+
+  // ── Verification worklist (India-team queue) ──────────────────────────
+  const STATE_STYLE={pending:['badge-info','var(--fog)','◷'],clean:['badge-warn','var(--amber)','▢'],exceptions:['badge-alert','var(--red)','⚠'],verified:['badge-ok','var(--green)','✓'],stale:['badge-alert','var(--red)','↻']};
+  const wlDates=reconDates().slice(0,30);
+  const wlStates=wlDates.map(dt=>({dt,st:reconState(prop,dt)}));
+  const pendingReview=wlStates.filter(x=>x.st.key==='clean'||x.st.key==='exceptions'||x.st.key==='stale').length;
+  const wlBadge=document.getElementById('recon-wl-badge');
+  wlBadge.className='section-badge '+(pendingReview?'badge-warn':'badge-ok');
+  wlBadge.textContent=pendingReview?`${pendingReview} day${pendingReview!==1?'s':''} to review`:'all caught up';
+  document.getElementById('recon-worklist').innerHTML=`<div class="tbl-wrap" style="max-height:340px;overflow-y:auto"><table class="data-table sticky-head"><thead><tr><th>Business date</th><th class="r">Match</th><th class="r">Total</th><th>Status</th><th>Signed off</th></tr></thead><tbody>
+    ${wlStates.map(({dt,st})=>{const[cls,col,ic]=STATE_STYLE[st.key];const sel=dt===d;return `<tr data-wl="${dt}" style="cursor:pointer;${sel?'background:var(--cream)':''}"><td class="mono" style="font-size:.78rem;${sel?'font-weight:700':''}">${fmtDate(dt)}</td><td class="r mono" style="font-size:.72rem">${st.m.btCoverage?st.m.matched+'/'+st.m.hkCards.length:'—'}</td><td class="r mono" style="font-size:.72rem">${fmt$(st.m.hkTotal)}</td><td style="color:${col};font-size:.75rem;font-weight:500">${ic} ${st.label}</td><td style="font-size:.72rem;color:var(--fog)">${st.v?`${st.v.verified_by} · ${fmtDate((st.v.verified_at||'').slice(0,10))}`:'—'}</td></tr>`;}).join('')}
+  </tbody></table></div>`;
+
+  // ── Tie-out & sign-off for the selected day ───────────────────────────
+  const state=reconState(prop,d), v=state.v;
+  const tieBadge=document.getElementById('recon-tieout-badge');
+  const[tcls,,tic]=STATE_STYLE[state.key];
+  tieBadge.className='section-badge '+tcls; tieBadge.textContent=tic+' '+state.label;
+  document.getElementById('recon-tieout-lbl').textContent=fmtDate(d);
+  const tied=Math.abs(M.diff)<0.005;
+  const canVerify=btCoverage;
+  const reviewer=localStorage.getItem('reconReviewer')||'';
+  document.getElementById('recon-tieout').innerHTML=
+    `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;padding:.4rem 1.4rem 1rem">
+      <div><div style="font-family:var(--mono);font-size:.58rem;text-transform:uppercase;color:var(--fog)">HotelKey cards</div><div style="font-family:var(--serif);font-size:1.15rem">${fmt$(M.hkTotal)}</div></div>
+      <div><div style="font-family:var(--mono);font-size:.58rem;text-transform:uppercase;color:var(--fog)">Processor batch</div><div style="font-family:var(--serif);font-size:1.15rem">${btCoverage?fmt$(M.btTotal):'—'}</div></div>
+      <div><div style="font-family:var(--mono);font-size:.58rem;text-transform:uppercase;color:var(--fog)">Difference</div><div style="font-family:var(--serif);font-size:1.15rem;color:${tied?'var(--green)':'var(--red)'}">${btCoverage?(tied?'$0.00 ✓':fmt$(M.diff)):'—'}</div></div>
+      <div><div style="font-family:var(--mono);font-size:.58rem;text-transform:uppercase;color:var(--fog)">Exceptions</div><div style="font-family:var(--serif);font-size:1.15rem;color:${M.exceptions?'var(--red)':'var(--green)'}">${btCoverage?M.exceptions:'—'}</div></div>
+    </div>`
+    +(!canVerify
+      ?`<div style="padding:0 1.4rem 1rem;font-family:var(--mono);font-size:.68rem;color:var(--fog)">Processor batch for ${fmtDate(d)} hasn't arrived yet (Business Track file expected ${fmtDate(nextDay(nextDay(d)))}). Sign-off unlocks once both sides are present.</div>`
+      :v&&state.key==='verified'&&!(S.reconReopen&&S.reconReopen[d])
+      ?`<div style="margin:0 1.4rem 1rem;padding:.8rem 1rem;background:var(--green-lt,#eafaf0);border-radius:8px;font-family:var(--mono);font-size:.72rem">
+          <div style="color:var(--green);font-weight:600;margin-bottom:.3rem">✓ Verified by ${v.verified_by} on ${fmtDate((v.verified_at||'').slice(0,10))}</div>
+          ${v.notes?`<div style="color:var(--ink3)">Notes: ${v.notes}</div>`:''}${v.exception_notes?`<div style="color:var(--ink3)">Exceptions: ${v.exception_notes}</div>`:''}
+          <button class="btn-sec" id="recon-reopen" style="margin-top:.5rem;font-size:.7rem;padding:.25rem .7rem">Re-open</button>
+        </div>`
+      :`<div style="margin:0 1.4rem 1rem;padding:.9rem 1rem;background:var(--cream);border-radius:8px">
+          ${state.key==='stale'?`<div style="font-family:var(--mono);font-size:.7rem;color:var(--red);margin-bottom:.6rem">↻ Data changed since last sign-off (was ${v.matched_count}/${v.matched_count+ (v.exception_count||0)} · ${fmt$(v.hotelkey_total)}). Please re-verify.</div>`:''}
+          ${M.exceptions>0?`<div style="font-family:var(--mono);font-size:.66rem;color:var(--red);margin-bottom:.4rem">⚠ ${M.exceptions} unresolved exception${M.exceptions!==1?'s':''} — describe the resolution before signing off:</div><textarea id="recon-exc-notes" placeholder="How was each exception resolved?" style="width:100%;min-height:52px;font-family:var(--sans);font-size:.8rem;padding:.5rem;border:1px solid var(--border);border-radius:6px;margin-bottom:.5rem">${v?.exception_notes||''}</textarea>`:''}
+          <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+            <input id="recon-reviewer" placeholder="Your name / initials" value="${reviewer}" style="font-family:var(--sans);font-size:.8rem;padding:.4rem .6rem;border:1px solid var(--border);border-radius:6px;width:170px">
+            <input id="recon-gen-notes" placeholder="Notes (optional)" style="font-family:var(--sans);font-size:.8rem;padding:.4rem .6rem;border:1px solid var(--border);border-radius:6px;flex:1;min-width:180px">
+            <button class="btn-primary" id="recon-verify-btn" style="font-size:.78rem;padding:.4rem 1rem">Mark Verified</button>
+          </div>
+          ${!tied?`<div style="font-family:var(--mono);font-size:.64rem;color:var(--amber);margin-top:.5rem">Note: totals don't tie ($${Math.abs(M.diff).toFixed(2)} apart) — verifying anyway records that you reviewed it, but double-check first.</div>`:''}
+        </div>`);
+
   const badge=document.getElementById('recon-match-badge');
   if(!allBt.length){ badge.className='section-badge badge-info'; badge.textContent='no processor data yet'; }
   else if(!btCoverage){ badge.className='section-badge badge-info'; badge.textContent='processor file pending'; }
@@ -1909,6 +1967,23 @@ function renderReconContent(){
         ${transfers.map(([a,b])=>{const lbl=p=>p.side==='PMS'?`${p.r.hk.guest_name||''} #${p.r.hk.transaction_number}`:`inv ${p.b.invoice_number} ···${p.b.account_last4}`;return `<tr style="background:var(--amber-lt,#fdf6e3)"><td class="mono" style="font-size:.68rem">Offsetting</td><td class="mono" style="font-size:.72rem">${a.side}/${b.side}</td><td style="font-size:.78rem">${lbl(a)} ↔ ${lbl(b)}</td><td class="mono" style="font-size:.7rem">—</td><td class="r" style="font-weight:600;color:var(--amber)">${fmt$(a.amt)} / ${fmt$(b.amt)}</td><td style="font-size:.72rem;color:var(--fog)">reversal or re-posted charge — nets to zero</td></tr>`;}).join('')}
       </tbody></table></div>`:'');
 
+  // ── Bank deposits (Loop 2) ────────────────────────────────────────────
+  // Expected deposits are derivable NOW from the processor's own funded_date +
+  // amount; actual bank deposits come from bank_deposits (empty until a
+  // statement is loaded). Show expected-vs-actual by funding date.
+  const bankBadge=document.getElementById('recon-bank-badge');
+  const deposits=(S.bankDeposits||[]).filter(r=>r.property===prop);
+  const funded={};
+  (S.procTx||[]).filter(r=>r.property===prop&&r.funded_date).forEach(r=>{ funded[r.funded_date]=(funded[r.funded_date]||0)+(r.amount||0); });
+  const fundedDates=Object.keys(funded).sort().reverse().slice(0,14);
+  if(!deposits.length){ bankBadge.className='section-badge badge-info'; bankBadge.textContent='awaiting bank data'; }
+  else { bankBadge.className='section-badge badge-ok'; bankBadge.textContent=deposits.length+' deposits loaded'; }
+  document.getElementById('recon-bank').innerHTML=
+    `<div style="padding:.4rem 1.4rem .8rem;font-family:var(--mono);font-size:.66rem;color:var(--fog)">Expected = processor's own funded amount by settlement date. Actual bank deposits load here once a bank/Amex statement is provided — then each is matched to its expected batch.</div>`
+    +`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Funded date</th><th class="r">Expected (processor)</th><th class="r">Actual (bank)</th><th class="r">Difference</th><th>Status</th></tr></thead><tbody>
+      ${fundedDates.map(fd=>{const exp=round2c(funded[fd]);const act=round2c(deposits.filter(x=>x.deposit_date===fd).reduce((s,x)=>s+(x.amount||0),0));const has=deposits.some(x=>x.deposit_date===fd);const df=round2c(act-exp);return `<tr><td class="mono" style="font-size:.75rem">${fmtDate(fd)}</td><td class="r">${fmt$(exp)}</td><td class="r">${has?fmt$(act):'<span style="color:var(--fog)">—</span>'}</td><td class="r" style="color:${!has?'var(--fog)':Math.abs(df)<0.005?'var(--green)':'var(--red)'}">${has?(Math.abs(df)<0.005?'$0.00 ✓':fmt$(df)):'—'}</td><td style="font-size:.72rem;color:${has?(Math.abs(df)<0.005?'var(--green)':'var(--red)'):'var(--fog)'}">${has?(Math.abs(df)<0.005?'matched':'review'):'awaiting deposit'}</td></tr>`;}).join('')}
+    </tbody></table></div>`;
+
   // 14-day matrix
   const dates=reconDates().slice(0,14);
   const allTypes=[...new Set([...RECON_TYPE_ORDER.filter(t=>(S.settlements||[]).some(r=>r.property===prop&&r.payment_type===t)),...(S.settlements||[]).filter(r=>r.property===prop).map(r=>r.payment_type||'OTHER')])];
@@ -1929,6 +2004,31 @@ function renderReconContent(){
       ${rows.map(r=>{const neg=(r.amount||0)<0;return `<tr${neg?' style="background:var(--red-lt)"':''}><td class="mono" style="font-size:.72rem">${(r.time||'—').slice(0,5)}</td><td style="${neg?'color:var(--red);font-weight:600':''}">${r.guest_name||'—'}${r.account_name?` <span class="pill pill-blue" style="font-size:.6rem">${r.account_name}</span>`:''}</td><td class="mono" style="font-size:.75rem">${r.room_number||'—'}</td><td class="mono" style="font-size:.7rem">${r.payment_type||'—'}</td><td class="mono" style="font-size:.75rem">${r.payment_detail||'—'}</td><td class="r" style="${neg?'color:var(--red);font-weight:600':'font-weight:500'}">${fmt$(r.amount)}</td><td class="mono" style="font-size:.68rem">${r.username||'—'}</td><td style="font-size:.75rem;color:var(--fog);max-width:260px">${r.remarks||'—'}</td></tr>`;}).join('')}
     </tbody><tfoot><tr class="tot"><td colspan="5">Total</td><td class="r">${fmt$(grand)}</td><td colspan="2"></td></tr></tfoot></table></div>`
     :empty('No settlements for this date','');
+
+  // Wire controls re-created by this render
+  document.querySelectorAll('#recon-worklist tr[data-wl]').forEach(tr=>tr.addEventListener('click',()=>{ S.reconDate=tr.dataset.wl; const sel=document.getElementById('recon-date'); if(sel) sel.value=S.reconDate; renderReconContent(); }));
+  document.getElementById('recon-verify-btn')?.addEventListener('click',submitReconVerify);
+  document.getElementById('recon-reopen')?.addEventListener('click',()=>{ S.reconReopen=S.reconReopen||{}; S.reconReopen[S.reconDate]=true; renderReconContent(); });
+}
+async function submitReconVerify(){
+  const prop=vp(), d=S.reconDate;
+  const reviewer=(document.getElementById('recon-reviewer')?.value||'').trim();
+  if(!reviewer){ toast('Enter your name to sign off','error'); return; }
+  const M=reconMatch(prop,d);
+  const excEl=document.getElementById('recon-exc-notes');
+  if(M.exceptions>0&&!(excEl?.value||'').trim()){ toast('Describe how the exceptions were resolved','error'); return; }
+  localStorage.setItem('reconReviewer',reviewer);
+  const rec={ property:prop, recon_date:d, status:M.exceptions>0?'exception_cleared':'verified',
+    matched_count:M.matched, exception_count:M.exceptions, hotelkey_total:M.hkTotal, processor_total:M.btTotal,
+    exception_notes:(excEl?.value||'').trim()||null, notes:(document.getElementById('recon-gen-notes')?.value||'').trim()||null,
+    verified_by:reviewer, verified_at:new Date().toISOString(), updated_at:new Date().toISOString() };
+  try{
+    await sbUpsert('recon_verifications',rec,'property,recon_date');
+    S.reconVerifs=(S.reconVerifs||[]).filter(r=>!(r.property===prop&&r.recon_date===d)); S.reconVerifs.push(rec);
+    if(S.reconReopen) delete S.reconReopen[d];
+    toast('Verified '+fmtDate(d));
+    renderReconContent();
+  }catch(e){ toast('Sign-off failed: '+(e.message||e),'error'); }
 }
 function wireReconciliation(){
   document.getElementById('recon-date')?.addEventListener('change',e=>{ S.reconDate=e.target.value; renderReconContent(); });
@@ -1943,8 +2043,12 @@ function buildReputation(){
   const snapshots=(S.repSnapshots||[]).filter(r=>r.property===prop);
   const gSnap=snapshots.find(r=>r.platform==='google')||null;
   const taSnap=snapshots.find(r=>r.platform==='tripadvisor')||null;
-  const gReviews=(S.repReviews||[]).filter(r=>r.property===prop&&r.platform==='google').slice(0,10);
-  const taReviews=(S.repReviews||[]).filter(r=>r.property===prop&&r.platform==='tripadvisor').slice(0,10);
+  // Only surface Google/TripAdvisor reviews when a real integration exists (an
+  // aggregate snapshot). Neither has a live API connected, so any rows in
+  // reputation_reviews are stray/manual placeholders — don't show them as if
+  // they were pulled from the platform.
+  const gReviews=gSnap?(S.repReviews||[]).filter(r=>r.property===prop&&r.platform==='google').slice(0,10):[];
+  const taReviews=taSnap?(S.repReviews||[]).filter(r=>r.property===prop&&r.platform==='tripadvisor').slice(0,10):[];
   const surveys=(S.medalliaSurveys||[]).filter(r=>r.property===prop);
   const recent10=surveys.slice(0,10);
   const avgScore=surveys.length?Math.round(surveys.reduce((s,r)=>s+(r.overall_score||0),0)/surveys.length*10)/10:null;
