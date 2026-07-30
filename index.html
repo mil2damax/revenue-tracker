@@ -1823,10 +1823,15 @@ function reconMatch(prop,d){
   const btForDate=allBt.filter(r=>r.batch_date===nextDay(d));
   const usedBt=new Set();
   const trimZeros=v=>String(v||'').replace(/^0+/,'').toUpperCase();
+  // Match each HotelKey card against THIS day's processor batch only. Matching
+  // across all batches let a card grab a wrong-day processor row (folio numbers
+  // repeat across a stay), leaving the correct row unmatched and inflating
+  // exceptions. Primary key = invoice==transaction number; Amex falls back to
+  // folio number (leading zeros stripped).
   const hkResults=hkCards.map(h=>{
     const amtOk=b=>Math.abs((b.amount||0)-(h.amount||0))<0.01;
-    let m=allBt.find(b=>!usedBt.has(b.id)&&b.invoice_number&&h.transaction_number&&b.invoice_number.toUpperCase()===String(h.transaction_number).toUpperCase()&&amtOk(b));
-    if(!m&&h.folio_number) m=allBt.find(b=>!usedBt.has(b.id)&&b.invoice_number&&trimZeros(b.invoice_number)===trimZeros(h.folio_number)&&amtOk(b));
+    let m=btForDate.find(b=>!usedBt.has(b.id)&&b.invoice_number&&h.transaction_number&&b.invoice_number.toUpperCase()===String(h.transaction_number).toUpperCase()&&amtOk(b));
+    if(!m&&h.folio_number) m=btForDate.find(b=>!usedBt.has(b.id)&&b.invoice_number&&trimZeros(b.invoice_number)===trimZeros(h.folio_number)&&amtOk(b));
     if(m) usedBt.add(m.id);
     return {hk:h,bt:m||null};
   });
