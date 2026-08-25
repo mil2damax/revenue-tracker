@@ -340,9 +340,16 @@ const TACK_URL   = 'https://hk.milkamhospitality.com';
 const TACK_SB    = 'https://prhsllifpfacvdlttyuf.supabase.co';
 const TACK_KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByaHNsbGlmcGZhY3ZkbHR0eXVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MTIxMTEsImV4cCI6MjA5MjM4ODExMX0._L65_b255yRPZ5d1A0i4rtcLO8NxmnokAwQ4grCMytk';
 const EDGE_FN_URL = 'https://ltbjavxegskmhyjqpext.supabase.co/functions/v1/process-night-audit';
+// `tabs` gates which operator views a property exposes. Omit it to expose all
+// six (full parity). Tru (RDURM) is live on its core dashboards but its
+// Reconciliation (needs Business Track / PEP processor feed) and Reputation
+// (needs Medallia via the Stay platform) tabs stay hidden until those feeds
+// are built — see the CC-recon and Medallia ingestion work.
+const ALL_TABS = ['daily','accountability','reconciliation','reputation','housekeeping','ar'];
+const TAB_LABELS = { daily:'Daily', accountability:'Accountability', reconciliation:'Reconciliation', reputation:'Reputation', housekeeping:'HK', ar:'AR / Aging' };
 const PROPS = {
   WKFCW:{ name:'Candlewood Suites Wake Forest', short:'Candlewood WF', pms:'HotelKey', active:true },
-  RDURM:{ name:'Tru by Hilton Wake Forest',     short:'Tru WF',        pms:'PEP',      active:false },
+  RDURM:{ name:'Tru by Hilton Wake Forest',     short:'Tru WF',        pms:'PEP',      active:true, tabs:['daily','accountability','housekeeping','ar'] },
   RDUTT:{ name:'Home2 Suites Raleigh North',    short:'Home2 Raleigh', pms:'PEP',      active:false }
 };
 
@@ -472,7 +479,7 @@ function buildAppShell(){
     <div class="admin-menu" id="admin-menu">${adminItems.map(([v,l])=>`<button class="admin-item" data-aview="${v}">${l}</button>`).join('')}</div>
   </div>`;
   if(isOwner) nav=`<button class="nav-btn active" data-view="owner-coming-soon">Overview</button>${adminHtml}`;
-  else if(propActive) nav=`<button class="nav-btn active" data-view="daily">Daily</button><button class="nav-btn" data-view="accountability">Accountability</button><button class="nav-btn" data-view="reconciliation">Reconciliation</button><button class="nav-btn" data-view="reputation">Reputation</button><button class="nav-btn" data-view="housekeeping">HK</button><button class="nav-btn" data-view="ar">AR / Aging</button>${adminHtml}`;
+  else if(propActive){ const tabs=(PROPS[S.mode]?.tabs||ALL_TABS); nav=tabs.map((v,i)=>`<button class="nav-btn${i===0?' active':''}" data-view="${v}">${TAB_LABELS[v]}</button>`).join('')+adminHtml; }
   else nav=`<button class="nav-btn active" data-view="coming-soon">Overview</button>`;
   document.getElementById('topbar-nav').innerHTML=nav;
   // Main nav clicks
@@ -521,6 +528,11 @@ function renderView(view){
   const body=document.getElementById('app-body');
   Object.values(S.charts).forEach(c=>{try{c.destroy()}catch(e){}});
   S.charts={};
+  // Guard: a property can only open the operator tabs it exposes (see PROPS.tabs).
+  if(S.mode && S.mode!=='OWNER' && ALL_TABS.includes(view)){
+    const allowed=PROPS[S.mode]?.tabs||ALL_TABS;
+    if(!allowed.includes(view)) view='daily';
+  }
   if(view==='owner-coming-soon') { body.innerHTML=`<div class="page-header"><div class="page-title">Owner View</div><div class="page-sub">Coming Soon</div></div><div class="content" style="display:flex;align-items:center;justify-content:center;min-height:60vh"><div style="text-align:center;max-width:420px"><div style="font-size:3rem;margin-bottom:1.5rem;opacity:.3">🏗</div><div style="font-family:var(--serif);font-size:1.75rem;color:var(--ink);margin-bottom:.75rem">Owner View Coming Soon</div><div style="font-family:var(--mono);font-size:.75rem;color:var(--fog);line-height:1.7">We're perfecting the operator views first.<br>The owner dashboard will be built once<br>all property-level views are finalized.</div></div></div>`; }
   else if(view==='owner-summary')    { body.innerHTML=buildOwnerSummary(); wireOwnerSummary(); }
   else if(view==='owner-ar')    { body.innerHTML=buildOwnerAR(); }
