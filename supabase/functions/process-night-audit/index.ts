@@ -970,17 +970,23 @@ function parseAdjustmentsXlsx(rows: unknown[][]): AdjustmentsRow[] | null {
 //   6:RoomRate 7:FolioName(Company) 8:FolioBalance 9:CreditBalance
 //   10:OutstandingBalance 11:PaymentMethod 12:AvailableCreditLimit 13:AutoTopOff
 //
-// Hilton OnQ (RDURM) columns (0-based, after "Confirmation Number" header row):
+// PEP (branded HotelKey) — RDURM/Tru — columns (0-based, after the
+// "Confirmation Number" header row). Note: Tru runs on PEP, not Hilton OnQ;
+// the header still starts with "Confirmation Number" but the real layout is:
 //   0:# 1:ConfirmationNumber 2:GroupCode 3:RoomNumber 4:GuestName
-//   5:AddnGuests 6:CompanyName 7:CheckInDate 8:CheckOutDate 9:RatePlan
-//   10:PaymentMethod 11:Status 12:TodaysCharges 13:TodaysPayments
-//   14:TodaysOpeningBalance 15:TodaysNetChange 16:TodaysEndingBalance
+//   5:FirstName 6:LastName 7:AddnGuests 8:CompanyName 9:CheckInDate
+//   10:CheckOutDate 11:RatePlan 12:PaymentMethod 13:Status
+//   14:TodaysCharges 15:TodaysPayments 16:TodaysOpeningBalance
+//   17:TodaysNetChange 18:TodaysEndingBalance
+// A trailing "Groups" sub-table (header starts "Group Number") follows the
+// detail rows and must not be parsed as guest rows.
 
 interface InhouseRow {
   room_number: string; guest_name: string; company: string;
   arrival_date: string | null; departure_date: string | null;
   room_rate: number; folio_balance: number;
   payment_method: string; credit_limit: number;
+  rate_plan: string;
 }
 
 function parseInhouseXlsx(rows: unknown[][]): InhouseRow[] | null {
@@ -997,8 +1003,10 @@ function parseInhouseXlsx(rows: unknown[][]): InhouseRow[] | null {
       o = row.some((c) => typeof c === "string" && c.trim() === "First Name") ? 2 : 0;
       inDetail = true; isRdurm = false; continue;
     }
-    // Hilton OnQ header trigger
+    // PEP (RDURM/Tru) header trigger
     if (col1 === "Confirmation Number") { inDetail = true; isRdurm = true; continue; }
+    // Stop before the trailing "Groups" sub-table (its rows are not guest rows)
+    if (col1 === "Group Number") break;
     if (!inDetail) continue;
     if (typeof row[0] !== "number") continue;
 
@@ -1006,13 +1014,14 @@ function parseInhouseXlsx(rows: unknown[][]): InhouseRow[] | null {
       out.push({
         room_number:    strOf(row[3]),
         guest_name:     strOf(row[4]),
-        company:        strOf(row[6]),
-        arrival_date:   excelDateToIso(row[7]),
-        departure_date: excelDateToIso(row[8]),
-        room_rate:      0,                        // not in Hilton OnQ report
-        folio_balance:  toNum(row[16]) ?? 0,      // Today's Ending Balance
-        payment_method: strOf(row[10]),
-        credit_limit:   0,                        // not in Hilton OnQ report
+        company:        strOf(row[8]),            // Company Name
+        arrival_date:   excelDateToIso(row[9]),   // Check In Date
+        departure_date: excelDateToIso(row[10]),  // Check Out Date
+        room_rate:      0,                        // no per-night rate column in PEP in-house report
+        folio_balance:  toNum(row[18]) ?? 0,      // Today's Ending Balance
+        payment_method: strOf(row[12]),           // Payment Method
+        credit_limit:   0,                        // not in PEP in-house report
+        rate_plan:      strOf(row[11]),           // Rate Plan (L-CMP, L-HHNSRR, ...)
       });
     } else {
       out.push({
@@ -1025,6 +1034,7 @@ function parseInhouseXlsx(rows: unknown[][]): InhouseRow[] | null {
         folio_balance:  toNum(row[8 + o]) ?? 0,
         payment_method: strOf(row[11 + o]),
         credit_limit:   toNum(row[12 + o]) ?? 0,
+        rate_plan:      "",                        // WKFCW HotelKey in-house report has no Rate Plan column
       });
     }
   }
@@ -1721,7 +1731,7 @@ Deno.serve(async (req) => {
             company: r.company, arrival_date: r.arrival_date,
             departure_date: r.departure_date, room_rate: r.room_rate,
             folio_balance: r.folio_balance, payment_method: r.payment_method,
-            credit_limit: r.credit_limit,
+            credit_limit: r.credit_limit, rate_plan: r.rate_plan,
           })),
           "property,date,room_number",
         );

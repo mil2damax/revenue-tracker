@@ -624,6 +624,19 @@ const fmtDate=d=>{ if(!d) return '—'; const dt=new Date(d+'T00:00:00'); return
 const fmtMonth=d=>{ if(!d) return '—'; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',year:'numeric'}); };
 const nextDay=d=>{ const dt=new Date(d+'T00:00:00'); dt.setDate(dt.getDate()+1); return dt.toISOString().slice(0,10); };
 const round2c=n=>Math.round((n||0)*100)/100;
+// In-House "Rate" cell. Prefer the rate-plan/SRP code (PEP/Tru reports carry it):
+// L-CMP = true complimentary, L-HHNSRR = Standard Reward (NOT comp). Only fall
+// back to the zero-rate => COMP heuristic for reports that actually carry a
+// nightly rate column (WKFCW HotelKey); PEP in-house has no rate column, so
+// without a rate plan we show nothing rather than mislabel every room COMP.
+function ihRateCell(r){
+  const rp=(r.rate_plan||'').toUpperCase();
+  if(rp.includes('CMP'))    return '<span class="pill pill-amber">COMP</span>';
+  if(rp.includes('HHNSRR')) return '<span class="pill pill-green">REWARD</span>';
+  if(rp) return `<span class="mono" style="font-size:.68rem;color:var(--ink3)">${r.rate_plan}</span>`;
+  // No rate-plan code (WKFCW HotelKey): use the reported nightly rate; zero = comp.
+  return r.room_rate>0?fmt$(r.room_rate):'<span class="pill pill-amber">COMP</span>';
+}
 // Human-readable "same days last year" window for LY comparison labels, e.g.
 // "Jul 1–8, 2025". Derived from the current month row's snapshot_date (the
 // through-date of HotelKey's M-T-D / LY-M-T-D columns).
@@ -1051,7 +1064,7 @@ function renderDailyContent(){
     document.getElementById('ih-badge').textContent=rows.length?`${rows.length} guests · ${fmtDate(selDate)}${flagCount?' · '+flagCount+' flagged':''}`:'—';
     document.getElementById('ih-badge').className=`section-badge ${flagCount?'badge-alert':'badge-ok'}`;
     document.getElementById('ih-body').innerHTML=rows.length
-      ?`<div class="tbl-wrap" style="max-height:320px;overflow-y:auto"><table class="data-table sticky-head"><thead><tr><th>Room</th><th>Guest</th><th>Company</th><th>Arrival</th><th>Departure</th><th class="r">Rate</th><th class="r">Balance</th><th>Payment</th></tr></thead><tbody>${rows.sort((a,b)=>(a.room_number||'').localeCompare(b.room_number||'')).map(r=>{const flagRow=!isStandardBilling(r.company);return`<tr style="${flagRow?'background:var(--red-lt)':''}""><td class="mono" style="font-weight:600">${r.room_number||'—'}</td><td style="${flagRow?'color:var(--red);font-weight:600':''}">${r.guest_name||'—'}</td><td>${r.company?`<span class="pill ${flagRow?'pill-red':'pill-blue'}">${r.company}</span>`:'—'}</td><td class="mono" style="font-size:.72rem">${r.arrival_date?fmtDate(r.arrival_date):'—'}</td><td class="mono" style="font-size:.72rem">${r.departure_date?fmtDate(r.departure_date):'—'}</td><td class="r">${(!r.room_rate||r.room_rate===0)?'<span class="pill pill-amber">COMP</span>':fmt$(r.room_rate)}</td><td class="r" style="font-weight:500">${fmt$(r.folio_balance)}</td><td class="mono" style="font-size:.7rem">${r.payment_method||'—'}</td></tr>`;}).join('')}</tbody><tfoot><tr class="tot"><td colspan="6">Total Balance</td><td class="r">${fmt$(rows.reduce((s,r)=>s+(r.folio_balance||0),0))}</td><td></td></tr></tfoot></table></div>`
+      ?`<div class="tbl-wrap" style="max-height:320px;overflow-y:auto"><table class="data-table sticky-head"><thead><tr><th>Room</th><th>Guest</th><th>Company</th><th>Arrival</th><th>Departure</th><th class="r">Rate / Plan</th><th class="r">Balance</th><th>Payment</th></tr></thead><tbody>${rows.sort((a,b)=>(a.room_number||'').localeCompare(b.room_number||'')).map(r=>{const flagRow=!isStandardBilling(r.company);return`<tr style="${flagRow?'background:var(--red-lt)':''}""><td class="mono" style="font-weight:600">${r.room_number||'—'}</td><td style="${flagRow?'color:var(--red);font-weight:600':''}">${r.guest_name||'—'}</td><td>${r.company?`<span class="pill ${flagRow?'pill-red':'pill-blue'}">${r.company}</span>`:'—'}</td><td class="mono" style="font-size:.72rem">${r.arrival_date?fmtDate(r.arrival_date):'—'}</td><td class="mono" style="font-size:.72rem">${r.departure_date?fmtDate(r.departure_date):'—'}</td><td class="r">${ihRateCell(r)}</td><td class="r" style="font-weight:500">${fmt$(r.folio_balance)}</td><td class="mono" style="font-size:.7rem">${r.payment_method||'—'}</td></tr>`;}).join('')}</tbody><tfoot><tr class="tot"><td colspan="6">Total Balance</td><td class="r">${fmt$(rows.reduce((s,r)=>s+(r.folio_balance||0),0))}</td><td></td></tr></tfoot></table></div>`
       :empty('No in-house data','Upload In-House Guest Balances report');
   }
   renderIHTable(prop);
