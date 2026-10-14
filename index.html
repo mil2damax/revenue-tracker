@@ -1036,11 +1036,16 @@ function renderDailyContent(){
     const ytdADR=adrParts.length?adrParts.reduce((s,v)=>s+v,0)/adrParts.length:null;
     const lyYtdRev=round2c(lyYtdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0)+(lyMtdRev||0));
     const lyYtdTot=round2c(lyYtdMonthly.reduce((s,r)=>s+(r.total_revenue||0),0)+(lyMtdTot||0));
+    // Only show LY YTD when prior-year data actually covers the same months as
+    // this year's YTD window. Without it (e.g. a property with no prior-year
+    // history like Tru), the ratio compares a full TY YTD against a single
+    // LY-MTD figure and yields a nonsense % — hide it instead of misleading.
+    const lyYtdOK = lyYtdRev>0 && lyYtdMonthly.length>=ytdMonthly.length;
     document.getElementById('ytd-badge').textContent=`Jan 1 – ${fmtDate(d)}`;
     // LY YTD needs the LY same-days month portion, which only exists for the
     // latest reported date (see MTD note above) — hide it for earlier dates
     // rather than show a mismatched-window comparison.
-    document.getElementById('ytd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(ytdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(ytdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdTot)}</td></tr><tr><td>Avg Occupancy</td><td class="r">${fmtPct(ytdOcc)}</td></tr><tr><td>Avg ADR</td><td class="r">${fmt$(ytdADR)}</td></tr>${(isLatestSnap&&lyYtdRev>0)?`<tr><td>LY Room / Total Revenue <span style="font-size:.7rem;color:var(--fog)">(Jan 1 – ${moShort} ${dayNum}, ${yrNum-1})</span></td><td class="r" style="color:var(--fog)">${fmt$(lyYtdRev)} / ${fmt$(lyYtdTot)} ${deltaChip(ytdRev,lyYtdRev)}</td></tr>`:(!isLatestSnap?`<tr><td colspan="2" style="font-size:.68rem;color:var(--fog)">LY comparison shown on the latest date</td></tr>`:'')}${gapRow}</table>`;
+    document.getElementById('ytd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(ytdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(ytdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdTot)}</td></tr><tr><td>Avg Occupancy</td><td class="r">${fmtPct(ytdOcc)}</td></tr><tr><td>Avg ADR</td><td class="r">${fmt$(ytdADR)}</td></tr>${(isLatestSnap&&lyYtdOK)?`<tr><td>LY Room / Total Revenue <span style="font-size:.7rem;color:var(--fog)">(Jan 1 – ${moShort} ${dayNum}, ${yrNum-1})</span></td><td class="r" style="color:var(--fog)">${fmt$(lyYtdRev)} / ${fmt$(lyYtdTot)} ${deltaChip(ytdRev,lyYtdRev)}</td></tr>`:`<tr><td colspan="2" style="font-size:.68rem;color:var(--fog)">${isLatestSnap?'No prior-year data for this period — LY comparison hidden':'LY comparison shown on the latest date'}</td></tr>`}${gapRow}</table>`;
   } else { document.getElementById('ytd-body').innerHTML=empty('No YTD data',''); document.getElementById('ytd-badge').textContent='0 mo'; }
   // In-House Guest Balances — date selector lets user browse any uploaded snapshot
   const STANDARD_BILLING=['IHG REWARD','CLC','KFLEX','K-FLEX','FLEX'];
