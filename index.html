@@ -591,7 +591,7 @@ async function loadAllData(){
   } catch(e){ console.warn('Core load error:',e); }
   // Activity tables — load independently so a failure here never breaks core views
   try {
-    const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary,txNotes,repSnapshots,repReviews,medalliaSurveys,settlements,procTx,reconVerifs,bankDeposits,str] = await Promise.all([
+    const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary,txNotes,repSnapshots,repReviews,medalliaSurveys,settlements,procTx,reconVerifs,bankDeposits,str,strCompset] = await Promise.all([
       sbGet('clerk_activity','?order=date.desc&limit=2000'+pf),
       sbGet('user_activity','?order=date.desc&limit=3000'+pf),
       sbGet('adjustments_activity','?order=date.desc&limit=1000'+pf),
@@ -606,13 +606,14 @@ async function loadAllData(){
       sbGet('recon_verifications','?order=recon_date.desc&limit=1000'+pf).catch(()=>[]),
       sbGet('bank_deposits','?order=deposit_date.desc&limit=1000'+pf).catch(()=>[]),
       sbGet('str_monthly','?order=report_month.asc'+(isOwner?'':'&hotel_code=eq.'+prop)).catch(()=>[]),
+      sbGet('str_compset','?order=rooms.desc'+(isOwner?'':'&hotel_code=eq.'+prop)).catch(()=>[]),
     ]);
     S.clerkActivity=clerkActivity; S.userActivity=userActivity; S.adjActivity=adjActivity; S.lineItems=lineItems; S.taxSummary=taxSummary; S.txNotes=txNotes||[];
     S.repSnapshots=repSnapshots||[]; S.repReviews=repReviews||[]; S.medalliaSurveys=medalliaSurveys||[];
     S.settlements=settlements||[];
     S.procTx=procTx||[];
     S.reconVerifs=reconVerifs||[]; S.bankDeposits=bankDeposits||[];
-    S.str=str||[];
+    S.str=str||[]; S.strCompset=strCompset||[];
   } catch(e){ console.warn('Activity load error:',e); }
 }
 function dailyRow(date,prop){ return S.daily[(prop||S.mode)+'_'+date]||null; }
@@ -1619,6 +1620,7 @@ const STR_PERIODS=[{key:'current',label:'Current Month'},{key:'ytd',label:'Year 
 function strRows(){ const p=vp(); return (S.str||[]).filter(r=>r.hotel_code===p); }
 function strMonths(rows){ return [...new Set(rows.map(r=>r.report_month))].sort(); }
 function strGet(rows,month,metric,period){ return rows.find(r=>r.report_month===month&&r.metric===metric&&r.period===period)||null; }
+function strCompsetFor(prop,month){ const rows=(S.strCompset||[]).filter(r=>r.hotel_code===prop); const m=month||[...new Set(rows.map(r=>r.report_month))].sort().pop(); return rows.filter(r=>r.report_month===m).sort((a,b)=>(b.rooms||0)-(a.rooms||0)); }
 function strIdxColor(v){ return v==null?'var(--fog)':(v>=100?'var(--green)':'var(--red)'); }
 function strChg(v,invert){ if(v==null) return '<span style="color:var(--fog)">—</span>'; const good=invert?v<=0:v>=0; return `<span style="color:${good?'var(--green)':'var(--red)'};font-weight:500">${v>=0?'▲ +':'▼ '}${v.toFixed(1)}%</span>`; }
 
@@ -1658,6 +1660,19 @@ function buildMarket(){
     return `<tr><td style="font-weight:600">${m.idxName} <span style="color:var(--fog);font-weight:400">(${m.label})</span></td>${cells}</tr>`;
   }).join('');
 
+  // Competitive set (who's in the STR report)
+  const comp=strCompsetFor(prop,latest);
+  const compPeers=comp.filter(c=>!c.is_subject);
+  const compHtml=comp.length?`<div class="section-card">
+      <div class="section-head"><div class="section-title">Competitive Set</div><div class="section-badge badge-info">${compPeers.length} hotels · ${compPeers.reduce((s,c)=>s+(c.rooms||0),0)} rooms</div></div>
+      <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Hotel</th><th>City</th><th class="r">Rooms</th><th class="r">STR #</th></tr></thead><tbody>${comp.map(c=>{
+        const sister=/candlewood/i.test(c.member_name||'')&&!c.is_subject;
+        const tag=c.is_subject?'<span class="pill pill-green" style="margin-left:.45rem">YOU</span>':(sister?'<span class="pill pill-amber" style="margin-left:.45rem">MILKAM</span>':'');
+        return `<tr${c.is_subject?' style="background:rgba(201,151,58,.06)"':''}><td style="font-weight:${c.is_subject?'600':'500'}">${c.member_name||'—'}${tag}</td><td style="color:var(--ink3)">${(c.city_state||'').replace(',',', ')}</td><td class="r mono">${c.rooms==null?'—':c.rooms}</td><td class="r mono" style="color:var(--fog);font-size:.68rem">${c.member_str_id}</td></tr>`;
+      }).join('')}</tbody></table></div>
+      <div style="padding:.5rem 1.4rem .9rem;font-family:var(--mono);font-size:.58rem;color:var(--fog);line-height:1.5">Per the STR Response Report (${fmtMonth(latest)}). The index metrics above compare ${PROPS[prop]?.short||prop} against this comp set — which excludes your own property.</div>
+    </div>`:'';
+
   return `<div class="page-header"><div class="page-title">STR / Market</div><div class="page-sub">${PROPS[prop]?.name||prop} · Competitive benchmarking${sid?` · STR #${sid}`:''}${created?` · as of ${fmtDate(created)}`:''}</div></div>
   <div class="content">
     <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem">${tiles}</div>
@@ -1667,6 +1682,8 @@ function buildMarket(){
       <div class="section-head"><div class="section-title">${fmtMonth(latest)} — My Property vs. Competitive Set</div></div>
       <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Metric</th><th class="r">You</th><th class="r">Comp Set</th><th class="r">Index</th><th class="r">YoY (You)</th></tr></thead><tbody>${detail}</tbody></table></div>
     </div>
+
+    ${compHtml}
 
     <div class="section-card">
       <div class="section-head"><div class="section-title">Index Trend</div></div>

@@ -158,6 +158,39 @@ function parseGlance(rows: Row[]): { report_month: string; str_id: string | null
   return { report_month, str_id, recs };
 }
 
+// Parse the "Response Report" tab into competitive-set member rows.
+// Returns [] if the tab or the property table can't be found.
+function parseResponse(rows: Row[], report_month: string, hotel_code: string | null, str_id: string | null): Record<string, unknown>[] {
+  // Find the property table header: a row with STR# and Name labels.
+  let hdr = -1;
+  for (let r = 0; r < rows.length; r++) {
+    const cells = rows[r].map(norm);
+    if (cells.some((c) => /^str\s*#?$/i.test(c)) && cells.some((c) => /^name$/i.test(c))) { hdr = r; break; }
+  }
+  if (hdr < 0) return [];
+  const h = rows[hdr].map(norm);
+  const col = (re: RegExp) => h.findIndex((c) => re.test(c));
+  const cId = col(/^str\s*#?$/i), cName = col(/^name$/i), cCity = col(/city/i), cRooms = col(/^rooms$/i), cOpen = col(/open date/i);
+  if (cId < 0 || cName < 0) return [];
+
+  const out: Record<string, unknown>[] = [];
+  for (let r = hdr + 1; r < rows.length; r++) {
+    const id = norm(rows[r][cId]);
+    if (!/^\d+$/.test(id)) break;             // stop at the first non-property row (blank / totals)
+    out.push({
+      hotel_code, report_month,
+      member_str_id: id,
+      member_name: cName >= 0 ? norm(rows[r][cName]) || null : null,
+      city_state: cCity >= 0 ? norm(rows[r][cCity]) || null : null,
+      rooms: cRooms >= 0 ? toNum(rows[r][cRooms]) : null,
+      open_date: cOpen >= 0 ? (norm(rows[r][cOpen]) || null) : null,
+      is_subject: str_id != null && id === str_id,
+      str_id,
+    });
+  }
+  return out;
+}
+
 async function upsertBatch(table: string, rows: Record<string, unknown>[], conflict: string) {
   if (!rows.length) return;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=${conflict}`, {
@@ -218,7 +251,25 @@ Deno.serve(async (req) => {
     }
 
     await upsertBatch("str_monthly", out, "hotel_code,report_month,metric,period");
-    return Response.json({ success: true, rows: out.length, report_month, str_id, hotel }, { headers: CORS });
+
+    // Competitive-set membership from the Response Report tab (best-effort —
+    // never let this fail the main metric ingest, e.g. if str_compset is absent).
+    let compsetRows = 0;
+    try {
+      const respName = wb.SheetNames.find((n) => n.toLowerCase() === "response");
+      if (respName) {
+        const respRows = XLSX.utils.sheet_to_json(wb.Sheets[respName], { header: 1, raw: false, defval: "" }) as Row[];
+        const members = parseResponse(respRows, report_month, hotel, str_id).map((m) => ({ ...m, hotel_code: m.hotel_code || hotel }));
+        if (members.length) {
+          await upsertBatch("str_compset", members, "hotel_code,report_month,member_str_id");
+          compsetRows = members.length;
+        }
+      }
+    } catch (e) {
+      console.warn("str_compset upsert skipped:", String(e));
+    }
+
+    return Response.json({ success: true, rows: out.length, compsetRows, report_month, str_id, hotel }, { headers: CORS });
   } catch (e) {
     return Response.json({ success: false, error: String(e) }, { headers: CORS });
   }
