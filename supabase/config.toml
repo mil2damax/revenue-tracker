@@ -422,3 +422,9 @@ entrypoint = "./functions/process-night-audit/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/process-night-audit/*.html" ]
+
+[functions.process-str]
+enabled = true
+verify_jwt = false
+import_map = "./functions/process-str/deno.json"
+entrypoint = "./functions/process-str/index.ts"

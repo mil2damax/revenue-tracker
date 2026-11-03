@@ -345,11 +345,11 @@ const EDGE_FN_URL = 'https://ltbjavxegskmhyjqpext.supabase.co/functions/v1/proce
 // Reconciliation (needs Business Track / PEP processor feed) and Reputation
 // (needs Medallia via the Stay platform) tabs stay hidden until those feeds
 // are built — see the CC-recon and Medallia ingestion work.
-const ALL_TABS = ['daily','accountability','reconciliation','reputation','housekeeping','ar'];
-const TAB_LABELS = { daily:'Daily', accountability:'Accountability', reconciliation:'Reconciliation', reputation:'Reputation', housekeeping:'HK', ar:'AR / Aging' };
+const ALL_TABS = ['daily','accountability','reconciliation','reputation','housekeeping','ar','market'];
+const TAB_LABELS = { daily:'Daily', accountability:'Accountability', reconciliation:'Reconciliation', reputation:'Reputation', housekeeping:'HK', ar:'AR / Aging', market:'STR / Market' };
 const PROPS = {
   WKFCW:{ name:'Candlewood Suites Wake Forest', short:'Candlewood WF', pms:'HotelKey', active:true },
-  RDURM:{ name:'Tru by Hilton Wake Forest',     short:'Tru WF',        pms:'PEP',      active:true, tabs:['daily','accountability','housekeeping','ar'] },
+  RDURM:{ name:'Tru by Hilton Wake Forest',     short:'Tru WF',        pms:'PEP',      active:true, tabs:['daily','accountability','housekeeping','ar','market'] },
   RDUTT:{ name:'Home2 Suites Raleigh North',    short:'Home2 Raleigh', pms:'PEP',      active:false }
 };
 
@@ -559,6 +559,7 @@ function renderView(view){
   else if(view==='housekeeping'){ body.innerHTML=buildHK(); renderHKContent(vp()); }
   else if(view==='performance') { body.innerHTML=buildPerformance(); setTimeout(renderPerfCharts,100); }
   else if(view==='ar')          { body.innerHTML=buildAR(); }
+  else if(view==='market')      { body.innerHTML=buildMarket(); renderMarketContent(); }
   else if(view==='accountability') { body.innerHTML=buildAccountability(); wireAccountability(); }
   else if(view==='reputation')     { body.innerHTML=buildReputation(); }
   else if(view==='reconciliation') { body.innerHTML=buildReconciliation(); wireReconciliation(); }
@@ -590,7 +591,7 @@ async function loadAllData(){
   } catch(e){ console.warn('Core load error:',e); }
   // Activity tables — load independently so a failure here never breaks core views
   try {
-    const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary,txNotes,repSnapshots,repReviews,medalliaSurveys,settlements,procTx,reconVerifs,bankDeposits] = await Promise.all([
+    const [clerkActivity,userActivity,adjActivity,lineItems,taxSummary,txNotes,repSnapshots,repReviews,medalliaSurveys,settlements,procTx,reconVerifs,bankDeposits,str] = await Promise.all([
       sbGet('clerk_activity','?order=date.desc&limit=2000'+pf),
       sbGet('user_activity','?order=date.desc&limit=3000'+pf),
       sbGet('adjustments_activity','?order=date.desc&limit=1000'+pf),
@@ -604,12 +605,14 @@ async function loadAllData(){
       sbGet('processor_transactions','?order=batch_date.desc&limit=3000'+pf).catch(()=>[]),
       sbGet('recon_verifications','?order=recon_date.desc&limit=1000'+pf).catch(()=>[]),
       sbGet('bank_deposits','?order=deposit_date.desc&limit=1000'+pf).catch(()=>[]),
+      sbGet('str_monthly','?order=report_month.asc'+(isOwner?'':'&hotel_code=eq.'+prop)).catch(()=>[]),
     ]);
     S.clerkActivity=clerkActivity; S.userActivity=userActivity; S.adjActivity=adjActivity; S.lineItems=lineItems; S.taxSummary=taxSummary; S.txNotes=txNotes||[];
     S.repSnapshots=repSnapshots||[]; S.repReviews=repReviews||[]; S.medalliaSurveys=medalliaSurveys||[];
     S.settlements=settlements||[];
     S.procTx=procTx||[];
     S.reconVerifs=reconVerifs||[]; S.bankDeposits=bankDeposits||[];
+    S.str=str||[];
   } catch(e){ console.warn('Activity load error:',e); }
 }
 function dailyRow(date,prop){ return S.daily[(prop||S.mode)+'_'+date]||null; }
@@ -1602,6 +1605,114 @@ function buildARTrendTable(prop){
     if(i>0){const prevTot=arNetTotal(propAR.filter(r=>r.date===dates[i-1])); const diff=tot-prevTot; chg=`<span style="color:${diff>0?'var(--red)':'var(--green)'};">${diff>0?'+':''}${fmt$(diff)}</span>`;}
     return `<tr><td class="mono">${fmtDate(dt)}</td><td class="r mono">${fmt$(clc?.total)}</td><td class="r mono">${fmt$(ihg?.total)}</td><td class="r mono" style="color:${kflex&&kflex.total<0?'var(--green)':'var(--ink3)'}">${kflex?fmt$(kflex.total):'—'}</td><td class="r mono" style="font-weight:600">${fmt$(tot)}</td><td class="r mono" style="${settle?'color:var(--amber);font-weight:500':'color:var(--fog)'}">${settle?fmt$(settle.total):'—'}</td><td class="r mono" style="color:var(--red)">${fmt$(over90)}</td><td class="r mono">${chg}</td></tr>`;
   }).join('')}</tbody></table>`;
+}
+
+// ═══════════════════════════════════
+// STR / MARKET VIEW (Smith Travel Research — competitive benchmarking)
+// ═══════════════════════════════════
+const STR_METRICS=[
+  {key:'occ',   label:'Occupancy', idxName:'MPI', fmt:v=>v==null?'—':v.toFixed(1)+'%'},
+  {key:'adr',   label:'ADR',       idxName:'ARI', fmt:v=>v==null?'—':'$'+v.toFixed(2)},
+  {key:'revpar',label:'RevPAR',    idxName:'RGI', fmt:v=>v==null?'—':'$'+v.toFixed(2)},
+];
+const STR_PERIODS=[{key:'current',label:'Current Month'},{key:'ytd',label:'Year to Date'},{key:'run3',label:'Running 3 Mo'},{key:'run12',label:'Running 12 Mo'}];
+function strRows(){ const p=vp(); return (S.str||[]).filter(r=>r.hotel_code===p); }
+function strMonths(rows){ return [...new Set(rows.map(r=>r.report_month))].sort(); }
+function strGet(rows,month,metric,period){ return rows.find(r=>r.report_month===month&&r.metric===metric&&r.period===period)||null; }
+function strIdxColor(v){ return v==null?'var(--fog)':(v>=100?'var(--green)':'var(--red)'); }
+function strChg(v,invert){ if(v==null) return '<span style="color:var(--fog)">—</span>'; const good=invert?v<=0:v>=0; return `<span style="color:${good?'var(--green)':'var(--red)'};font-weight:500">${v>=0?'▲ +':'▼ '}${v.toFixed(1)}%</span>`; }
+
+function buildMarket(){
+  const prop=vp();
+  const rows=strRows();
+  const months=strMonths(rows);
+  if(!months.length) return `<div class="page-header"><div class="page-title">STR / Market</div><div class="page-sub">${PROPS[prop]?.name||prop} · Competitive benchmarking</div></div><div class="content">${empty('No STR data yet','Monthly STAR reports have not been ingested for this property')}</div>`;
+  const latest=months[months.length-1];
+  const latestRows=rows.filter(r=>r.report_month===latest);
+  const sid=rows[0]?.str_id, created=latestRows[0]?.date_created;
+
+  // KPI tiles — current-month indexes (MPI / ARI / RGI)
+  const tiles=STR_METRICS.map(m=>{
+    const r=strGet(rows,latest,m.key,'current');
+    const idx=r?r.idx:null, my=r?r.my_value:null, comp=r?r.comp_value:null, chg=r?r.idx_chg:null;
+    return `<div class="section-card" style="flex:1;min-width:190px;margin:0">
+      <div style="padding:1.1rem 1.3rem 1.15rem">
+        <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.07em;color:var(--fog);text-transform:uppercase">${m.label} Index · ${m.idxName}</div>
+        <div style="font-family:var(--serif);font-size:2.5rem;line-height:1.05;color:${strIdxColor(idx)};margin:.25rem 0 .1rem">${idx==null?'—':idx.toFixed(1)}</div>
+        <div style="font-family:var(--mono);font-size:.64rem;color:var(--ink3)">You ${m.fmt(my)} &nbsp;·&nbsp; Comp ${m.fmt(comp)}</div>
+        <div style="margin-top:.45rem;font-family:var(--mono);font-size:.62rem">${strChg(chg)} <span style="color:var(--fog)">vs LY</span></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Current-month detail table
+  const detail=STR_METRICS.map(m=>{
+    const r=strGet(rows,latest,m.key,'current');
+    if(!r) return '';
+    return `<tr><td style="font-weight:600">${m.label}</td><td class="r mono">${m.fmt(r.my_value)}</td><td class="r mono" style="color:var(--ink3)">${m.fmt(r.comp_value)}</td><td class="r mono" style="color:${strIdxColor(r.idx)};font-weight:600">${r.idx==null?'—':r.idx.toFixed(1)}</td><td class="r mono">${strChg(r.my_chg)}</td></tr>`;
+  }).join('');
+
+  // Index-by-period table (MPI/ARI/RGI across Current / YTD / R3 / R12)
+  const byPeriod=STR_METRICS.map(m=>{
+    const cells=STR_PERIODS.map(p=>{const r=strGet(rows,latest,m.key,p.key); return `<td class="r mono" style="color:${strIdxColor(r?r.idx:null)};font-weight:600">${r&&r.idx!=null?r.idx.toFixed(1):'—'}</td>`;}).join('');
+    return `<tr><td style="font-weight:600">${m.idxName} <span style="color:var(--fog);font-weight:400">(${m.label})</span></td>${cells}</tr>`;
+  }).join('');
+
+  return `<div class="page-header"><div class="page-title">STR / Market</div><div class="page-sub">${PROPS[prop]?.name||prop} · Competitive benchmarking${sid?` · STR #${sid}`:''}${created?` · as of ${fmtDate(created)}`:''}</div></div>
+  <div class="content">
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem">${tiles}</div>
+    <div style="font-family:var(--mono);font-size:.62rem;color:var(--fog);line-height:1.6;margin:-.4rem .15rem 1.1rem">Index 100 = fair share vs the competitive set. <span style="color:var(--green)">Above 100</span> = capturing more than your fair share; <span style="color:var(--red)">below 100</span> = underperforming the comp set. Comp set excludes this property.</div>
+
+    <div class="section-card">
+      <div class="section-head"><div class="section-title">${fmtMonth(latest)} — My Property vs. Competitive Set</div></div>
+      <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Metric</th><th class="r">You</th><th class="r">Comp Set</th><th class="r">Index</th><th class="r">YoY (You)</th></tr></thead><tbody>${detail}</tbody></table></div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-head"><div class="section-title">Index Trend</div></div>
+      <div style="padding:1.4rem;height:300px;position:relative"><canvas id="chart-str-index"></canvas></div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-head"><div class="section-title">Index by Period — ${fmtMonth(latest)}</div></div>
+      <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Index</th>${STR_PERIODS.map(p=>`<th class="r">${p.label}</th>`).join('')}</tr></thead><tbody>${byPeriod}</tbody></table></div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-head"><div class="section-title">RevPAR — You vs. Comp Set</div></div>
+      <div style="padding:1.4rem;height:280px;position:relative"><canvas id="chart-str-revpar"></canvas></div>
+    </div>
+  </div>`;
+}
+
+function renderMarketContent(){
+  const rows=strRows(); const months=strMonths(rows);
+  if(!months.length) return;
+  const labels=months.map(m=>fmtMonth(m));
+  const baseOpts=(yFmt)=>({responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{font:{family:'DM Mono',size:10},boxWidth:12}}},scales:{y:{ticks:{callback:yFmt,font:{family:'DM Mono',size:9}},grid:{color:'#e2e0db'}},x:{ticks:{font:{family:'DM Mono',size:9},maxRotation:45},grid:{display:false}}}});
+
+  const ctx1=document.getElementById('chart-str-index');
+  if(ctx1){
+    if(S.charts.strIndex) S.charts.strIndex.destroy();
+    const series=[
+      {label:'MPI · Occupancy',key:'occ',   color:'rgba(201,151,58,1)'},
+      {label:'ARI · ADR',       key:'adr',   color:'rgba(70,130,180,1)'},
+      {label:'RGI · RevPAR',    key:'revpar',color:'rgba(140,110,170,1)'},
+    ];
+    const datasets=series.map(d=>({label:d.label,data:months.map(m=>{const r=strGet(rows,m,d.key,'current');return r&&r.idx!=null?r.idx:null;}),borderColor:d.color,backgroundColor:d.color.replace(',1)',',.08)'),borderWidth:2,pointRadius:2,tension:.3,fill:false}));
+    datasets.push({label:'Fair share (100)',data:months.map(()=>100),borderColor:'rgba(136,146,164,.55)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false});
+    S.charts.strIndex=new Chart(ctx1,{type:'line',data:{labels,datasets},options:baseOpts(v=>v)});
+  }
+  const ctx2=document.getElementById('chart-str-revpar');
+  if(ctx2){
+    if(S.charts.strRevpar) S.charts.strRevpar.destroy();
+    const you=months.map(m=>{const r=strGet(rows,m,'revpar','current');return r?r.my_value:null;});
+    const comp=months.map(m=>{const r=strGet(rows,m,'revpar','current');return r?r.comp_value:null;});
+    S.charts.strRevpar=new Chart(ctx2,{type:'line',data:{labels,datasets:[
+      {label:'Your RevPAR',data:you,borderColor:'rgba(201,151,58,1)',backgroundColor:'rgba(201,151,58,.1)',borderWidth:2,pointRadius:2,tension:.3,fill:true},
+      {label:'Comp Set RevPAR',data:comp,borderColor:'rgba(136,146,164,.85)',borderWidth:1.5,borderDash:[4,3],pointRadius:2,tension:.3,fill:false},
+    ]},options:baseOpts(v=>'$'+v)});
+  }
 }
 
 // ═══════════════════════════════════
