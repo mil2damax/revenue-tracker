@@ -191,6 +191,59 @@ function parseResponse(rows: Row[], report_month: string, hotel_code: string | n
   return out;
 }
 
+// Parse the "Comp" (Competitive Set Report) tab for the subject's performance
+// rank per metric per period. Each metric block has a header row (with
+// "Year to Date" / "Running 3 Month" / "Running 12 Month" labels), a sub-header
+// row with 2024/2025/2026 under each period group, and a first "Rank" row
+// (rank by level, e.g. "1 of 5") before the "% Chg" sub-block.
+// Returns { occ|adr|revpar: { current|ytd|run3|run12: {rank,total} } }.
+function parseCompRank(rows: Row[]): Record<Metric, Record<string, { rank: number | null; total: number | null }>> {
+  const result = {} as Record<Metric, Record<string, { rank: number | null; total: number | null }>>;
+  const metricRe: Record<Metric, RegExp> = { occ: /^occupancy/i, adr: /^adr$/i, revpar: /^revpar$/i };
+  const parseRank = (v: Cell) => {
+    const m = norm(v).match(/(\d+)\s*of\s*(\d+)/i);
+    return m ? { rank: Number(m[1]), total: Number(m[2]) } : { rank: null, total: null };
+  };
+  for (const metric of METRICS) {
+    // metric header row (col 1 label), which also carries the period labels
+    let mr = -1;
+    for (let r = 0; r < rows.length; r++) {
+      const c1 = norm(rows[r][1]);
+      if (metricRe[metric].test(c1) && rows[r].map(norm).some((c) => /year to date/i.test(c))) { mr = r; break; }
+    }
+    if (mr < 0) continue;
+    const hdr = rows[mr].map(norm);
+    const ytdLbl = hdr.findIndex((c) => /year to date/i.test(c));
+    const r3Lbl = hdr.findIndex((c) => /running 3 month/i.test(c));
+    const r12Lbl = hdr.findIndex((c) => /running 12 month/i.test(c));
+    const sub = (rows[mr + 1] || []).map(norm);
+    const find2026 = (lo: number, hi: number) => sub.findIndex((c, i) => i >= lo && i < hi && /^2026$/.test(c));
+    const ytdCol = ytdLbl >= 0 ? find2026(ytdLbl, r3Lbl >= 0 ? r3Lbl : sub.length) : -1;
+    const r3Col = r3Lbl >= 0 ? find2026(r3Lbl, r12Lbl >= 0 ? r12Lbl : sub.length) : -1;
+    const r12Col = r12Lbl >= 0 ? find2026(r12Lbl, sub.length) : -1;
+
+    // first "Rank" row after the metric header = rank by level
+    let rankRow = -1;
+    for (let r = mr + 1; r < rows.length; r++) {
+      if (/^rank$/i.test(norm(rows[r][1]))) { rankRow = r; break; }
+    }
+    if (rankRow < 0) continue;
+    const rr = rows[rankRow];
+    // current month = last non-empty monthly rank cell before the YTD group
+    let curCol = -1;
+    const end = ytdLbl > 0 ? ytdLbl : rr.length;
+    for (let c = end - 1; c >= 2; c--) { if (norm(rr[c]) !== "") { curCol = c; break; } }
+
+    result[metric] = {
+      current: curCol >= 0 ? parseRank(rr[curCol]) : { rank: null, total: null },
+      ytd: ytdCol >= 0 ? parseRank(rr[ytdCol]) : { rank: null, total: null },
+      run3: r3Col >= 0 ? parseRank(rr[r3Col]) : { rank: null, total: null },
+      run12: r12Col >= 0 ? parseRank(rr[r12Col]) : { rank: null, total: null },
+    };
+  }
+  return result;
+}
+
 async function upsertBatch(table: string, rows: Record<string, unknown>[], conflict: string) {
   if (!rows.length) return;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=${conflict}`, {
@@ -252,6 +305,30 @@ Deno.serve(async (req) => {
 
     await upsertBatch("str_monthly", out, "hotel_code,report_month,metric,period");
 
+    // Competitive-set rank from the Comp tab (best-effort — the rank/rank_total
+    // columns may not exist yet; never let this fail the core metric ingest).
+    let rankRows = 0;
+    try {
+      const compName = wb.SheetNames.find((n) => n.toLowerCase() === "comp");
+      if (compName) {
+        const compRows = XLSX.utils.sheet_to_json(wb.Sheets[compName], { header: 1, raw: false, defval: "" }) as Row[];
+        const ranks = parseCompRank(compRows);
+        const rankUpdates = out
+          .map((r) => {
+            const rk = ranks[r.metric as Metric]?.[r.period as string];
+            if (!rk || rk.rank == null) return null;
+            return { hotel_code: r.hotel_code, report_month: r.report_month, metric: r.metric, period: r.period, rank: rk.rank, rank_total: rk.total };
+          })
+          .filter((x): x is Record<string, unknown> => x !== null);
+        if (rankUpdates.length) {
+          await upsertBatch("str_monthly", rankUpdates, "hotel_code,report_month,metric,period");
+          rankRows = rankUpdates.length;
+        }
+      }
+    } catch (e) {
+      console.warn("str_monthly rank update skipped:", String(e));
+    }
+
     // Competitive-set membership from the Response Report tab (best-effort —
     // never let this fail the main metric ingest, e.g. if str_compset is absent).
     let compsetRows = 0;
@@ -269,7 +346,7 @@ Deno.serve(async (req) => {
       console.warn("str_compset upsert skipped:", String(e));
     }
 
-    return Response.json({ success: true, rows: out.length, compsetRows, report_month, str_id, hotel }, { headers: CORS });
+    return Response.json({ success: true, rows: out.length, rankRows, compsetRows, report_month, str_id, hotel }, { headers: CORS });
   } catch (e) {
     return Response.json({ success: false, error: String(e) }, { headers: CORS });
   }

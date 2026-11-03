@@ -1621,6 +1621,8 @@ function strRows(){ const p=vp(); return (S.str||[]).filter(r=>r.hotel_code===p)
 function strMonths(rows){ return [...new Set(rows.map(r=>r.report_month))].sort(); }
 function strGet(rows,month,metric,period){ return rows.find(r=>r.report_month===month&&r.metric===metric&&r.period===period)||null; }
 function strCompsetFor(prop,month){ const rows=(S.strCompset||[]).filter(r=>r.hotel_code===prop); const m=month||[...new Set(rows.map(r=>r.report_month))].sort().pop(); return rows.filter(r=>r.report_month===m).sort((a,b)=>(b.rooms||0)-(a.rooms||0)); }
+function strRankColor(n){ return n==null?'var(--fog)':(n===1?'var(--green)':n<=2?'var(--amber)':'var(--ink3)'); }
+function strRankCell(r){ if(!r||r.rank==null) return '<span style="color:var(--fog)">—</span>'; return `<span style="color:${strRankColor(r.rank)};font-weight:600">#${r.rank}</span><span style="color:var(--fog)"> of ${r.rank_total}</span>`; }
 function strIdxColor(v){ return v==null?'var(--fog)':(v>=100?'var(--green)':'var(--red)'); }
 function strChg(v,invert){ if(v==null) return '<span style="color:var(--fog)">—</span>'; const good=invert?v<=0:v>=0; return `<span style="color:${good?'var(--green)':'var(--red)'};font-weight:500">${v>=0?'▲ +':'▼ '}${v.toFixed(1)}%</span>`; }
 
@@ -1642,7 +1644,10 @@ function buildMarket(){
         <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.07em;color:var(--fog);text-transform:uppercase">${m.label} Index · ${m.idxName}</div>
         <div style="font-family:var(--serif);font-size:2.5rem;line-height:1.05;color:${strIdxColor(idx)};margin:.25rem 0 .1rem">${idx==null?'—':idx.toFixed(1)}</div>
         <div style="font-family:var(--mono);font-size:.64rem;color:var(--ink3)">You ${m.fmt(my)} &nbsp;·&nbsp; Comp ${m.fmt(comp)}</div>
-        <div style="margin-top:.45rem;font-family:var(--mono);font-size:.62rem">${strChg(chg)} <span style="color:var(--fog)">vs LY</span></div>
+        <div style="margin-top:.5rem;display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono);font-size:.62rem">
+          <span>Rank ${strRankCell(r)}</span>
+          <span>${strChg(chg)} <span style="color:var(--fog)">vs LY</span></span>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -1651,12 +1656,12 @@ function buildMarket(){
   const detail=STR_METRICS.map(m=>{
     const r=strGet(rows,latest,m.key,'current');
     if(!r) return '';
-    return `<tr><td style="font-weight:600">${m.label}</td><td class="r mono">${m.fmt(r.my_value)}</td><td class="r mono" style="color:var(--ink3)">${m.fmt(r.comp_value)}</td><td class="r mono" style="color:${strIdxColor(r.idx)};font-weight:600">${r.idx==null?'—':r.idx.toFixed(1)}</td><td class="r mono">${strChg(r.my_chg)}</td></tr>`;
+    return `<tr><td style="font-weight:600">${m.label}</td><td class="r mono">${m.fmt(r.my_value)}</td><td class="r mono" style="color:var(--ink3)">${m.fmt(r.comp_value)}</td><td class="r mono" style="color:${strIdxColor(r.idx)};font-weight:600">${r.idx==null?'—':r.idx.toFixed(1)}</td><td class="r mono">${strRankCell(r)}</td><td class="r mono">${strChg(r.my_chg)}</td></tr>`;
   }).join('');
 
   // Index-by-period table (MPI/ARI/RGI across Current / YTD / R3 / R12)
   const byPeriod=STR_METRICS.map(m=>{
-    const cells=STR_PERIODS.map(p=>{const r=strGet(rows,latest,m.key,p.key); return `<td class="r mono" style="color:${strIdxColor(r?r.idx:null)};font-weight:600">${r&&r.idx!=null?r.idx.toFixed(1):'—'}</td>`;}).join('');
+    const cells=STR_PERIODS.map(p=>{const r=strGet(rows,latest,m.key,p.key); const rk=r&&r.rank!=null?`<div style="font-weight:400;font-size:.62rem;margin-top:.05rem;color:${strRankColor(r.rank)}">#${r.rank}<span style="color:var(--fog)">/${r.rank_total}</span></div>`:''; return `<td class="r mono" style="color:${strIdxColor(r?r.idx:null)};font-weight:600">${r&&r.idx!=null?r.idx.toFixed(1):'—'}${rk}</td>`;}).join('');
     return `<tr><td style="font-weight:600">${m.idxName} <span style="color:var(--fog);font-weight:400">(${m.label})</span></td>${cells}</tr>`;
   }).join('');
 
@@ -1680,7 +1685,7 @@ function buildMarket(){
 
     <div class="section-card">
       <div class="section-head"><div class="section-title">${fmtMonth(latest)} — My Property vs. Competitive Set</div></div>
-      <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Metric</th><th class="r">You</th><th class="r">Comp Set</th><th class="r">Index</th><th class="r">YoY (You)</th></tr></thead><tbody>${detail}</tbody></table></div>
+      <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Metric</th><th class="r">You</th><th class="r">Comp Set</th><th class="r">Index</th><th class="r">Rank</th><th class="r">YoY (You)</th></tr></thead><tbody>${detail}</tbody></table></div>
     </div>
 
     ${compHtml}
@@ -1691,7 +1696,7 @@ function buildMarket(){
     </div>
 
     <div class="section-card">
-      <div class="section-head"><div class="section-title">Index by Period — ${fmtMonth(latest)}</div></div>
+      <div class="section-head"><div class="section-title">Index &amp; Rank by Period — ${fmtMonth(latest)}</div></div>
       <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Index</th>${STR_PERIODS.map(p=>`<th class="r">${p.label}</th>`).join('')}</tr></thead><tbody>${byPeriod}</tbody></table></div>
     </div>
 
