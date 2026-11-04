@@ -489,7 +489,8 @@ async function enterFromSession(){
     props = up.map(r=>r.property);
   }catch(err){ loginErr('Could not load your access profile. Contact the owner.'); return; }
   S_role=role; S_props=props;
-  const mode = role==='owner' ? 'OWNER' : props[0];
+  const firstHotel = Object.keys(PROPS).find(c=>PROPS[c].active);
+  const mode = role==='owner' ? (firstHotel||'OWNER') : props[0];
   if(!mode){ loginErr('No hotel is assigned to this account yet. Contact the owner.'); await sb.auth.signOut(); return; }
   setAccountUi();
   enterApp(mode);
@@ -664,22 +665,30 @@ async function openManage2FA(){
 // APP SHELL
 // ═══════════════════════════════════
 function buildAppShell(){
+  const owner = S_role==='owner';
   const tag = document.getElementById('topbar-prop-tag');
-  if(S.mode==='OWNER'){ tag.textContent='OWNER VIEW'; tag.className='topbar-prop-tag tag-owner'; }
-  else { tag.textContent=S.mode; tag.className='topbar-prop-tag tag-'+S.mode.toLowerCase(); }
-  const isOwner=S.mode==='OWNER', propActive=S.mode!=='OWNER'&&PROPS[S.mode]?.active;
+  if(owner){
+    const sel='style="background:transparent;color:var(--gold);border:1px solid rgba(201,162,77,.45);border-radius:5px;padding:.2rem .5rem;font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;cursor:pointer"';
+    const opts=[`<option value="OWNER"${S.mode==='OWNER'?' selected':''}>OVERVIEW · ALL HOTELS</option>`]
+      .concat(Object.entries(PROPS).filter(([,p])=>p.active)
+        .map(([code,p])=>`<option value="${code}"${S.mode===code?' selected':''}>${code} · ${p.short}</option>`));
+    tag.innerHTML=`<select id="owner-switch" title="Switch hotel" ${sel}>${opts.join('')}</select>`;
+    tag.className='topbar-prop-tag tag-owner';
+  } else { tag.textContent=S.mode; tag.className='topbar-prop-tag tag-'+S.mode.toLowerCase(); }
+  const viewingOverview=S.mode==='OWNER', propActive=S.mode!=='OWNER'&&PROPS[S.mode]?.active;
   let nav='';
-  const adminItems = isOwner
-    ? [['owner-upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status'],['switch','⇄ Switch Property']]
-    : [['upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status'],['switch','⇄ Switch Property']];
+  const adminItems = owner
+    ? [['owner-upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status']]
+    : [['upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status']];
   const adminHtml=`<div class="admin-wrap" id="admin-wrap">
     <button class="admin-btn" id="admin-btn">⚙ Admin ▾</button>
     <div class="admin-menu" id="admin-menu">${adminItems.map(([v,l])=>`<button class="admin-item" data-aview="${v}">${l}</button>`).join('')}</div>
   </div>`;
-  if(isOwner) nav=`<button class="nav-btn active" data-view="owner-coming-soon">Overview</button>${adminHtml}`;
+  if(viewingOverview) nav=`<button class="nav-btn active" data-view="owner-coming-soon">Overview</button>${adminHtml}`;
   else if(propActive){ const tabs=(PROPS[S.mode]?.tabs||ALL_TABS); nav=tabs.map((v,i)=>`<button class="nav-btn${i===0?' active':''}" data-view="${v}">${TAB_LABELS[v]}</button>`).join('')+adminHtml; }
   else nav=`<button class="nav-btn active" data-view="coming-soon">Overview</button>`;
   document.getElementById('topbar-nav').innerHTML=nav;
+  document.getElementById('owner-switch')?.addEventListener('change', e=>{ enterApp(e.target.value); });
   // Main nav clicks
   document.getElementById('topbar-nav').addEventListener('click', e=>{
     const btn=e.target.closest('.nav-btn'); if(!btn) return;
