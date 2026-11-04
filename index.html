@@ -259,50 +259,49 @@ button{touch-action:manipulation}
 #toast.success{background:var(--ink);color:var(--gold)}
 #toast.error{background:#2d0b0b;color:#f87171}
 #toast.info{background:#0f172a;color:#93c5fd}
+/* --- Auth: login form + account menu --- */
+#login-wrap{display:flex;flex-direction:column;align-items:center;width:100%;max-width:340px;margin:0 auto}
+#login-form{width:100%;display:flex;flex-direction:column;gap:1rem;margin-top:2.25rem}
+.login-field{display:flex;flex-direction:column;gap:.4rem;text-align:left}
+.login-field label{font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--fog)}
+.login-field input{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:.72rem .85rem;color:#fff;font-family:var(--sans);font-size:.95rem;transition:border-color .15s}
+.login-field input::placeholder{color:rgba(255,255,255,.3)}
+.login-field input:focus{outline:none;border-color:var(--gold)}
+.login-btn{margin-top:.4rem;background:var(--gold);color:var(--ink);border:none;border-radius:8px;padding:.82rem;font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;font-weight:600;cursor:pointer;transition:opacity .15s}
+.login-btn:hover{opacity:.9}.login-btn:disabled{opacity:.5;cursor:default}
+.login-err{font-family:var(--mono);font-size:.63rem;color:#f87171;letter-spacing:.03em;min-height:1rem;text-align:center}
+.topbar-account{margin-left:auto;position:relative}
+.account-btn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:7px;color:var(--mist);font-family:var(--mono);font-size:.62rem;letter-spacing:.05em;padding:.45rem .7rem;cursor:pointer;display:flex;align-items:center;gap:.35rem}
+.account-btn:hover{border-color:rgba(255,255,255,.28)}
+.account-menu{position:absolute;right:0;top:calc(100% + .45rem);background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lg);min-width:210px;padding:.4rem;display:none;z-index:1100}
+.account-menu.show{display:block}
+.account-menu .am-email{font-family:var(--mono);font-size:.58rem;color:var(--fog);padding:.5rem .7rem .55rem;border-bottom:1px solid var(--border);margin-bottom:.3rem;word-break:break-all}
+.account-menu button{display:block;width:100%;text-align:left;background:none;border:none;border-radius:6px;padding:.55rem .7rem;font-family:var(--sans);font-size:.82rem;color:var(--ink);cursor:pointer}
+.account-menu button:hover{background:var(--cream)}
 </style>
 </head>
 <body>
 
 <div id="entry-screen">
-  <div id="prop-selector-wrap">
+  <div id="login-wrap">
     <div class="entry-logo">Catbird Seat</div>
     <div class="entry-tagline">Milkam Hospitality · Operations Intelligence</div>
-    <div id="prop-selector">
-      <button class="prop-btn owner-btn" data-prop="OWNER">
-        <div class="prop-icon owner">🏢</div>
-        <div><div class="prop-name">Owner View</div><div class="prop-code">All Properties</div></div>
-      </button>
-      <button class="prop-btn" data-prop="WKFCW">
-        <div class="prop-icon wkfcw">🏨</div>
-        <div><div class="prop-name">Candlewood Suites Wake Forest</div><div class="prop-code">WKFCW</div></div>
-      </button>
-      <button class="prop-btn" data-prop="RDURM">
-        <div class="prop-icon rdurm">🏨</div>
-        <div><div class="prop-name">Tru by Hilton Wake Forest</div><div class="prop-code">RDURM</div></div>
-        <div class="prop-coming">PEP</div>
-      </button>
-      <button class="prop-btn" data-prop="RDUTT">
-        <div class="prop-icon rdutt">🏨</div>
-        <div><div class="prop-name">Home2 Suites Raleigh North</div><div class="prop-code">RDUTT</div></div>
-        <div class="prop-coming">PEP</div>
-      </button>
-    </div>
-  </div>
-  <div id="pin-screen">
-    <button class="pin-back" id="pin-back-btn">← Back</button>
-    <div class="pin-for" id="pin-for-label">Owner View</div>
-    <div class="pin-label">Enter PIN</div>
-    <div class="pin-dots">
-      <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
-      <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
-    </div>
-    <div class="pin-pad" id="pin-pad">
-      <button class="pin-key" data-k="1">1</button><button class="pin-key" data-k="2">2</button><button class="pin-key" data-k="3">3</button>
-      <button class="pin-key" data-k="4">4</button><button class="pin-key" data-k="5">5</button><button class="pin-key" data-k="6">6</button>
-      <button class="pin-key" data-k="7">7</button><button class="pin-key" data-k="8">8</button><button class="pin-key" data-k="9">9</button>
-      <button class="pin-key wide" data-k="clr">CLR</button><button class="pin-key" data-k="0">0</button><button class="pin-key wide" data-k="del">⌫</button>
-    </div>
-    <div class="pin-err" id="pin-err">Incorrect PIN</div>
+    <form id="login-form" autocomplete="on">
+      <div class="login-field">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" autocomplete="username" required placeholder="you@milkamhospitality.com">
+      </div>
+      <div class="login-field">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" autocomplete="current-password" required placeholder="••••••••">
+      </div>
+      <div class="login-field" id="login-mfa-field" style="display:none">
+        <label for="login-mfa">Authenticator code</label>
+        <input type="text" id="login-mfa" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code">
+      </div>
+      <button type="submit" class="login-btn" id="login-btn">Sign in</button>
+      <div class="login-err" id="login-err"></div>
+    </form>
   </div>
 </div>
 
@@ -311,6 +310,14 @@ button{touch-action:manipulation}
     <div class="topbar-brand">Catbird Seat</div>
     <div class="topbar-prop-tag" id="topbar-prop-tag">OWNER</div>
     <nav class="topbar-nav" id="topbar-nav"></nav>
+    <div class="topbar-account">
+      <button class="account-btn" id="account-btn"><span id="account-email">·</span> <span style="opacity:.6">▾</span></button>
+      <div class="account-menu" id="account-menu">
+        <div class="am-email" id="am-email"></div>
+        <button id="am-change-pw">Change password</button>
+        <button id="am-signout">Sign out</button>
+      </div>
+    </div>
   </div>
   <div id="app-body"></div>
 </div>
@@ -326,10 +333,22 @@ button{touch-action:manipulation}
   </div>
 </div>
 
+<!-- Account modal — change password (and owner admin, added next) -->
+<div id="account-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1200;align-items:center;justify-content:center;padding:1rem" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow-lg);max-width:420px;width:100%">
+    <div style="padding:.875rem 1.4rem;border-bottom:1px solid var(--border);background:var(--cream);display:flex;align-items:center;justify-content:space-between">
+      <div class="section-title" id="account-modal-title">Account</div>
+      <button onclick="document.getElementById('account-modal').style.display='none'" style="background:none;border:none;color:var(--fog);font-size:1.1rem;cursor:pointer;padding:.2rem .5rem">✕</button>
+    </div>
+    <div id="account-modal-body" style="padding:1.25rem 1.4rem"></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
 <script>
 // ═══════════════════════════════════
 // CONFIG
@@ -369,7 +388,7 @@ function vp(){ return S.drillProp||S.mode; }
 // ═══════════════════════════════════
 // SUPABASE
 // ═══════════════════════════════════
-const sbHeaders = { 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json' };
+let sbHeaders = { 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json' };
 async function sbGet(table, qs=''){
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}${qs}`, {headers:sbHeaders});
   if(!r.ok) throw new Error(await r.text());
@@ -397,71 +416,137 @@ async function sbDelete(table, filter){
 }
 
 // ═══════════════════════════════════
-// PIN / ENTRY
+// AUTH / ENTRY  (Supabase Auth — replaces the old client-side PIN gate)
 // ═══════════════════════════════════
-let pinEntry='', pinTarget=null;
-
-document.getElementById('prop-selector').addEventListener('click', e=>{
-  const btn = e.target.closest('.prop-btn');
-  if(!btn) return;
-  pinTarget = btn.dataset.prop;
-  document.getElementById('pin-for-label').textContent = pinTarget==='OWNER' ? 'Owner View' : (PROPS[pinTarget]?.short || pinTarget);
-  document.getElementById('prop-selector-wrap').style.display='none';
-  document.getElementById('pin-screen').classList.add('show');
-  pinEntry=''; updateDots();
+const byId = id => document.getElementById(id);
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:false }
 });
+let S_user=null, S_role=null, S_props=[];
 
-document.getElementById('pin-back-btn').addEventListener('click', ()=>{
-  document.getElementById('pin-screen').classList.remove('show');
-  document.getElementById('prop-selector-wrap').style.display='';
-  pinEntry=''; updateDots();
-});
-
-document.getElementById('pin-pad').addEventListener('click', e=>{
-  const btn = e.target.closest('.pin-key');
-  if(!btn) return;
-  handlePinKey(btn.dataset.k);
-});
-
-document.addEventListener('keydown', e=>{
-  if(!document.getElementById('pin-screen').classList.contains('show')) return;
-  if(e.key>='0'&&e.key<='9') handlePinKey(e.key);
-  else if(e.key==='Backspace') handlePinKey('del');
-  else if(e.key==='Escape') handlePinKey('clr');
-});
-
-let pinChecking=false;
-function handlePinKey(k){
-  if(pinChecking) return;
-  if(k==='clr'){pinEntry='';updateDots();return}
-  if(k==='del'){pinEntry=pinEntry.slice(0,-1);updateDots();return}
-  if(pinEntry.length>=4) return;
-  pinEntry+=k; updateDots();
-  if(pinEntry.length===4){
-    pinChecking=true;
-    fetch(VERIFY_PIN_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},body:JSON.stringify({property:pinTarget,pin:pinEntry})})
-      .then(r=>r.json())
-      .then(data=>{ if(data.valid) enterApp(pinTarget); else { pinError(); pinChecking=false; } })
-      .catch(()=>{ pinError(); pinChecking=false; });
-  }
+// Every REST call is made AS the logged-in user, so per-hotel RLS applies.
+function setAuthToken(token){
+  sbHeaders = { 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+(token||SUPABASE_KEY), 'Content-Type':'application/json' };
 }
-function updateDots(){
-  for(let i=0;i<4;i++) document.getElementById('pd'+i).className='pin-dot'+(i<pinEntry.length?' filled':'');
+sb.auth.onAuthStateChange((_ev, session)=>{ setAuthToken(session?.access_token); });
+
+function loginErr(msg){ byId('login-err').textContent = msg||''; }
+function showLogin(){
+  byId('entry-screen').classList.remove('hidden');
+  byId('entry-screen').style.display='';
+  byId('app').classList.remove('visible');
+  byId('login-password').value=''; byId('login-mfa').value='';
+  loginMfaFactor=null; byId('login-mfa-field').style.display='none';
 }
-function pinError(){
-  for(let i=0;i<4;i++) document.getElementById('pd'+i).className='pin-dot error';
-  document.getElementById('pin-err').classList.add('show');
-  setTimeout(()=>{ pinEntry=''; pinChecking=false; updateDots(); document.getElementById('pin-err').classList.remove('show'); },800);
+
+// --- login: email + password, with optional TOTP 2FA ---
+let loginMfaFactor=null, loginBusy=false;
+byId('login-form').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  if(loginBusy) return;
+  loginBusy=true; byId('login-btn').disabled=true; loginErr('');
+  try{
+    const email = byId('login-email').value.trim();
+    const password = byId('login-password').value;
+    const code = byId('login-mfa').value.trim();
+    if(!loginMfaFactor){
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if(error){ loginErr(error.message || 'Sign-in failed'); return; }
+      // If TOTP is enrolled, step up to the second factor before entering.
+      const { data:aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+      if(aal && aal.currentLevel==='aal1' && aal.nextLevel==='aal2'){
+        const { data:factors } = await sb.auth.mfa.listFactors();
+        const totp = (factors?.totp||[]).find(f=>f.status==='verified') || (factors?.totp||[])[0];
+        if(totp){ loginMfaFactor=totp.id; byId('login-mfa-field').style.display=''; byId('login-mfa').focus(); loginErr('Enter your authenticator code'); return; }
+      }
+      await enterFromSession();
+    } else {
+      if(!/^\d{6}$/.test(code)){ loginErr('Enter the 6-digit code'); return; }
+      const { data:ch, error:ce } = await sb.auth.mfa.challenge({ factorId:loginMfaFactor });
+      if(ce){ loginErr(ce.message); return; }
+      const { error:ve } = await sb.auth.mfa.verify({ factorId:loginMfaFactor, challengeId:ch.id, code });
+      if(ve){ loginErr('Invalid code — try again'); return; }
+      loginMfaFactor=null;
+      await enterFromSession();
+    }
+  }catch(err){ loginErr(String(err?.message||err)); }
+  finally{ loginBusy=false; byId('login-btn').disabled=false; }
+});
+
+// --- resolve role + hotel from the DB, then open the app ---
+async function enterFromSession(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session){ showLogin(); return; }
+  setAuthToken(session.access_token);
+  S_user = session.user;
+  let role='manager', props=[];
+  try{
+    const prof = await sbGet('profiles', `?select=role&user_id=eq.${S_user.id}`);
+    role = prof[0]?.role || 'manager';
+    const up = await sbGet('user_properties', `?select=property&user_id=eq.${S_user.id}`);
+    props = up.map(r=>r.property);
+  }catch(err){ loginErr('Could not load your access profile. Contact the owner.'); return; }
+  S_role=role; S_props=props;
+  const mode = role==='owner' ? 'OWNER' : props[0];
+  if(!mode){ loginErr('No hotel is assigned to this account yet. Contact the owner.'); await sb.auth.signOut(); return; }
+  setAccountUi();
+  enterApp(mode);
 }
+
 function enterApp(mode){
-  pinChecking=false; pinEntry=''; // reset before entering so switch works cleanly
-  S.mode=mode;
-  document.getElementById('entry-screen').classList.add('hidden');
-  setTimeout(()=>document.getElementById('entry-screen').style.display='none',450);
-  document.getElementById('app').classList.add('visible');
+  S.mode = mode;
+  byId('entry-screen').classList.add('hidden');
+  setTimeout(()=>{ byId('entry-screen').style.display='none'; }, 450);
+  byId('app').classList.add('visible');
   buildAppShell();
   loadAllData().then(renderCurrentView);
 }
+
+// --- account menu: email, change password, sign out ---
+function setAccountUi(){
+  const em = S_user?.email || '';
+  byId('account-email').textContent = em.split('@')[0] || 'account';
+  byId('am-email').textContent = em;
+}
+byId('account-btn').addEventListener('click', (e)=>{ e.stopPropagation(); byId('account-menu').classList.toggle('show'); });
+document.addEventListener('click', ()=> byId('account-menu').classList.remove('show'));
+byId('am-signout').addEventListener('click', async ()=>{ await sb.auth.signOut(); location.reload(); });
+byId('am-change-pw').addEventListener('click', ()=>{ byId('account-menu').classList.remove('show'); openChangePassword(); });
+
+function openChangePassword(){
+  byId('account-modal-title').textContent = 'Change password';
+  byId('account-modal-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:.9rem">
+      <label style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fog)">New password
+        <input type="password" id="cp-new" autocomplete="new-password" style="width:100%;margin-top:.35rem;padding:.6rem .7rem;border:1px solid var(--border);border-radius:7px;font-size:.95rem;box-sizing:border-box">
+      </label>
+      <label style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fog)">Confirm new password
+        <input type="password" id="cp-confirm" autocomplete="new-password" style="width:100%;margin-top:.35rem;padding:.6rem .7rem;border:1px solid var(--border);border-radius:7px;font-size:.95rem;box-sizing:border-box">
+      </label>
+      <div id="cp-msg" style="font-family:var(--mono);font-size:.64rem;min-height:1rem"></div>
+      <button id="cp-save" style="background:var(--ink);color:var(--gold);border:none;border-radius:7px;padding:.7rem;font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer">Update password</button>
+    </div>`;
+  byId('account-modal').style.display='flex';
+  byId('cp-save').addEventListener('click', async ()=>{
+    const p1=byId('cp-new').value, p2=byId('cp-confirm').value, msg=byId('cp-msg');
+    msg.style.color='#f87171';
+    if(p1.length<8){ msg.textContent='Use at least 8 characters.'; return; }
+    if(p1!==p2){ msg.textContent='Passwords do not match.'; return; }
+    byId('cp-save').disabled=true; msg.style.color='var(--fog)'; msg.textContent='Updating…';
+    const { error } = await sb.auth.updateUser({ password:p1 });
+    if(error){ msg.style.color='#f87171'; msg.textContent=error.message; byId('cp-save').disabled=false; return; }
+    msg.style.color='var(--green)'; msg.textContent='Password updated.';
+    setTimeout(()=>{ byId('account-modal').style.display='none'; }, 900);
+  });
+}
+
+// --- boot: resume an existing session, else show login ---
+(async ()=>{
+  try{
+    const { data:{ session } } = await sb.auth.getSession();
+    if(session){ await enterFromSession(); } else { showLogin(); }
+  }catch(err){ showLogin(); }
+})();
 
 // ═══════════════════════════════════
 // APP SHELL
