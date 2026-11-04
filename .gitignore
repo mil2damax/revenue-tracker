@@ -3,3 +3,4 @@ node_modules/
 upload-log.txt
 medallia-upload-log.txt
 supabase/.temp/
+backups/
