@@ -50,6 +50,40 @@ foreach ($prop in $PROPERTIES) {
             Log "[$($prop.Code)] moved $($_.Name) -> CC Recon\$folderName Business Track Settlement.csv"
         }
 
+        # WKFCW only: normalize HotelKey's raw export names to the dated friendly
+        # convention ("MM.dd.yy <Report>.xlsx"). Power Automate used to do this, but
+        # HotelKey reports (Rate Override, Tax Report, Direct Bill Aging, ...) DON'T
+        # embed the date in the sheet — the Edge Function reads it from the filename —
+        # so the MM.dd.yy prefix is REQUIRED for WKFCW. Doing it here removes the
+        # dependency on Power Automate for naming/dating. RDURM is intentionally left
+        # raw: PEP embeds "Date:" in the sheet, so its files date themselves.
+        if ($prop.Code -eq 'WKFCW') {
+            $nameMap = [ordered]@{
+                'hotel-statistics'      = 'Hotel Statistics'
+                'clerk-activity'        = 'Clerk Activity'
+                'closed-folios-balance' = 'Closed Folio Balances'
+                'direct-bill-aging'     = 'Direct Bill Aging'
+                'high-balance-reports'  = 'In House Guest Balances'
+                'rate-override'         = 'Rate Override'
+                'user-activity-report'  = 'User Activity Report'
+                'adjustment-activity'   = 'Adjustments and Refunds'
+            }
+            Get-ChildItem $folder -File | Where-Object { $_.Extension -in '.xlsx','.xls' } | ForEach-Object {
+                # Already in the dated convention (e.g. Power Automate did it) -> leave it.
+                if ($_.Name -match '^\d{1,2}\.\d{1,2}\.\d{2}\s') { return }
+                $friendly = $null
+                foreach ($k in $nameMap.Keys) { if ($_.Name -match [regex]::Escape($k)) { $friendly = $nameMap[$k]; break } }
+                if (-not $friendly -and $_.BaseName -match 'Tax Report') { $friendly = 'Tax Report' }
+                # Unknown report type: still guarantee the date prefix so it can be dated.
+                $newName = if ($friendly) { "$folderName $friendly.xlsx" } else { "$folderName $($_.Name)" }
+                $target  = Join-Path $folder $newName
+                if ($_.FullName -ne $target -and -not (Test-Path $target)) {
+                    Move-Item $_.FullName $target -Force
+                    Log "[$($prop.Code)] renamed $($_.Name) -> $newName"
+                }
+            }
+        }
+
         $files = @(Get-ChildItem $folder -File | Where-Object { $_.Extension -in '.xlsx','.xls','.csv' })
         if ($files.Count -eq 0) {
             if ($i -eq 1) { Log "[$($prop.Code)] No report files in $folder - skipping" }
