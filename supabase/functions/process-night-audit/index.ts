@@ -101,7 +101,6 @@ type ReportType =
   | "AR_AGING"
   | "RATE_OVERRIDE"
   | "ADJUSTMENTS"
-  | "AR_ACTIVITY"
   | "INHOUSE_BALANCES"
   | "TAX_REPORT"
   | "CLERK_ACTIVITY"
@@ -122,7 +121,6 @@ function detectReportType(text: string): ReportType {
   if (/TAX REPORT/i.test(text)) return "TAX_REPORT";
   if (/CLERK ACTIVITY/i.test(text) && /Transaction Number/i.test(text)) return "CLERK_ACTIVITY";
   if (/ADJUSTMENTS AND REFUNDS/i.test(text)) return "ADJUSTMENTS";
-  if (/Accounts Receivable Activity/i.test(text) && /Company Code/i.test(text)) return "AR_ACTIVITY";
   if (/IN HOUSE GUEST (FOLIO )?BALANCES/i.test(text)) return "INHOUSE_BALANCES";
   if (/User Activity Report/i.test(text) && /Confirmation Number/i.test(text)) return "USER_ACTIVITY";
   if (/SETTLEMENT BY PAYMENT TYPE/i.test(text)) return "SETTLEMENTS";
@@ -755,69 +753,6 @@ function parseClerkActivityXlsx(rows: unknown[][]): ClerkActivityRow[] | null {
       gl_account_name: strOf(row[13 + o]),
       payment_type: strOf(row[14 + o]),
       payment_detail: strOf(row[15 + o]),
-    });
-  }
-
-  return out.length ? out : null;
-}
-
-// ── AR ACTIVITY (Excel) → ar_activity ────────────────────────────────
-// Full transaction-level AR ledger — one row per reservation charge.
-// Sections: "Accounts Receivable" (main), possibly others.
-// Header: Date | Company Name | Company Code | Transaction Type |
-//   Transaction Number | Name | Check In Date | Check Out Date |
-//   Current | 31 to 60 | 61 to 90 | 91 to 120 | 121 to 150 | Over 150 |
-//   Amount | Transaction Status
-// Each file is a full snapshot of ALL outstanding AR as of that date.
-
-interface ArActivityRow {
-  row_number: number;
-  transaction_date: string | null;
-  company_name: string;
-  company_code: string;
-  transaction_type: string;
-  transaction_number: string;
-  guest_name: string;
-  check_in_date: string | null;
-  check_out_date: string | null;
-  current_bal: number;
-  over_30: number;
-  over_60: number;
-  over_90: number;
-  over_120: number;
-  over_150: number;
-  amount: number | null;
-  transaction_status: string;
-}
-
-function parseArActivityXlsx(rows: unknown[][]): ArActivityRow[] | null {
-  const out: ArActivityRow[] = [];
-  let inDetail = false;
-
-  for (const row of rows) {
-    const col1 = typeof row[1] === "string" ? row[1].trim() : "";
-    if (col1 === "Date") { inDetail = true; continue; }
-    if (!inDetail) continue;
-    if (typeof row[0] !== "number") continue;
-
-    out.push({
-      row_number: row[0] as number,
-      transaction_date: excelDateToIso(row[1]),
-      company_name: strOf(row[2]),
-      company_code: strOf(row[3]),
-      transaction_type: strOf(row[4]),
-      transaction_number: strOf(row[5]),
-      guest_name: strOf(row[6]),
-      check_in_date: excelDateToIso(row[7]),
-      check_out_date: excelDateToIso(row[8]),
-      current_bal: toNum(row[9]) ?? 0,
-      over_30: toNum(row[10]) ?? 0,
-      over_60: toNum(row[11]) ?? 0,
-      over_90: toNum(row[12]) ?? 0,
-      over_120: toNum(row[13]) ?? 0,
-      over_150: toNum(row[14]) ?? 0,
-      amount: toNum(row[15]),
-      transaction_status: strOf(row[16]),
     });
   }
 
@@ -1546,42 +1481,6 @@ Deno.serve(async (req) => {
 
       case "DISPLAY_ONLY":
         return Response.json({ success: true, rows: 0, type, note: "Display-only report — not written to database" }, { headers: CORS });
-
-      case "AR_ACTIVITY": {
-        if (!isExcel) {
-          return Response.json({ success: true, rows: 0, type, note: "Display-only (PDF) — not written to database" }, { headers: CORS });
-        }
-        const date = dateFromFilename(file.name);
-        const parsed = parseArActivityXlsx(xlsxRows!);
-        if (!date || !parsed) {
-          return Response.json({ success: false, error: "AR_ACTIVITY detected but could not be parsed", type }, { headers: CORS });
-        }
-        await upsertBatch(
-          "ar_activity",
-          parsed.map((r) => ({
-            property, snapshot_date: date,
-            row_number: r.row_number,
-            transaction_date: r.transaction_date,
-            company_name: r.company_name,
-            company_code: r.company_code,
-            transaction_type: r.transaction_type,
-            transaction_number: r.transaction_number,
-            guest_name: r.guest_name,
-            check_in_date: r.check_in_date,
-            check_out_date: r.check_out_date,
-            current_bal: r.current_bal,
-            over_30: r.over_30,
-            over_60: r.over_60,
-            over_90: r.over_90,
-            over_120: r.over_120,
-            over_150: r.over_150,
-            amount: r.amount,
-            transaction_status: r.transaction_status,
-          })),
-          "property,snapshot_date,row_number",
-        );
-        return Response.json({ success: true, rows: parsed.length, type, date }, { headers: CORS });
-      }
 
       case "ADJUSTMENTS": {
         if (!isExcel) {
