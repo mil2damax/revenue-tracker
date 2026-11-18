@@ -5,6 +5,7 @@ $LOG_FILE     = "C:\dev\catbird-supabase\upload-log.txt"
 $PROPERTIES = @(
     @{ Code = "WKFCW"; Base = "C:\OD\Milkam Hospitality\Milkam Central - Documents\Mgmt\Meeneh\03 Front Office\01 WKFCW Night Audit" }
     @{ Code = "RDURM"; Base = "C:\OD\Milkam Hospitality\Milkam Central - Documents\Mgmt\WFH\03 Front Office\01 RDURM Night Audit" }
+    @{ Code = "RDUTT"; Base = "C:\OD\Milkam Hospitality\Milkam Central - Documents\Mgmt\NRH\03 Front Office\01 RDUTT Night Audit" }
 )
 
 function Log($msg) {
