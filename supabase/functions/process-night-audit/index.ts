@@ -415,9 +415,10 @@ function parseHotelStatisticsXlsx(rows: unknown[][]): HotelStatsXlsxResult | nul
   const noShowItem      = find((l) => /^No Shows?$/i.test(l));
   const walkInItem      = find((l) => /^Walk Ins?$/i.test(l));
   const cancItem        = find((l) => /^Cancellation for Today/i.test(l));
-  // HotelKey: "Tomorrows Arrivals" — Hilton OnQ: "TOMORROW'S ARRIVALS"
-  const tmrArrItem      = find((l) => /^Tomorrow'?s?\s+Arrivals?$/i.test(l));
-  const tmrDepItem      = find((l) => /^Tomorrow'?s?\s+Departures?$/i.test(l));
+  // HotelKey (WKFCW): "Tomorrows Arrivals". PEP (RDURM/RDUTT): "TOMORROW'S
+  // ARRIVALS" with a curly apostrophe (U+2019), so allow both ' and ’ (and none).
+  const tmrArrItem      = find((l) => /^Tomorrow['’]?s?\s+Arrivals?$/i.test(l));
+  const tmrDepItem      = find((l) => /^Tomorrow['’]?s?\s+Departures?$/i.test(l));
 
   // Grand total = the Totals row immediately following Misc Revenue's totals
   // (mirrors the PDF's "Misc Revenue ... Totals ... Totals" pattern).
