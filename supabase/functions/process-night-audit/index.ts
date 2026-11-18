@@ -206,15 +206,21 @@ function int(s: string): number {
 // Each labeled row on the report carries 5 columns: Actual Today | M-T-D | LY-M-T-D | Y-T-D | LY-T-D.
 //
 // Granularity rule:
-//   - Reports dated before 2026-06-01: month-end snapshots, loaded as MONTHLY
-//     records (M-T-D column) into monthly_revenue only — these represent whole,
-//     finished months.
-//   - Reports dated 2026-06-01 onward: loaded as DAILY records (Actual Today
+//   - Reports dated on/after DAILY_FROM: loaded as DAILY records (Actual Today
 //     column) into daily_revenue, AND the M-T-D column is upserted into
 //     monthly_revenue for the in-progress month so History stays live all month
 //     and finalizes naturally on the last day.
+//   - Reports dated before DAILY_FROM: treated as month-end monthly snapshots,
+//     written to monthly_revenue only (no daily_revenue).
+//
+// DAILY_FROM was originally 2026-06-01 (the dashboard go-live), back when the
+// only pre-June data was month-end monthly stat reports. The 2026-11 backfill
+// ingested genuine per-day night-audit reports going back to 2025-12-31 (RDUTT)
+// and 2026-01 (RDURM), each carrying a real "Actual Today" column, so the cutoff
+// was moved back to admit them as daily records. The xlsx parser reads columns
+// positionally, so the older (pre-2026-07-16) report layout parses fine.
 
-const DAILY_FROM = "2026-06-01";
+const DAILY_FROM = "2025-01-01";
 
 const DOLLAR_VAL = String.raw`-?\$[\d,]+(?:\.\d+)?`;
 const PCT_VAL = String.raw`[\d.]+\s*%`;
