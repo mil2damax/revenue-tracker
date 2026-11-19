@@ -435,7 +435,8 @@ function parseHotelStatisticsXlsx(rows: unknown[][]): HotelStatsXlsxResult | nul
     return null;
   }
 
-  function fieldsAt(idx: 0 | 1 | 2) {
+  // idx: 0 = Actual Today · 1 = M-T-D · 2 = LY-M-T-D · 3 = Y-T-D · 4 = LY-T-D
+  function fieldsAt(idx: 0 | 1 | 2 | 3 | 4) {
     const otherTotal = otherRevItem ? otherRevItem.vals[idx] : 0;
     const miscTotal = miscRevItem ? miscRevItem.vals[idx] : 0;
     return {
@@ -469,6 +470,12 @@ function parseHotelStatisticsXlsx(rows: unknown[][]): HotelStatsXlsxResult | nul
   const periodStart = `${y}-${m}-01`;
   const periodEnd = granularity === "monthly" ? date : lastDayOfMonth(Number(y), Number(m));
   const lyMtd = fieldsAt(2);
+  // LY-T-D — the report's own last-year year-to-date column (through the same
+  // calendar date). Authoritative, PMS-calculated — far better than summing
+  // reconstructed prior-year months, and it exists even for properties with no
+  // prior-year monthly rows loaded (e.g. Tru/Home2). Stored on the running
+  // current-month row; the dashboard reads it directly for LY YTD comparisons.
+  const lyYtd = fieldsAt(4);
 
   const monthlyRow = {
     period_start: periodStart,
@@ -482,6 +489,11 @@ function parseHotelStatisticsXlsx(rows: unknown[][]): HotelStatsXlsxResult | nul
     ly_mtd_occ_pct: lyMtd.occ_pct,
     ly_mtd_adr: lyMtd.adr,
     ly_mtd_revpar: lyMtd.revpar,
+    ly_ytd_room_revenue: lyYtd.room_revenue,
+    ly_ytd_total_revenue: lyYtd.total_revenue,
+    ly_ytd_occ_pct: lyYtd.occ_pct,
+    ly_ytd_adr: lyYtd.adr,
+    ly_ytd_revpar: lyYtd.revpar,
   };
 
   const dailyRow = granularity === "daily" ? { date, ...fieldsAt(0), ...dailyRoomStats } : null;

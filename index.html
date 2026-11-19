@@ -895,8 +895,19 @@ function buildOwnerSummary(){
   // current month, plus LY-M-T-D for the in-progress month (the report's own
   // "same month last year, through the same day" figure). Including the full LY
   // current month would inflate LY with days that haven't happened yet this year.
-  const lyYtdMonthly=S.monthly.filter(r=>{ const [y,m]=r.period_start.split('-').map(Number); return y===curYearNum-1&&m<curMonthNum; });
-  const lyYtdRoomRev=lyYtdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0)+(curMonthRow?.ly_mtd_room_revenue||0);
+  // LY YTD across the portfolio: for each active property pick the trustworthy
+  // source (same rule as the daily view) — summed real prior-year months when we
+  // hold them (WKFCW's loaded 2025), otherwise the report's own LY-T-D column
+  // (Tru/Home2, which have no prior-year months). Computing per property and
+  // summing keeps WKFCW's partial HotelKey LY-T-D out of the portfolio total.
+  const lyYtdRoomRev=Object.entries(PROPS).filter(([,p])=>p.active).map(([c])=>c).reduce((sum,code)=>{
+    const cur=S.monthly.find(r=>r.property===code&&r.period_start===curMonth+'-01');
+    const lyM=S.monthly.filter(r=>{ if(r.property!==code) return false; const [y,m]=r.period_start.split('-').map(Number); return y===curYearNum-1&&m<curMonthNum; });
+    const tyM=S.monthly.filter(r=>{ if(r.property!==code) return false; const [y,m]=r.period_start.split('-').map(Number); return y===curYearNum&&m<curMonthNum; });
+    const hasPrior=lyM.length>0&&lyM.length>=tyM.length;
+    const v=hasPrior?(lyM.reduce((s,r)=>s+(r.room_revenue||0),0)+(cur?.ly_mtd_room_revenue||0)):(cur?.ly_ytd_room_revenue||0);
+    return sum+v;
+  },0);
 
   // AR KPI: all categories (AR + Settlements + Invoices)
   const arAllAR=S.ar; // no category filter — show everything
@@ -1244,18 +1255,25 @@ function renderDailyContent(){
     const ytdOcc=occParts.length?occParts.reduce((s,v)=>s+v,0)/occParts.length:null;
     const adrParts=[...ytdMonthly.map(r=>r.adr).filter(v=>v!=null)];
     const ytdADR=adrParts.length?adrParts.reduce((s,v)=>s+v,0)/adrParts.length:null;
-    const lyYtdRev=round2c(lyYtdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0)+(lyMtdRev||0));
-    const lyYtdTot=round2c(lyYtdMonthly.reduce((s,r)=>s+(r.total_revenue||0),0)+(lyMtdTot||0));
-    // Only show LY YTD when prior-year data actually covers the same months as
-    // this year's YTD window. Without it (e.g. a property with no prior-year
-    // history like Tru), the ratio compares a full TY YTD against a single
-    // LY-MTD figure and yields a nonsense % — hide it instead of misleading.
-    const lyYtdOK = lyYtdRev>0 && lyYtdMonthly.length>=ytdMonthly.length;
+    // LY YTD — two sources, pick the trustworthy one per property:
+    //  • If we hold real prior-year monthly history covering the same window
+    //    (full LY months before the current month, e.g. WKFCW's loaded 2025),
+    //    SUM those + the current month's LY-M-T-D. This is the verified figure.
+    //  • Otherwise (Tru/Home2 — no prior-year months loaded) use the report's
+    //    own LY-T-D column (ly_ytd_*), the PMS's last-year-to-date.
+    // We must NOT prefer the report LY-T-D for a property that has full prior-year
+    // months, because some PMS histories (WKFCW/HotelKey) only cover part of last
+    // year, so their LY-T-D is a partial under-count — the summed months are right.
+    const hasPriorMonths = lyYtdMonthly.length>0 && lyYtdMonthly.length>=ytdMonthly.length;
+    const lyYtdFromReport = !hasPriorMonths && (curMonthRow?.ly_ytd_room_revenue||0)>0;
+    const lyYtdRev=lyYtdFromReport?round2c(curMonthRow.ly_ytd_room_revenue):round2c(lyYtdMonthly.reduce((s,r)=>s+(r.room_revenue||0),0)+(lyMtdRev||0));
+    const lyYtdTot=lyYtdFromReport?round2c(curMonthRow.ly_ytd_total_revenue||0):round2c(lyYtdMonthly.reduce((s,r)=>s+(r.total_revenue||0),0)+(lyMtdTot||0));
+    const lyYtdOK = lyYtdFromReport || (lyYtdRev>0 && hasPriorMonths);
     document.getElementById('ytd-badge').textContent=`Jan 1 – ${fmtDate(d)}`;
     // LY YTD needs the LY same-days month portion, which only exists for the
     // latest reported date (see MTD note above) — hide it for earlier dates
     // rather than show a mismatched-window comparison.
-    document.getElementById('ytd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(ytdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(ytdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdTot)}</td></tr><tr><td>Avg Occupancy</td><td class="r">${fmtPct(ytdOcc)}</td></tr><tr><td>Avg ADR</td><td class="r">${fmt$(ytdADR)}</td></tr>${(isLatestSnap&&lyYtdOK)?`<tr><td>LY Room / Total Revenue <span style="font-size:.7rem;color:var(--fog)">(Jan 1 – ${moShort} ${dayNum}, ${yrNum-1})</span></td><td class="r" style="color:var(--fog)">${fmt$(lyYtdRev)} / ${fmt$(lyYtdTot)} ${deltaChip(ytdRev,lyYtdRev)}</td></tr>`:`<tr><td colspan="2" style="font-size:.68rem;color:var(--fog)">${isLatestSnap?'No prior-year data for this period — LY comparison hidden':'LY comparison shown on the latest date'}</td></tr>`}${gapRow}</table>`;
+    document.getElementById('ytd-body').innerHTML=`<table class="data-table"><tr><td>Room Revenue</td><td class="r">${fmt$(ytdRev)}</td></tr><tr><td>Misc Revenue</td><td class="r">${fmt$(ytdMisc)}</td></tr><tr class="tot"><td>Total Revenue</td><td class="r">${fmt$(ytdTot)}</td></tr><tr><td>Avg Occupancy</td><td class="r">${fmtPct(ytdOcc)}</td></tr><tr><td>Avg ADR</td><td class="r">${fmt$(ytdADR)}</td></tr>${(isLatestSnap&&lyYtdOK)?`<tr><td>LY Room / Total Revenue <span style="font-size:.7rem;color:var(--fog)">(Jan 1 – ${moShort} ${dayNum}, ${yrNum-1}${lyYtdFromReport?' · from report':''})</span></td><td class="r" style="color:var(--fog)">${fmt$(lyYtdRev)} / ${fmt$(lyYtdTot)} ${deltaChip(ytdRev,lyYtdRev)}</td></tr>`:`<tr><td colspan="2" style="font-size:.68rem;color:var(--fog)">${isLatestSnap?'No prior-year data for this period — LY comparison hidden':'LY comparison shown on the latest date'}</td></tr>`}${gapRow}</table>`;
   } else { document.getElementById('ytd-body').innerHTML=empty('No YTD data',''); document.getElementById('ytd-badge').textContent='0 mo'; }
   // In-House Guest Balances — date selector lets user browse any uploaded snapshot
   const STANDARD_BILLING=['IHG REWARD','CLC','KFLEX','K-FLEX','FLEX'];
