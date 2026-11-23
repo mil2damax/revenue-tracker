@@ -874,31 +874,42 @@ function toast(msg,type='success'){ const t=document.getElementById('toast'); t.
 // hotel's actual payout = gross − sales tax − Tesla's per-kWh network fee.
 // Totals span every loaded statement month (not the current calendar month —
 // the latest statement typically lags a few weeks), so it shows the full period.
-function buildEvCharging(){
-  const rows=S.evCharging||[];
+// Pass a property code to scope to one hotel (rows broken out by month); with no
+// code it's the portfolio box (rows broken out by hotel).
+function buildEvCharging(onlyCode){
+  let rows=(S.evCharging||[]);
+  if(onlyCode) rows=rows.filter(r=>r.property===onlyCode);
   if(!rows.length) return '';
-  const byProp={};
-  rows.forEach(r=>{ const b=byProp[r.property]||(byProp[r.property]={kwh:0,net:0,gross:0,sessions:0});
-    b.kwh+=+r.kwh||0; b.net+=+r.net_revenue||0; b.gross+=+r.gross_revenue||0; b.sessions+=+r.sessions||0; });
+  const tot={kwh:0,net:0,gross:0,sessions:0};
+  rows.forEach(r=>{ tot.kwh+=+r.kwh||0; tot.net+=+r.net_revenue||0; tot.gross+=+r.gross_revenue||0; tot.sessions+=+r.sessions||0; });
   const periods=rows.map(r=>r.period_start).sort();
   const rangeLbl=periods[0]===periods[periods.length-1]?fmtMonth(periods[0]):`${fmtMonth(periods[0])} – ${fmtMonth(periods[periods.length-1])}`;
-  const tot={kwh:0,net:0,gross:0,sessions:0};
-  const codes=Object.keys(byProp).sort((a,b)=>byProp[b].net-byProp[a].net);
-  codes.forEach(c=>{ const b=byProp[c]; tot.kwh+=b.kwh; tot.net+=b.net; tot.gross+=b.gross; tot.sessions+=b.sessions; });
-  const perKwh=b=>b.kwh?'$'+(b.net/b.kwh).toFixed(3):'—';
-  const trs=codes.map(code=>{ const b=byProp[code];
-    return `<tr style="border-top:1px solid var(--border)">
-      <td style="padding:.5rem .4rem;font-weight:600;color:var(--ink)">${PROPS[code]?.short||code}</td>
-      <td style="padding:.5rem .4rem;text-align:right;font-family:var(--mono)">${fmtN(Math.round(b.kwh))}</td>
-      <td style="padding:.5rem .4rem;text-align:right;font-family:var(--mono);color:var(--fog)">${fmt$(b.gross)}</td>
-      <td style="padding:.5rem .4rem;text-align:right;font-family:var(--mono);font-weight:600;color:var(--green)">${fmt$(b.net)}</td>
-      <td style="padding:.5rem .4rem;text-align:right;font-family:var(--mono);color:var(--fog)">${perKwh(b)}</td></tr>`; }).join('');
+  const perKwh=(net,kwh)=>kwh?'$'+(net/kwh).toFixed(3):'—';
+  const tr=(label,kwh,gross,net)=>`<tr style="border-top:1px solid var(--border)">
+      <td style="padding:.5rem .4rem;font-weight:600;color:var(--ink)">${label}</td>
+      <td style="padding:.5rem .4rem;text-align:right;font-family:var(--mono)">${fmtN(Math.round(kwh))}</td>
+      <td style="padding:.5rem .4rem;text-align:right;font-family:var(--mono);color:var(--fog)">${fmt$(gross)}</td>
+      <td style="padding:.5rem .4rem;text-align:right;font-family:var(--mono);font-weight:600;color:var(--green)">${fmt$(net)}</td>
+      <td style="padding:.5rem .4rem;text-align:right;font-family:var(--mono);color:var(--fog)">${perKwh(net,kwh)}</td></tr>`;
+  let col1, trs;
+  if(onlyCode){
+    col1='Month';
+    trs=[...rows].sort((a,b)=>b.period_start.localeCompare(a.period_start))
+      .map(r=>tr(fmtMonth(r.period_start),r.kwh,r.gross_revenue,r.net_revenue)).join('');
+  } else {
+    col1='Hotel';
+    const byProp={};
+    rows.forEach(r=>{ const b=byProp[r.property]||(byProp[r.property]={kwh:0,net:0,gross:0});
+      b.kwh+=+r.kwh||0; b.net+=+r.net_revenue||0; b.gross+=+r.gross_revenue||0; });
+    trs=Object.keys(byProp).sort((a,b)=>byProp[b].net-byProp[a].net)
+      .map(c=>tr(PROPS[c]?.short||c,byProp[c].kwh,byProp[c].gross,byProp[c].net)).join('');
+  }
   const stat=(lbl,val,sub,color)=>`<div style="flex:1;min-width:140px">
       <div style="font-size:.74rem;color:var(--fog);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.2rem">${lbl}</div>
       <div style="font-size:1.7rem;font-weight:700;line-height:1.1;color:${color||'var(--ink)'}">${val}</div>
       ${sub?`<div style="font-size:.72rem;color:var(--fog);margin-top:.1rem">${sub}</div>`:''}</div>`;
   return `<div class="section-card">
-    <div class="section-head"><div class="section-title">EV Charging — Tesla Wall Connectors</div>
+    <div class="section-head"><div class="section-title">EV Charging — Tesla Wall Connector${onlyCode?'':'s'}</div>
       <div class="section-badge badge-ok">${fmt$(tot.net)} net</div></div>
     <div style="padding:1.2rem 1.4rem">
       <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:1.1rem">
@@ -909,7 +920,7 @@ function buildEvCharging(){
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:.84rem">
         <thead><tr style="color:var(--fog);font-size:.7rem;text-transform:uppercase;letter-spacing:.04em">
-          <th style="padding:.3rem .4rem;text-align:left">Hotel</th>
+          <th style="padding:.3rem .4rem;text-align:left">${col1}</th>
           <th style="padding:.3rem .4rem;text-align:right">kWh</th>
           <th style="padding:.3rem .4rem;text-align:right">Gross</th>
           <th style="padding:.3rem .4rem;text-align:right">Net payout</th>
@@ -1138,6 +1149,7 @@ function buildOwnerDrill(){
         <div class="section-head"><div class="section-title">Monthly History</div></div>
         <div style="padding:1.4rem">${buildMonthlyTableHtml(code)}</div>
       </div>
+      ${buildEvCharging(code)}
     </div></div>`;
   } else if(S.drillView==='daily'){
     content=buildDaily();
