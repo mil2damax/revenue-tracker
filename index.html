@@ -1225,7 +1225,6 @@ function buildDaily(){
       <div class="section-card"><div class="section-head"><div class="section-title">Year to Date</div><div class="section-badge badge-info" id="ytd-badge">—</div></div><div id="ytd-body">${loading()}</div></div>
     </div>
     <div class="section-card"><div class="section-head"><div class="section-title">In-House Guest Balances</div><div style="display:flex;align-items:center;gap:.6rem"><select id="ih-date-sel" style="font-family:var(--mono);font-size:.72rem;background:var(--ink2);color:var(--fog);border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:.2rem .5rem;cursor:pointer"></select><div class="section-badge badge-info" id="ih-badge">—</div></div></div><div id="ih-body">${loading()}</div></div>
-    ${buildEvCharging(vp())}
   </div>`;
 }
 function wireDaily(){
@@ -1236,6 +1235,10 @@ function wireDaily(){
 }
 function renderDailyContent(){
   const d=S.currentDate, prop=vp(), row=dailyRow(d,prop);
+  // EV charging (Tesla Wall Connector) — monthly; show the latest loaded
+  // statement month as "last month's" figure on the KPI next to Misc Revenue.
+  const evRows=(S.evCharging||[]).filter(r=>r.property===prop).sort((a,b)=>a.period_start.localeCompare(b.period_start));
+  const evLast=evRows[evRows.length-1]||null;
   const dayOvr=S.overrides.filter(r=>r.stay_date===d&&r.property===prop);
   const dayAdj=S.adjActivity.filter(r=>r.date===d&&r.property===prop);
   const refunds=dayAdj.filter(r=>r.section==='Refunds'||r.section==='Manager Refund');
@@ -1260,6 +1263,7 @@ function renderDailyContent(){
       <div class="kpi-card blue"><div class="kpi-label">RevPAR</div><div class="kpi-value">${fmt$(row.revpar)}</div><div class="kpi-meta">${fmtN(row.rooms_sold)} / ${fmtN(row.rooms_available)} rooms</div></div>
       <div class="kpi-card gold"><div class="kpi-label">Room Revenue</div><div class="kpi-value">${fmt$(row.room_revenue)}</div>${deltaChip(row.room_revenue,row.ly_room_revenue)}<div class="kpi-meta">LY: ${fmt$(row.ly_room_revenue)}</div></div>
       <div class="kpi-card amber" id="misc-kpi" style="cursor:pointer" title="Click to expand detail"><div class="kpi-label">Misc Revenue <span style="font-size:.55rem;opacity:.6">▼ detail</span></div><div class="kpi-value">${fmt$(row.misc_revenue)}</div><div class="kpi-meta">Total: ${fmt$(row.total_revenue)}</div></div>
+      ${evLast?`<div class="kpi-card green" id="ev-kpi" style="cursor:pointer" title="Click for monthly detail"><div class="kpi-label">EV Charging <span style="font-size:.55rem;opacity:.6">▼ detail</span></div><div class="kpi-value">${fmt$(evLast.net_revenue)}</div><div class="kpi-meta">${fmtMonth(evLast.period_start)} net · ${fmtN(Math.round(evLast.kwh))} kWh</div></div>`:''}
       ${(row.rooms_ooo!=null||row.no_shows!=null)?`
       <div style="grid-column:1/-1;font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fog);padding:.25rem 0 0;border-top:1px solid var(--border)">Room Inventory &amp; Activity</div>
       ${row.rooms_total!=null?`<div class="kpi-card blue"><div class="kpi-label">Total Rooms</div><div class="kpi-value">${fmtN(row.rooms_total)}</div><div class="kpi-meta">Sold: ${fmtN(row.rooms_sold)} · Avail: ${fmtN(row.rooms_available)}</div></div>`:''}
@@ -1376,6 +1380,17 @@ function renderDailyContent(){
         document.getElementById('daily-modal').style.display='flex';
       };
     } else { miscKpi.style.cursor='default'; }
+  }
+  // EV Charging modal — monthly net payout vs kWh detail
+  const evKpi=document.getElementById('ev-kpi');
+  if(evKpi&&evRows.length){
+    evKpi.onclick=()=>{
+      const t=evRows.reduce((a,r)=>{a.kwh+=+r.kwh||0;a.gross+=+r.gross_revenue||0;a.net+=+r.net_revenue||0;a.sessions+=+r.sessions||0;return a;},{kwh:0,gross:0,net:0,sessions:0});
+      const rate=(net,kwh)=>kwh?'$'+(net/kwh).toFixed(3):'—';
+      document.getElementById('daily-modal-title').textContent=`EV Charging — ${PROPS[prop]?.short||prop}`;
+      document.getElementById('daily-modal-body').innerHTML=`<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Month</th><th class="r">kWh</th><th class="r">Gross</th><th class="r">Net payout</th><th class="r">$/kWh</th></tr></thead><tbody>${[...evRows].reverse().map(r=>`<tr><td style="font-size:.82rem">${fmtMonth(r.period_start)}</td><td class="r mono">${fmtN(Math.round(r.kwh))}</td><td class="r mono" style="color:var(--fog)">${fmt$(r.gross_revenue)}</td><td class="r mono" style="font-weight:600;color:var(--green)">${fmt$(r.net_revenue)}</td><td class="r mono" style="color:var(--fog)">${rate(r.net_revenue,r.kwh)}</td></tr>`).join('')}</tbody><tfoot><tr class="tot"><td>Total</td><td class="r">${fmtN(Math.round(t.kwh))}</td><td class="r">${fmt$(t.gross)}</td><td class="r" style="color:var(--green)">${fmt$(t.net)}</td><td class="r">${rate(t.net,t.kwh)}</td></tr></tfoot></table><div style="padding:.6rem 1rem;font-family:var(--mono);font-size:.62rem;color:var(--fog)">Tesla Wall Connector pay-per-use · net of Tesla fee &amp; sales tax · ${fmtN(t.sessions)} sessions</div></div>`;
+      document.getElementById('daily-modal').style.display='flex';
+    };
   }
   // OOO / No Shows modals
   function showDailyModal(title,html){document.getElementById('daily-modal-title').textContent=title;document.getElementById('daily-modal-body').innerHTML=html;document.getElementById('daily-modal').style.display='flex';}
