@@ -384,7 +384,7 @@ const localISODate=d=>{ const dt=d||new Date(); return dt.getFullYear()+'-'+Stri
 // STATE
 // ═══════════════════════════════════
 const localYesterday=()=>localISODate(new Date(Date.now()-864e5));
-let S ={ mode:null, currentDate:localYesterday(), daily:{}, ar:[], overrides:[], adjs:[], inhouse:[], monthly:[], clerkActivity:[], userActivity:[], adjActivity:[], lineItems:[], pending:[], charts:{}, drillProp:null, drillView:'summary' };
+let S ={ mode:null, currentDate:localYesterday(), daily:{}, ar:[], overrides:[], adjs:[], inhouse:[], monthly:[], evCharging:[], clerkActivity:[], userActivity:[], adjActivity:[], lineItems:[], pending:[], charts:{}, drillProp:null, drillView:'summary' };
 // Returns the property to use for building any view — drillProp overrides mode when set
 function vp(){ return S.drillProp||S.mode; }
 
@@ -813,7 +813,8 @@ async function loadAllData(){
       sbGet('bank_deposits','?order=deposit_date.desc&limit=1000'+pf).catch(()=>[]),
       sbGet('str_monthly','?order=report_month.asc'+(isOwner?'':'&hotel_code=eq.'+prop)).catch(()=>[]),
       sbGet('str_compset','?order=rooms.desc'+(isOwner?'':'&hotel_code=eq.'+prop)).catch(()=>[]),
-    ]);
+      sbGet('ev_charging','?order=period_start.asc'+pf).catch(()=>[]),
+    ]).then(a=>{ S.evCharging=a.pop(); return a; });
     S.clerkActivity=clerkActivity; S.userActivity=userActivity; S.adjActivity=adjActivity; S.lineItems=lineItems; S.taxSummary=taxSummary; S.txNotes=txNotes||[];
     S.repSnapshots=repSnapshots||[]; S.repReviews=repReviews||[]; S.medalliaSurveys=medalliaSurveys||[];
     S.settlements=settlements||[];
@@ -868,6 +869,55 @@ function toast(msg,type='success'){ const t=document.getElementById('toast'); t.
 // ═══════════════════════════════════
 // OWNER VIEWS
 // ═══════════════════════════════════
+// EV (Tesla Wall Connector pay-per-use) charging box. Reads monthly rows from
+// ev_charging (loaded from Tesla "Charging Statement" CSV exports). "Net" is the
+// hotel's actual payout = gross − sales tax − Tesla's per-kWh network fee.
+// Totals span every loaded statement month (not the current calendar month —
+// the latest statement typically lags a few weeks), so it shows the full period.
+function buildEvCharging(){
+  const rows=S.evCharging||[];
+  if(!rows.length) return '';
+  const byProp={};
+  rows.forEach(r=>{ const b=byProp[r.property]||(byProp[r.property]={kwh:0,net:0,gross:0,sessions:0});
+    b.kwh+=+r.kwh||0; b.net+=+r.net_revenue||0; b.gross+=+r.gross_revenue||0; b.sessions+=+r.sessions||0; });
+  const periods=rows.map(r=>r.period_start).sort();
+  const rangeLbl=periods[0]===periods[periods.length-1]?fmtMonth(periods[0]):`${fmtMonth(periods[0])} – ${fmtMonth(periods[periods.length-1])}`;
+  const tot={kwh:0,net:0,gross:0,sessions:0};
+  const codes=Object.keys(byProp).sort((a,b)=>byProp[b].net-byProp[a].net);
+  codes.forEach(c=>{ const b=byProp[c]; tot.kwh+=b.kwh; tot.net+=b.net; tot.gross+=b.gross; tot.sessions+=b.sessions; });
+  const perKwh=b=>b.kwh?'$'+(b.net/b.kwh).toFixed(3):'—';
+  const trs=codes.map(code=>{ const b=byProp[code];
+    return `<tr style="border-top:1px solid var(--border)">
+      <td style="padding:.5rem .4rem;font-weight:600;color:var(--ink)">${PROPS[code]?.short||code}</td>
+      <td style="padding:.5rem .4rem;text-align:right;font-family:var(--mono)">${fmtN(Math.round(b.kwh))}</td>
+      <td style="padding:.5rem .4rem;text-align:right;font-family:var(--mono);color:var(--fog)">${fmt$(b.gross)}</td>
+      <td style="padding:.5rem .4rem;text-align:right;font-family:var(--mono);font-weight:600;color:var(--green)">${fmt$(b.net)}</td>
+      <td style="padding:.5rem .4rem;text-align:right;font-family:var(--mono);color:var(--fog)">${perKwh(b)}</td></tr>`; }).join('');
+  const stat=(lbl,val,sub,color)=>`<div style="flex:1;min-width:140px">
+      <div style="font-size:.74rem;color:var(--fog);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.2rem">${lbl}</div>
+      <div style="font-size:1.7rem;font-weight:700;line-height:1.1;color:${color||'var(--ink)'}">${val}</div>
+      ${sub?`<div style="font-size:.72rem;color:var(--fog);margin-top:.1rem">${sub}</div>`:''}</div>`;
+  return `<div class="section-card">
+    <div class="section-head"><div class="section-title">EV Charging — Tesla Wall Connectors</div>
+      <div class="section-badge badge-ok">${fmt$(tot.net)} net</div></div>
+    <div style="padding:1.2rem 1.4rem">
+      <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:1.1rem">
+        ${stat('Net Revenue',fmt$(tot.net),'your payout',' var(--green)')}
+        ${stat('Energy Dispensed',fmtN(Math.round(tot.kwh))+' <span style="font-size:.9rem;color:var(--fog)">kWh</span>','')}
+        ${stat('Effective Rate',tot.kwh?'$'+(tot.net/tot.kwh).toFixed(3)+'<span style="font-size:.9rem;color:var(--fog)">/kWh</span>':'—','net of fees')}
+        ${stat('Gross Collected',fmt$(tot.gross),'guests paid')}
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:.84rem">
+        <thead><tr style="color:var(--fog);font-size:.7rem;text-transform:uppercase;letter-spacing:.04em">
+          <th style="padding:.3rem .4rem;text-align:left">Hotel</th>
+          <th style="padding:.3rem .4rem;text-align:right">kWh</th>
+          <th style="padding:.3rem .4rem;text-align:right">Gross</th>
+          <th style="padding:.3rem .4rem;text-align:right">Net payout</th>
+          <th style="padding:.3rem .4rem;text-align:right">$/kWh</th></tr></thead>
+        <tbody>${trs}</tbody></table>
+      <div style="margin-top:.8rem;font-size:.72rem;color:var(--fog)">${rangeLbl} · ${fmtN(tot.sessions)} sessions · net of Tesla network fee &amp; sales tax</div>
+    </div></div>`;
+}
 function buildOwnerSummary(){
   const today=localISODate(), curMonth=today.slice(0,7), curYear=today.slice(0,4);
   const curYearNum=Number(curYear), curMonthNum=Number(curMonth.slice(5,7));
@@ -956,6 +1006,7 @@ function buildOwnerSummary(){
       <div class="kpi-card amber"><div class="kpi-label">Override Impact MTD</div><div class="kpi-value">${fmt$(ovrMTD.reduce((s,r)=>s+(r.override_amount||0),0)||null)}</div><div class="kpi-meta">${ovrMTD.length} overrides</div></div>
     </div>
     <div class="prop-summary-grid">${cards}</div>
+    ${buildEvCharging()}
   </div>`;
 }
 function wireOwnerSummary(){
