@@ -1225,6 +1225,7 @@ function buildDaily(){
       <div class="section-card"><div class="section-head"><div class="section-title">Year to Date</div><div class="section-badge badge-info" id="ytd-badge">—</div></div><div id="ytd-body">${loading()}</div></div>
     </div>
     <div class="section-card"><div class="section-head"><div class="section-title">In-House Guest Balances</div><div style="display:flex;align-items:center;gap:.6rem"><select id="ih-date-sel" style="font-family:var(--mono);font-size:.72rem;background:var(--ink2);color:var(--fog);border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:.2rem .5rem;cursor:pointer"></select><div class="section-badge badge-info" id="ih-badge">—</div></div></div><div id="ih-body">${loading()}</div></div>
+    ${buildEvCharging(vp())}
   </div>`;
 }
 function wireDaily(){
