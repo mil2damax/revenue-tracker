@@ -307,6 +307,18 @@ button{touch-action:manipulation}
 .form-label{font-size:var(--fs-xs)}
 .form-input{font-size:16px}
 .pill{font-size:var(--fs-xs)}
+/* Consolidated top-nav menu (desktop + phone) */
+.nav-menu-wrap{position:relative}
+.nav-menu-btn{display:inline-flex;align-items:center;gap:.4rem;height:34px;padding:0 .8rem;border-radius:7px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:var(--mist);font-family:var(--sans);font-size:var(--fs-xs);letter-spacing:.03em;cursor:pointer;transition:all .15s;max-width:62vw;white-space:nowrap}
+.nav-menu-btn:hover{border-color:var(--gold);color:var(--gold)}
+.nav-menu-label{overflow:hidden;text-overflow:ellipsis}
+.nav-menu-caret{color:var(--gold);font-size:.85em}
+.nav-menu{position:absolute;top:calc(100% + 8px);right:0;min-width:222px;background:var(--ink2);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:.4rem;display:none;flex-direction:column;z-index:300;box-shadow:0 10px 32px rgba(0,0,0,.45)}
+.nav-menu.open{display:flex}
+.nav-menu .nav-btn{display:flex;align-items:center;justify-content:flex-start;width:100%;height:44px;padding:0 .85rem;border:none;border-radius:7px;text-transform:none;letter-spacing:.02em;font-size:var(--fs-sm);color:var(--mist)}
+.nav-menu .nav-btn:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-menu .nav-btn.active{background:rgba(201,151,58,.14);color:var(--gold)}
+.nav-menu-sep{height:1px;background:rgba(255,255,255,.1);margin:.35rem .2rem}
 body{padding-bottom:env(safe-area-inset-bottom)}
 /* In-House "Flagged only" toggle + flagged-row hide (all widths) */
 .ih-flag-toggle{display:inline-flex;align-items:center;gap:.45rem;font-family:var(--sans);font-size:var(--fs-sm);color:var(--ink3);padding:.5rem .2rem .7rem;cursor:pointer;-webkit-user-select:none;user-select:none}
@@ -747,44 +759,39 @@ function buildAppShell(){
     tag.className='topbar-prop-tag tag-owner';
   } else { tag.textContent=S.mode; tag.className='topbar-prop-tag tag-'+S.mode.toLowerCase(); }
   const viewingOverview=S.mode==='OWNER', propActive=S.mode!=='OWNER'&&PROPS[S.mode]?.active;
-  let nav='';
   const adminItems = owner
     ? [['owner-upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status']]
     : [['upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status']];
-  const adminHtml=`<div class="admin-wrap" id="admin-wrap">
-    <button class="admin-btn" id="admin-btn">⚙ Admin ▾</button>
-    <div class="admin-menu" id="admin-menu">${adminItems.map(([v,l])=>`<button class="admin-item" data-aview="${v}">${l}</button>`).join('')}</div>
-  </div>`;
-  if(viewingOverview) nav=`<button class="nav-btn active" data-view="owner-coming-soon">Overview</button>${adminHtml}`;
-  else if(propActive){ const tabs=(PROPS[S.mode]?.tabs||ALL_TABS); nav=tabs.map((v,i)=>`<button class="nav-btn${i===0?' active':''}" data-view="${v}">${TAB_LABELS[v]}</button>`).join('')+adminHtml; }
-  else nav=`<button class="nav-btn active" data-view="coming-soon">Overview</button>`;
-  document.getElementById('topbar-nav').innerHTML=nav;
+  // Sections for the current context.
+  let sections;
+  if(viewingOverview) sections=[['owner-coming-soon','Overview']];
+  else if(propActive){ const tabs=(PROPS[S.mode]?.tabs||ALL_TABS); sections=tabs.map(v=>[v,TAB_LABELS[v]]); }
+  else sections=[['coming-soon','Overview']];
+  // One consolidated dropdown (sections + admin) — identical on desktop and phone.
+  const secBtns=sections.map(([v,l],i)=>`<button class="nav-btn${i===0?' active':''}" data-view="${v}">${l}</button>`).join('');
+  const admBtns=adminItems.map(([v,l])=>`<button class="nav-btn nav-admin" data-aview="${v}">${l}</button>`).join('');
+  document.getElementById('topbar-nav').innerHTML=`<div class="nav-menu-wrap"><button class="nav-menu-btn" id="nav-menu-btn" aria-haspopup="true"><span class="nav-menu-label" id="nav-menu-label">${sections[0][1]}</span><span class="nav-menu-caret">▾</span></button><div class="nav-menu" id="nav-menu">${secBtns}<div class="nav-menu-sep"></div>${admBtns}</div></div>`;
   document.getElementById('owner-switch')?.addEventListener('change', e=>{ enterApp(e.target.value); });
-  // Main nav clicks
-  document.getElementById('topbar-nav').addEventListener('click', e=>{
-    const btn=e.target.closest('.nav-btn'); if(!btn) return;
-    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    S.drillProp=null; S.drillView='summary'; // exit drill mode when using main nav
-    renderView(btn.dataset.view);
+  const navMenu=document.getElementById('nav-menu');
+  document.getElementById('nav-menu-btn').addEventListener('click', e=>{ e.stopPropagation(); navMenu.classList.toggle('open'); });
+  navMenu.addEventListener('click', e=>{
+    const btn=e.target.closest('button'); if(!btn) return;
+    navMenu.classList.remove('open');
+    S.drillProp=null; S.drillView='summary'; // exit drill mode when using the menu
+    if(btn.dataset.view){
+      navMenu.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('nav-menu-label').textContent=btn.textContent;
+      renderView(btn.dataset.view);
+    } else if(btn.dataset.aview){
+      const dv=btn.dataset.aview;
+      if(dv==='lock'||dv==='switch'){ lockApp(); return; }
+      navMenu.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+      document.getElementById('nav-menu-label').textContent=btn.textContent;
+      renderView(dv);
+    }
   });
-  // Admin button toggle
-  document.getElementById('admin-btn')?.addEventListener('click', e=>{
-    e.stopPropagation();
-    document.getElementById('admin-menu').classList.toggle('open');
-  });
-  // Admin menu item clicks
-  document.getElementById('admin-menu')?.addEventListener('click', e=>{
-    const item=e.target.closest('.admin-item'); if(!item) return;
-    document.getElementById('admin-menu').classList.remove('open');
-    const dv=item.dataset.aview;
-    if(dv==='lock'||dv==='switch'){ lockApp(); return; }
-    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-    S.drillProp=null; S.drillView='summary';
-    renderView(dv);
-  });
-  // Close admin menu when clicking elsewhere
-  document.addEventListener('click', ()=>document.getElementById('admin-menu')?.classList.remove('open'), {once:false});
+  document.addEventListener('click', ()=>document.getElementById('nav-menu')?.classList.remove('open'), {once:false});
 }
 function lockApp(){
   S={mode:null,currentDate:localYesterday(),daily:{},ar:[],overrides:[],adjs:[],inhouse:[],monthly:[],clerkActivity:[],userActivity:[],adjActivity:[],lineItems:[],pending:[],charts:{},drillProp:null,drillView:'summary'};
