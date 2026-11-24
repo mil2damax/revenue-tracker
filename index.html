@@ -279,6 +279,76 @@ button{touch-action:manipulation}
 .account-menu .am-email{font-family:var(--mono);font-size:.58rem;color:var(--fog);padding:.5rem .7rem .55rem;border-bottom:1px solid var(--border);margin-bottom:.3rem;word-break:break-all}
 .account-menu button{display:block;width:100%;text-align:left;background:none;border:none;border-radius:6px;padding:.55rem .7rem;font-family:var(--sans);font-size:.82rem;color:var(--ink);cursor:pointer}
 .account-menu button:hover{background:var(--cream)}
+/* ═══ Type scale (12px floor) · DM Sans labels · mobile ═══ */
+:root{--fs-xs:12px;--fs-sm:13px;--fs-md:14px;--fs-lg:15px;--fs-kpi:34px;--fog-strong:#5b6472}
+.page-sub{font-family:var(--sans);font-size:var(--fs-xs);color:var(--fog-strong)}
+.kpi-grid{grid-template-columns:repeat(4,1fr)}
+.kpi-label{font-family:var(--sans);font-size:var(--fs-xs)}
+.kpi-value{font-size:var(--fs-kpi)}
+.kpi-delta{font-size:var(--fs-xs)}
+.kpi-meta{font-size:var(--fs-xs);color:var(--fog-strong)}
+#d-kpis .kpi-meta{color:var(--fog-strong)}
+#d-kpis .kpi-label{white-space:nowrap}
+#d-kpis .kpi-label span{font-size:var(--fs-xs)!important;opacity:1!important;color:var(--fog-strong)}
+#d-src{color:var(--fog-strong)!important}
+.section-title{font-family:var(--sans);font-size:var(--fs-lg)}
+.section-badge{font-size:var(--fs-xs)}
+.data-table th{font-family:var(--sans);font-size:var(--fs-xs);color:var(--fog-strong)}
+.alert-chip{font-size:var(--fs-sm)}
+.date-display{font-family:var(--sans);font-size:var(--fs-md);color:var(--ink)}
+.drill-tab{font-size:var(--fs-xs)}
+.date-today-btn{font-size:var(--fs-xs)}
+.nav-btn{font-family:var(--sans);font-size:var(--fs-xs)}
+.topbar-prop-tag{font-family:var(--sans);font-size:var(--fs-xs)}
+.admin-btn,.admin-item{font-size:var(--fs-xs)}
+.topbar-action-btn{font-size:var(--fs-xs)}
+.btn-primary,.btn-sec{font-size:var(--fs-xs)}
+.notes-btn{font-size:var(--fs-xs)}
+.form-label{font-size:var(--fs-xs)}
+.form-input{font-size:16px}
+.pill{font-size:var(--fs-xs)}
+body{padding-bottom:env(safe-area-inset-bottom)}
+/* In-House "Flagged only" toggle + flagged-row hide (all widths) */
+.ih-flag-toggle{display:inline-flex;align-items:center;gap:.45rem;font-family:var(--sans);font-size:var(--fs-sm);color:var(--ink3);padding:.5rem .2rem .7rem;cursor:pointer;-webkit-user-select:none;user-select:none}
+.ih-flag-toggle input{width:17px;height:17px;cursor:pointer}
+.ih-table.flagged-only tbody tr:not(.flagged){display:none}
+#ih-date-sel{font-size:var(--fs-sm)!important;min-height:34px}
+.ih-table tbody tr{min-height:44px}
+/* ═══ Phone (≤640px): 16px body, 44px targets, In-House cards ═══ */
+@media(max-width:640px){
+  body{font-size:16px}
+  .content{padding:.75rem}
+  .page-title{font-size:1.5rem}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:.6rem}
+  .kpi-card{padding:1rem 1.1rem}
+  .topbar{gap:.75rem;padding:0 .9rem}
+  .topbar-nav{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .topbar-nav::-webkit-scrollbar{display:none}
+  .nav-btn{min-height:44px;height:44px;display:inline-flex;align-items:center;padding:0 .95rem}
+  .date-nav{flex-wrap:wrap;gap:.5rem;padding:.65rem 1rem}
+  .date-btn{width:44px;height:44px;font-size:1.1rem}
+  .date-today-btn{height:44px;padding:0 1rem}
+  .date-display{min-width:0;flex:1 1 auto;text-align:center}
+  .alert-strip{flex-direction:column;align-items:stretch;gap:.4rem}
+  .alert-chip{width:100%;justify-content:flex-start}
+  .data-table td,.data-table td.r,.data-table td.mono{font-size:var(--fs-sm)}
+  #d-kpis .kpi-label{white-space:normal}
+  #ih-body .tbl-wrap,#ih-body .tbl-scroll{overflow:visible;max-height:none}
+  .ih-table thead{display:none}
+  .ih-table tfoot{display:none}
+  .ih-table,.ih-table tbody{display:block}
+  .ih-table tbody tr{display:grid;grid-template-columns:auto 1fr auto;gap:.1rem .6rem;padding:.6rem .8rem;align-items:center}
+  .ih-table tbody td{display:block;border:none;padding:.05rem 0;font-size:var(--fs-sm)}
+  .ih-table tbody td:nth-child(1){grid-column:1;grid-row:1;font-weight:700}
+  .ih-table tbody td:nth-child(2){grid-column:2;grid-row:1}
+  .ih-table tbody td:nth-child(7){grid-column:3;grid-row:1;text-align:right;font-weight:600}
+  .ih-table tbody td:nth-child(3){grid-column:1;grid-row:2}
+  .ih-table tbody td:nth-child(5){grid-column:2;grid-row:2;color:var(--fog-strong)}
+  .ih-table tbody td:nth-child(8){grid-column:3;grid-row:2;text-align:right;color:var(--fog-strong)}
+  .ih-table tbody td:nth-child(4),.ih-table tbody td:nth-child(6){display:none}
+}
+@media(max-width:480px){:root{--fs-kpi:30px}}
+@media(max-width:360px){.kpi-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -832,6 +902,8 @@ const fmt$=n=>n==null?'—':'$'+Number(n).toLocaleString('en-US',{minimumFractio
 const fmtPct=n=>n==null?'—':Number(n).toFixed(2)+'%';
 const fmtN=n=>n==null?'—':Number(n).toLocaleString('en-US');
 const fmtDate=d=>{ if(!d) return '—'; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}); };
+// Short "Nov 22" form — display only, used where rows must stay on one line.
+const fmtMD=d=>{ if(!d) return '—'; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}); };
 const fmtMonth=d=>{ if(!d) return '—'; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',year:'numeric'}); };
 const nextDay=d=>{ const dt=new Date(d+'T00:00:00'); dt.setDate(dt.getDate()+1); return dt.toISOString().slice(0,10); };
 const round2c=n=>Math.round((n||0)*100)/100;
@@ -1251,8 +1323,8 @@ function renderDailyContent(){
   const alerts=[];
   if(dayOvr.length) alerts.push(`<div class="alert-chip ${ovrNet<-100?'alert':'warn'}">⚡ ${dayOvr.length} override${dayOvr.length>1?'s':''} — net ${fmt$(ovrNet)}</div>`);
   if(refunds.length) alerts.push(`<div class="alert-chip alert">↩ ${refunds.length} refund${refunds.length>1?'s':''}</div>`);
-  if(arTotal>160000) alerts.push(`<div class="alert-chip alert">🏦 AR Total ${fmt$(arTotal)} <span style="opacity:.6;font-size:.85em">(as of ${fmtDate(latArAlert)})</span></div>`);
-  if(arSettle>0) alerts.push(`<div class="alert-chip warn">⚠ ${fmt$(arSettle)} Payments Not Applied <span style="opacity:.6;font-size:.85em">(as of ${fmtDate(latArAlert)})</span></div>`);
+  if(arTotal>160000) alerts.push(`<div class="alert-chip alert">🏦 AR Total ${fmt$(arTotal)} <span style="font-size:var(--fs-xs)">(as of ${fmtDate(latArAlert)})</span></div>`);
+  if(arSettle>0) alerts.push(`<div class="alert-chip warn">⚠ ${fmt$(arSettle)} Payments Not Applied <span style="font-size:var(--fs-xs)">(as of ${fmtDate(latArAlert)})</span></div>`);
   if(!alerts.length) alerts.push(`<div class="alert-chip ok">✓ No flags for this date</div>`);
   document.getElementById('d-alerts').innerHTML=alerts.join('');
   document.getElementById('d-src').textContent=row?'Source: HotelKey Daily':'';
@@ -1265,7 +1337,7 @@ function renderDailyContent(){
       <div class="kpi-card amber" id="misc-kpi" style="cursor:pointer" title="Click to expand detail"><div class="kpi-label">Misc Revenue <span style="font-size:.55rem;opacity:.6">▼ detail</span></div><div class="kpi-value">${fmt$(row.misc_revenue)}</div><div class="kpi-meta">Total: ${fmt$(row.total_revenue)}</div></div>
       ${evLast?`<div class="kpi-card green" id="ev-kpi" style="cursor:pointer" title="Click for monthly detail"><div class="kpi-label">EV Charging <span style="font-size:.55rem;opacity:.6">▼ detail</span></div><div class="kpi-value">${fmt$(evLast.net_revenue)}</div><div class="kpi-meta">${fmtMonth(evLast.period_start)} net · ${fmtN(Math.round(evLast.kwh))} kWh</div></div>`:''}
       ${(row.rooms_ooo!=null||row.no_shows!=null)?`
-      <div style="grid-column:1/-1;font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fog);padding:.25rem 0 0;border-top:1px solid var(--border)">Room Inventory &amp; Activity</div>
+      <div style="grid-column:1/-1;font-family:var(--sans);font-size:var(--fs-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--fog-strong);padding:.25rem 0 0;border-top:1px solid var(--border)">Room Inventory &amp; Activity</div>
       ${row.rooms_total!=null?`<div class="kpi-card blue"><div class="kpi-label">Total Rooms</div><div class="kpi-value">${fmtN(row.rooms_total)}</div><div class="kpi-meta">Sold: ${fmtN(row.rooms_sold)} · Avail: ${fmtN(row.rooms_available)}</div></div>`:''}
       ${row.rooms_ooo!=null?`<div class="kpi-card red" data-daily-modal="ooo" title="Click for room detail"><div class="kpi-label">Out of Order <span style="font-size:.52rem;opacity:.6">▼</span></div><div class="kpi-value">${fmtN(row.rooms_ooo)}</div><div class="kpi-meta">${row.rooms_comp!=null?`Comp: ${fmtN(row.rooms_comp)}`:''}${row.rooms_house!=null?` · House: ${fmtN(row.rooms_house)}`:''}</div></div>`:''}
       ${row.no_shows!=null?`<div class="kpi-card amber" data-daily-modal="noshows" title="Click for guest detail"><div class="kpi-label">No Shows <span style="font-size:.52rem;opacity:.6">▼</span></div><div class="kpi-value">${fmtN(row.no_shows)}</div><div class="kpi-meta">${row.walk_ins!=null?`Walk-ins: ${fmtN(row.walk_ins)}`:''}${row.cancellations!=null?` · Cancels: ${fmtN(row.cancellations)}`:''}</div></div>`:''}
@@ -1365,7 +1437,7 @@ function renderDailyContent(){
     document.getElementById('ih-badge').textContent=rows.length?`${rows.length} guests · ${fmtDate(selDate)}${flagCount?' · '+flagCount+' flagged':''}`:'—';
     document.getElementById('ih-badge').className=`section-badge ${flagCount?'badge-alert':'badge-ok'}`;
     document.getElementById('ih-body').innerHTML=rows.length
-      ?`<div class="tbl-wrap" style="max-height:320px;overflow-y:auto"><table class="data-table sticky-head"><thead><tr><th>Room</th><th>Guest</th><th>Company</th><th>Arrival</th><th>Departure</th><th class="r">Rate / Plan</th><th class="r">Balance</th><th>Payment</th></tr></thead><tbody>${rows.sort((a,b)=>(a.room_number||'').localeCompare(b.room_number||'')).map(r=>{const flagRow=!isStandardBilling(r.company);return`<tr style="${flagRow?'background:var(--red-lt)':''}""><td class="mono" style="font-weight:600">${r.room_number||'—'}</td><td style="${flagRow?'color:var(--red);font-weight:600':''}">${r.guest_name||'—'}</td><td>${r.company?`<span class="pill ${flagRow?'pill-red':'pill-blue'}">${r.company}</span>`:'—'}</td><td class="mono" style="font-size:.72rem">${r.arrival_date?fmtDate(r.arrival_date):'—'}</td><td class="mono" style="font-size:.72rem">${r.departure_date?fmtDate(r.departure_date):'—'}</td><td class="r">${ihRateCell(r)}</td><td class="r" style="font-weight:500">${fmt$(r.folio_balance)}</td><td class="mono" style="font-size:.7rem">${r.payment_method||'—'}</td></tr>`;}).join('')}</tbody><tfoot><tr class="tot"><td colspan="6">Total Balance</td><td class="r">${fmt$(rows.reduce((s,r)=>s+(r.folio_balance||0),0))}</td><td></td></tr></tfoot></table></div>`
+      ?`<label class="ih-flag-toggle"><input type="checkbox" onchange="const t=this.closest('#ih-body').querySelector('.ih-table');if(t)t.classList.toggle('flagged-only',this.checked)"> Flagged only</label><div class="tbl-wrap" style="max-height:320px;overflow-y:auto"><table class="data-table sticky-head ih-table"><thead><tr><th>Room</th><th>Guest</th><th>Company</th><th>Arrival</th><th>Departure</th><th class="r">Rate / Plan</th><th class="r">Balance</th><th>Payment</th></tr></thead><tbody>${rows.sort((a,b)=>(a.room_number||'').localeCompare(b.room_number||'')).map(r=>{const flagRow=!isStandardBilling(r.company);return`<tr class="ih-row${flagRow?' flagged':''}" style="${flagRow?'background:var(--red-lt)':''}"><td class="mono" style="font-weight:600">${r.room_number||'—'}</td><td style="${flagRow?'color:var(--red);font-weight:600':''}">${r.guest_name||'—'}</td><td>${r.company?`<span class="pill ${flagRow?'pill-red':'pill-blue'}">${r.company}</span>`:'—'}</td><td class="mono" style="font-size:var(--fs-sm)">${r.arrival_date?fmtMD(r.arrival_date):'—'}</td><td class="mono" style="font-size:var(--fs-sm)">${r.departure_date?fmtMD(r.departure_date):'—'}</td><td class="r">${ihRateCell(r)}</td><td class="r" style="font-weight:500">${fmt$(r.folio_balance)}</td><td class="mono" style="font-size:var(--fs-sm)">${r.payment_method||'—'}</td></tr>`;}).join('')}</tbody><tfoot><tr class="tot"><td colspan="6">Total Balance</td><td class="r">${fmt$(rows.reduce((s,r)=>s+(r.folio_balance||0),0))}</td><td></td></tr></tfoot></table></div>`
       :empty('No in-house data','Upload In-House Guest Balances report');
   }
   renderIHTable(prop);
