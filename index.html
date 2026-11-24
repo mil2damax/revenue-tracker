@@ -308,12 +308,19 @@ button{touch-action:manipulation}
 .form-input{font-size:16px}
 .pill{font-size:var(--fs-xs)}
 /* Consolidated top-nav menu (desktop + phone) */
+/* Top-left hamburger menu (desktop + phone) */
+.topbar-nav{order:-1;margin-left:0!important;overflow:visible!important}
 .nav-menu-wrap{position:relative}
-.nav-menu-btn{display:inline-flex;align-items:center;gap:.4rem;height:34px;padding:0 .8rem;border-radius:7px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:var(--mist);font-family:var(--sans);font-size:var(--fs-xs);letter-spacing:.03em;cursor:pointer;transition:all .15s;max-width:62vw;white-space:nowrap}
-.nav-menu-btn:hover{border-color:var(--gold);color:var(--gold)}
-.nav-menu-label{overflow:hidden;text-overflow:ellipsis}
-.nav-menu-caret{color:var(--gold);font-size:.85em}
-.nav-menu{position:absolute;top:calc(100% + 8px);right:0;min-width:222px;background:var(--ink2);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:.4rem;display:none;flex-direction:column;z-index:300;box-shadow:0 10px 32px rgba(0,0,0,.45)}
+.nav-ham{display:inline-flex;flex-direction:column;justify-content:center;gap:4px;width:40px;height:40px;padding:0 9px;border-radius:8px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);cursor:pointer;transition:border-color .15s;flex-shrink:0}
+.nav-ham span{display:block;height:2px;border-radius:2px;background:var(--mist);transition:transform .2s,opacity .2s,background .15s}
+.nav-ham:hover{border-color:var(--gold)}
+.nav-ham:hover span{background:var(--gold)}
+.nav-ham.open{border-color:var(--gold)}
+.nav-ham.open span{background:var(--gold)}
+.nav-ham.open span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+.nav-ham.open span:nth-child(2){opacity:0}
+.nav-ham.open span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+.nav-menu{position:absolute;top:calc(100% + 8px);left:0;right:auto;min-width:222px;background:var(--ink2);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:.4rem;display:none;flex-direction:column;z-index:300;box-shadow:0 10px 32px rgba(0,0,0,.45)}
 .nav-menu.open{display:flex}
 .nav-menu .nav-btn{display:flex;align-items:center;justify-content:flex-start;width:100%;height:44px;padding:0 .85rem;border:none;border-radius:7px;text-transform:none;letter-spacing:.02em;font-size:var(--fs-sm);color:var(--mist)}
 .nav-menu .nav-btn:hover{background:rgba(255,255,255,.07);color:#fff}
@@ -334,8 +341,7 @@ body{padding-bottom:env(safe-area-inset-bottom)}
   .kpi-grid{grid-template-columns:repeat(2,1fr);gap:.6rem}
   .kpi-card{padding:1rem 1.1rem}
   .topbar{gap:.75rem;padding:0 .9rem}
-  .topbar-nav{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-  .topbar-nav::-webkit-scrollbar{display:none}
+  .topbar-nav{overflow:visible}
   .nav-btn{min-height:44px;height:44px;display:inline-flex;align-items:center;padding:0 .95rem}
   .date-nav{flex-wrap:wrap;gap:.5rem;padding:.65rem 1rem}
   .date-btn{width:44px;height:44px;font-size:1.1rem}
@@ -770,28 +776,28 @@ function buildAppShell(){
   // One consolidated dropdown (sections + admin) — identical on desktop and phone.
   const secBtns=sections.map(([v,l],i)=>`<button class="nav-btn${i===0?' active':''}" data-view="${v}">${l}</button>`).join('');
   const admBtns=adminItems.map(([v,l])=>`<button class="nav-btn nav-admin" data-aview="${v}">${l}</button>`).join('');
-  document.getElementById('topbar-nav').innerHTML=`<div class="nav-menu-wrap"><button class="nav-menu-btn" id="nav-menu-btn" aria-haspopup="true"><span class="nav-menu-label" id="nav-menu-label">${sections[0][1]}</span><span class="nav-menu-caret">▾</span></button><div class="nav-menu" id="nav-menu">${secBtns}<div class="nav-menu-sep"></div>${admBtns}</div></div>`;
+  document.getElementById('topbar-nav').innerHTML=`<div class="nav-menu-wrap"><button class="nav-ham" id="nav-menu-btn" aria-haspopup="true" aria-expanded="false" aria-label="Menu"><span></span><span></span><span></span></button><div class="nav-menu" id="nav-menu">${secBtns}<div class="nav-menu-sep"></div>${admBtns}</div></div>`;
   document.getElementById('owner-switch')?.addEventListener('change', e=>{ enterApp(e.target.value); });
   const navMenu=document.getElementById('nav-menu');
-  document.getElementById('nav-menu-btn').addEventListener('click', e=>{ e.stopPropagation(); navMenu.classList.toggle('open'); });
+  const navBtn=document.getElementById('nav-menu-btn');
+  const closeNav=()=>{ navMenu.classList.remove('open'); navBtn.classList.remove('open'); navBtn.setAttribute('aria-expanded','false'); };
+  navBtn.addEventListener('click', e=>{ e.stopPropagation(); const open=navMenu.classList.toggle('open'); navBtn.classList.toggle('open',open); navBtn.setAttribute('aria-expanded',open?'true':'false'); });
   navMenu.addEventListener('click', e=>{
     const btn=e.target.closest('button'); if(!btn) return;
-    navMenu.classList.remove('open');
+    closeNav();
     S.drillProp=null; S.drillView='summary'; // exit drill mode when using the menu
     if(btn.dataset.view){
       navMenu.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
-      document.getElementById('nav-menu-label').textContent=btn.textContent;
       renderView(btn.dataset.view);
     } else if(btn.dataset.aview){
       const dv=btn.dataset.aview;
       if(dv==='lock'||dv==='switch'){ lockApp(); return; }
       navMenu.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-      document.getElementById('nav-menu-label').textContent=btn.textContent;
       renderView(dv);
     }
   });
-  document.addEventListener('click', ()=>document.getElementById('nav-menu')?.classList.remove('open'), {once:false});
+  document.addEventListener('click', closeNav, {once:false});
 }
 function lockApp(){
   S={mode:null,currentDate:localYesterday(),daily:{},ar:[],overrides:[],adjs:[],inhouse:[],monthly:[],clerkActivity:[],userActivity:[],adjActivity:[],lineItems:[],pending:[],charts:{},drillProp:null,drillView:'summary'};
