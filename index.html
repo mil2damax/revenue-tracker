@@ -765,9 +765,6 @@ function buildAppShell(){
     tag.className='topbar-prop-tag tag-owner';
   } else { tag.textContent=S.mode; tag.className='topbar-prop-tag tag-'+S.mode.toLowerCase(); }
   const viewingOverview=S.mode==='OWNER', propActive=S.mode!=='OWNER'&&PROPS[S.mode]?.active;
-  const adminItems = owner
-    ? [['owner-upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status']]
-    : [['upload','⬆ Upload'],['history','🕐 History'],['sync-status','🔄 Sync Status']];
   // Sections for the current context.
   let sections;
   if(viewingOverview) sections=[['owner-coming-soon','Overview']];
@@ -775,8 +772,7 @@ function buildAppShell(){
   else sections=[['coming-soon','Overview']];
   // One consolidated dropdown (sections + admin) — identical on desktop and phone.
   const secBtns=sections.map(([v,l],i)=>`<button class="nav-btn${i===0?' active':''}" data-view="${v}">${l}</button>`).join('');
-  const admBtns=adminItems.map(([v,l])=>`<button class="nav-btn nav-admin" data-aview="${v}">${l}</button>`).join('');
-  document.getElementById('topbar-nav').innerHTML=`<div class="nav-menu-wrap"><button class="nav-ham" id="nav-menu-btn" aria-haspopup="true" aria-expanded="false" aria-label="Menu"><span></span><span></span><span></span></button><div class="nav-menu" id="nav-menu">${secBtns}<div class="nav-menu-sep"></div>${admBtns}</div></div>`;
+  document.getElementById('topbar-nav').innerHTML=`<div class="nav-menu-wrap"><button class="nav-ham" id="nav-menu-btn" aria-haspopup="true" aria-expanded="false" aria-label="Menu"><span></span><span></span><span></span></button><div class="nav-menu" id="nav-menu">${secBtns}</div></div>`;
   document.getElementById('owner-switch')?.addEventListener('change', e=>{ enterApp(e.target.value); });
   const navMenu=document.getElementById('nav-menu');
   const navBtn=document.getElementById('nav-menu-btn');
