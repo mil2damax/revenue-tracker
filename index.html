@@ -326,6 +326,25 @@ button{touch-action:manipulation}
 .nav-menu .nav-btn:hover{background:rgba(255,255,255,.07);color:#fff}
 .nav-menu .nav-btn.active{background:rgba(201,151,58,.14);color:var(--gold)}
 .nav-menu-sep{height:1px;background:rgba(255,255,255,.1);margin:.35rem .2rem}
+/* Pre-login privacy/confidentiality gate */
+#ack-screen{position:fixed;inset:0;background:var(--ink);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:1500;padding:1.5rem}
+#ack-screen.show{display:flex}
+.ack-card{width:100%;max-width:560px;max-height:92vh;display:flex;flex-direction:column}
+.ack-logo{font-family:var(--serif);font-size:1.4rem;color:var(--gold);text-align:center}
+.ack-step-label{font-family:var(--serif);font-size:1.2rem;color:#fff;text-align:center;margin-top:.9rem}
+.ack-progress{display:flex;gap:.45rem;justify-content:center;margin:.65rem 0 1rem}
+.ack-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.2);transition:background .2s}
+.ack-dot.on{background:var(--gold)}
+.ack-body{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:1.1rem 1.2rem;color:var(--mist);font-family:var(--sans);font-size:var(--fs-md);line-height:1.6;text-align:left}
+.ack-body h4{color:#fff;font-size:var(--fs-lg);margin:1.1rem 0 .4rem}
+.ack-body h4:first-of-type{margin-top:0}
+.ack-body p{margin-bottom:.65rem}
+.ack-body ul{padding-left:1.15rem;margin-bottom:.65rem}
+.ack-body li{margin-bottom:.4rem}
+.ack-draft{display:inline-block;font-family:var(--mono);font-size:var(--fs-xs);letter-spacing:.07em;text-transform:uppercase;color:var(--amber);border:1px solid rgba(180,83,9,.5);background:rgba(180,83,9,.12);border-radius:5px;padding:.2rem .5rem;margin-bottom:.9rem}
+.ack-check{display:flex;align-items:flex-start;gap:.65rem;margin:1rem 0 .9rem;color:var(--mist);font-family:var(--sans);font-size:var(--fs-sm);line-height:1.4;cursor:pointer;text-align:left;-webkit-user-select:none;user-select:none}
+.ack-check input{width:20px;height:20px;margin-top:1px;flex:none;cursor:pointer}
+.ack-foot{font-family:var(--mono);font-size:var(--fs-xs);color:var(--fog);text-align:center;margin-top:.7rem;min-height:1rem}
 body{padding-bottom:env(safe-area-inset-bottom)}
 /* In-House "Flagged only" toggle + flagged-row hide (all widths) */
 .ih-flag-toggle{display:inline-flex;align-items:center;gap:.45rem;font-family:var(--sans);font-size:var(--fs-sm);color:var(--ink3);padding:.5rem .2rem .7rem;cursor:pointer;-webkit-user-select:none;user-select:none}
@@ -391,6 +410,19 @@ body{padding-bottom:env(safe-area-inset-bottom)}
       <button type="submit" class="login-btn" id="login-btn">Sign in</button>
       <div class="login-err" id="login-err"></div>
     </form>
+  </div>
+</div>
+
+<!-- Pre-login privacy + confidentiality gate (shown once per device) -->
+<div id="ack-screen">
+  <div class="ack-card">
+    <div class="ack-logo">Catbird Seat</div>
+    <div class="ack-step-label" id="ack-step-label">Privacy &amp; Data Notice</div>
+    <div class="ack-progress"><span class="ack-dot on" id="ack-dot-1"></span><span class="ack-dot" id="ack-dot-2"></span></div>
+    <div class="ack-body" id="ack-body"></div>
+    <label class="ack-check"><input type="checkbox" id="ack-check"><span id="ack-check-label">I have read and understand this notice.</span></label>
+    <button class="login-btn" id="ack-continue" disabled>Continue</button>
+    <div class="ack-foot" id="ack-foot"></div>
   </div>
 </div>
 
@@ -742,9 +774,108 @@ async function openManage2FA(){
   });
 }
 
-// --- boot: resume an existing session, else show login ---
+// ═══════════════════════════════════
+// PRIVACY / CONFIDENTIALITY GATE  (pre-login, once per device)
+// ═══════════════════════════════════
+// Bump PRIVACY_VERSION to re-prompt every device after the text changes.
+const PRIVACY_VERSION = '2026-11-27';
+const ACK_KEY='cbs_privacy_ack', DEVICE_KEY='cbs_device_id', ACK_PENDING_KEY='cbs_ack_pending';
+const ACK_FN_URL = SUPABASE_URL + '/functions/v1/log-acknowledgment';
+
+// DRAFT TEXT — placeholder wording pending final review by Milkam / counsel.
+const ACK_DOCS = [
+  { label:'Privacy &amp; Data Notice',
+    check:'I have read and understand this Privacy &amp; Data Notice.',
+    html:`      <h4>Purpose</h4>
+      <p>Catbird Seat is a private, internal operations tool owned and operated by Milkam Hospitality. It brings together revenue, occupancy, and operating information for the hotels Milkam manages so that authorized owners and managers can run the business.</p>
+      <h4>What this system contains</h4>
+      <p>The system displays non-public business information, including daily and monthly revenue, occupancy and rate statistics, guest-balance and accounts-receivable data, benchmarking figures, and related operating metrics for one or more properties.</p>
+      <h4>Who may use it</h4>
+      <p>Access is limited to individuals Milkam Hospitality has expressly authorized. Each person is given access only to the hotel or hotels associated with their role. You may not access, or attempt to access, information for properties you have not been assigned.</p>
+      <h4>How your access is protected</h4>
+      <p>Access requires a personal email and password, and, where enabled, a second authentication factor. Your session ends automatically after a period of inactivity. These controls exist to protect the confidentiality of the information in this system.</p>
+      <h4>What we record when you accept</h4>
+      <p>When you accept this notice and the Confidentiality Agreement that follows, we keep a permanent record of the acceptance. That record includes the date and time, a token identifying this device, your device/browser description, the version of these documents you accepted, and the public IP address of your connection. We keep this record to evidence that the acknowledgment was given. We do not use it for advertising and do not sell it.</p>` },
+  { label:'Confidentiality Agreement',
+    check:'I have read and agree to this Confidentiality Agreement.',
+    html:`      <p>By continuing, you agree to the following as a condition of being given access to Catbird Seat.</p>
+      <h4>Confidential information</h4>
+      <p>All information made available through this system is confidential and proprietary to Milkam Hospitality and the ownership of the properties it covers. It is provided to you solely to perform your duties for Milkam Hospitality.</p>
+      <h4>Your obligations</h4>
+      <ul>
+        <li>Keep all information in this system strictly confidential.</li>
+        <li>Do not share, forward, export, print, photograph, screenshot, or otherwise disclose any information to anyone who is not an authorized user, whether inside or outside the organization.</li>
+        <li>Use the information only for legitimate business purposes on behalf of Milkam Hospitality.</li>
+        <li>Report any suspected unauthorized access or disclosure to Milkam Hospitality promptly.</li>
+      </ul>
+      <h4>Protecting your access</h4>
+      <ul>
+        <li>Keep your login credentials and authentication device secure, and do not share them.</li>
+        <li>Do not let anyone use the system under your access.</li>
+        <li>Sign out when you are finished, especially on a shared or public device.</li>
+      </ul>
+      <h4>Duration</h4>
+      <p>These obligations apply for as long as you have access and continue after your access or your relationship with Milkam Hospitality ends. Access may be suspended or revoked at any time, and misuse may result in further consequences.</p>
+      <p>By selecting the box below and continuing, you acknowledge that you have read, understand, and agree to this Confidentiality Agreement and the Privacy &amp; Data Notice.</p>` }
+];
+
+function ackGetDeviceId(){
+  let id=null; try{ id=localStorage.getItem(DEVICE_KEY); }catch(_){}
+  if(!id){
+    id=(self.crypto&&crypto.randomUUID)?crypto.randomUUID():('d'+Date.now()+Math.random().toString(16).slice(2));
+    try{ localStorage.setItem(DEVICE_KEY,id); }catch(_){}
+  }
+  return id;
+}
+function ackDone(){ try{ return localStorage.getItem(ACK_KEY)===PRIVACY_VERSION; }catch(_){ return false; } }
+
+async function ackPost(payload){
+  const r=await fetch(ACK_FN_URL,{ method:'POST', headers:{ 'Content-Type':'application/json', 'apikey':SUPABASE_KEY }, body:JSON.stringify(payload) });
+  if(!r.ok) throw new Error('log failed '+r.status);
+  return true;
+}
+async function ackRecord(){
+  const payload={ device_id:ackGetDeviceId(), clause_version:PRIVACY_VERSION, user_agent:navigator.userAgent };
+  try{ await ackPost(payload); try{ localStorage.removeItem(ACK_PENDING_KEY); }catch(_){} }
+  catch(_){ try{ localStorage.setItem(ACK_PENDING_KEY, JSON.stringify(payload)); }catch(__){} } // retried on next boot
+}
+async function ackFlushPending(){
+  let p=null; try{ p=localStorage.getItem(ACK_PENDING_KEY); }catch(_){}
+  if(!p) return;
+  try{ await ackPost(JSON.parse(p)); try{ localStorage.removeItem(ACK_PENDING_KEY); }catch(_){} }catch(_){}
+}
+function showAckGate(){
+  return new Promise(resolve=>{
+    let step=0;
+    const scr=byId('ack-screen'), bodyEl=byId('ack-body'), chk=byId('ack-check'),
+          cont=byId('ack-continue'), lbl=byId('ack-step-label'), clbl=byId('ack-check-label'), foot=byId('ack-foot');
+    function render(){
+      const d=ACK_DOCS[step];
+      lbl.innerHTML=d.label; bodyEl.innerHTML=d.html; bodyEl.scrollTop=0;
+      clbl.innerHTML=d.check; chk.checked=false; cont.disabled=true; foot.textContent='';
+      cont.textContent = (step<ACK_DOCS.length-1) ? 'Continue' : 'Agree & Continue';
+      byId('ack-dot-1').classList.toggle('on', step>=0);
+      byId('ack-dot-2').classList.toggle('on', step>=1);
+    }
+    chk.onchange=()=>{ cont.disabled=!chk.checked; };
+    cont.onclick=async ()=>{
+      if(!chk.checked) return;
+      if(step<ACK_DOCS.length-1){ step++; render(); return; }
+      cont.disabled=true; foot.textContent='Recording…';
+      await ackRecord();                       // best-effort; queued + retried if offline
+      try{ localStorage.setItem(ACK_KEY,PRIVACY_VERSION); }catch(_){}
+      scr.classList.remove('show');
+      resolve();
+    };
+    render();
+    scr.classList.add('show');
+  });
+}
+
+// --- boot: show the privacy gate if needed, then resume session / show login ---
 (async ()=>{
   try{
+    if(!ackDone()){ await showAckGate(); } else { ackFlushPending(); }
     const { data:{ session } } = await sb.auth.getSession();
     if(session){ await enterFromSession(); } else { showLogin(); }
   }catch(err){ showLogin(); }

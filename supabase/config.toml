@@ -430,3 +430,10 @@ entrypoint = "./functions/process-str/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/admin-users/index.ts"
+
+# Pre-login privacy/confidentiality acceptance log. No JWT (runs before login);
+# captures the client IP server-side and writes with the service role.
+[functions.log-acknowledgment]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/log-acknowledgment/index.ts"
